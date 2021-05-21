@@ -153,9 +153,9 @@ jobs:
       - name: "Checkout Code"
         uses: "actions/checkout@v2"
       - uses: "./.github/action-unit-test"
-        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/secret-management')"
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/secret-management/hashicorp-vault')"
         with:
-          component: "secret-management"
+          component: "secret-management/hashicorp-vault"
 
   unit-test-security:
     name: "Unit Test Security"
@@ -177,9 +177,9 @@ jobs:
       - name: "Checkout Code"
         uses: "actions/checkout@v2"
       - uses: "./.github/action-unit-test"
-        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/service-mesh')"
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/service-mesh/istio')"
         with:
-          component: "service-mesh"
+          component: "service-mesh/istio"
 
   unit-test-storage:
     name: "Unit Test Storage"
