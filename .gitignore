@@ -25,6 +25,3 @@ build/manifests/*
 
 # ignore temp built doc templates
 roles/support/build-docs/templates/built
-
-# ignore github directory
-.github/
