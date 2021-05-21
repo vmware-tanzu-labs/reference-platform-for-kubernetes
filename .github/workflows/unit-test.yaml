@@ -37,6 +37,11 @@ jobs:
         with:
           files: |
             roles/components/core/workload-tenancy
+      - name: List all modified files
+        run: |
+          for file in "${{ steps.changed-files.outputs.all_modified_files }}"; do
+            echo "$file was modified"
+          done
       - uses: "./.github/action-unit-test"
         if: "steps.changed-files.outputs.files_changed == 'true'"
         with:
