@@ -24,17 +24,6 @@ jobs:
       - name: Build the Image
         run: make build
       - name: Setup KIND Cluster
-        run: make setup.kind && make setup.kind.network
+        run: make setup.kind.network
       - name: Deploy the Component
-        run: |
-          ROLE=workload-tenancy \
-          CUSTOM_RPK_ARGS="-e '-e tanzu_default_tls_provider=ca \
-                           -e tanzu_provider=kind \
-                           -e tanzu_networking_ipip_mode=Always \
-                           -e tanzu_kubectl_context=kind-rpk-kind \
-                           -e tanzu_dns_provider=xip.io \
-                           -e ingress_ip=127.0.0.1 \
-                           -e tanzu_ingress_domain=127.0.0.1.xip.io \
-                           -e tanzu_cluster_name=kind-rpk-kind \
-                           -e tanzu_mission_control_cluster_group=rpk-clusters'" \
-          make deploy.role
+        run: ROLE=workload-tenancy INVENTORY=ci/clusters/kind-cluster-unit.yaml make deploy.role

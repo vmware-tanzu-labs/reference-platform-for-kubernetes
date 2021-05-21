@@ -26,8 +26,8 @@ all:
         tanzu_dns_provider:              "none"
       hosts:
         kind_tanzu_cluster1:
-          tanzu_kubectl_context:               "kind-{{ lookup('env', 'CI_BUILD_ID') }}"
-          tanzu_cluster_name:                  "kind-{{ lookup('env', 'CI_BUILD_ID') }}"
+          tanzu_kubectl_context:               "kind-rpk"
+          tanzu_cluster_name:                  "kind-rpk"
           tanzu_ingress_domain:                "127.0.0.1.xip.io"
           ingress_ip:                          "127.0.0.1"
           tanzu_mission_control_cluster_group: "rpk-clusters"
