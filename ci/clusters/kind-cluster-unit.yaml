@@ -17,11 +17,6 @@ all:
     tanzu_application_catalog_api_token: ""
     tanzu_default_tls_provider:          "ca"
 
-  # TODO: this always fails in KIND; skip when unit testing
-  tanzu_security:
-    actions:
-      update_k8s_ca: false
-
   children:
     kind_clusters:
       vars:
@@ -29,7 +24,11 @@ all:
         tanzu_networking_ipip_mode:      "Always"
         tanzu_admission_control_enabled: false
         tanzu_dashboard_enabled:         false
-        tanzu_dns_provider:              "none"
+        tanzu_dns_provider:              "xip.io"
+        # TODO: this always fails in KIND; skip when unit testing
+        tanzu_security:
+          actions:
+            update_k8s_ca: false
       hosts:
         kind_tanzu_cluster1:
           tanzu_kubectl_context:               "kind-rpk-kind"
