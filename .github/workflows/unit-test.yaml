@@ -16,7 +16,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: "Detect File Changes"
-        uses: "tj-actions/verify-changed-files@v5.3"
+        uses: "tj-actions/verify-changed-files@v2.1"
         id: "changed-files"
       - name: List all modified files
         run: |
