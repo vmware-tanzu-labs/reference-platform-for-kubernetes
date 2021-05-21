@@ -21,6 +21,7 @@ jobs:
           kubectl_version: v1.20.0
           version: v0.10.0
           config: ci/clusters/kind-cluster-config-unit.yaml
+      - run: kubectl config get-contexts; kubectl config current-context; echo $KUBECONFIG
       - name: Build the Image
         run: make build
       - name: Setup KIND Cluster
