@@ -1,0 +1,28 @@
+---
+name: Unit Test
+on:
+  - push
+  # pull_request:
+  #   branches:
+  #     - develop
+jobs:
+
+  # TODO: hard-coded for now; find a way to make this dynamic
+  unit-test-workload-tenancy:
+    name: Unit Test Workload Tenancy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@master
+      - name: Setup KIND
+        uses: container-tools/kind-action@v1
+        with:
+          cluster_name: workload-tenancy-kind
+          kubectl_version: v1.20.0
+          version: v0.10.0
+          config: ci/clusters/kind-cluster-config-unit.yaml
+      - name: Build the Image
+        run: make build
+      - name: Deploy the Component
+        run: ROLE=workload-tenancy make deploy.role
+
