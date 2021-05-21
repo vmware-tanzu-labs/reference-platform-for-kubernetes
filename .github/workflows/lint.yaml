@@ -1,0 +1,46 @@
+---
+name: Check License Lines
+on:
+  - push
+  - pull_request
+jobs:
+
+  lint-dirs:
+    name: Lint Directories
+    runs-on: ubuntu-latest
+    container:
+      image: projects.registry.vmware.com/rpk/rpk-base:v1.4.0
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@master
+      - run: make lint.dirs
+
+  lint-files:
+    name: Lint Files
+    runs-on: ubuntu-latest
+    container:
+      image: projects.registry.vmware.com/rpk/rpk-base:v1.4.0
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@master
+      - run: make lint.files
+
+  lint-ansible:
+    name: Lint Ansible
+    runs-on: ubuntu-latest
+    container:
+      image: projects.registry.vmware.com/rpk/rpk-base:v1.4.0
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@master
+      - run: make lint.ansible
+
+  lint-yaml:
+    name: Lint YAML
+    runs-on: ubuntu-latest
+    container:
+      image: projects.registry.vmware.com/rpk/rpk-base:v1.4.0
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@master
+      - run: make lint.yaml
