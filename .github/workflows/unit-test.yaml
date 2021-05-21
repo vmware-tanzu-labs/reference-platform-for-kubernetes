@@ -1,7 +1,7 @@
 ---
-name: Unit Test
+name: "Unit Test"
 on:
-  - push
+  - "push"
   # pull_request:
   #   branches:
   #     - develop
@@ -9,12 +9,12 @@ jobs:
 
   # TODO: hard-coded for now; find a way to make this dynamic
   unit-test-workload-tenancy:
-    name: Unit Test Workload Tenancy
-    runs-on: ubuntu-latest
+    name: "Unit Test Workload Tenancy"
+    runs-on: "ubuntu-latest"
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@master
-      - uses: ./.github/action-unit-test
+      - name: "Checkout Code"
+        uses: "actions/checkout@master"
+      - uses: "./.github/action-unit-test"
         with:
-          component: workload-tenancy
+          component: "workload-tenancy"
 

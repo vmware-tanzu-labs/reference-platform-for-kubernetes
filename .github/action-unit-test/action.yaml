@@ -23,8 +23,12 @@ runs:
         fi
 
         # setup kubectl
-        curl -LO https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl
-        chmod +x /usr/local/bin/kubectl
+        if [ -z $(which kubectl) ]; then
+          curl -LO https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl
+          chmod +x /usr/local/bin/kubectl
+        else
+          echo "found kubectl executable at $(which kubectl)...not installing"
+        fi
       env:
         KIND_VERSION:    "v0.10.0"
         KUBECTL_VERSION: "v1.20.0"
