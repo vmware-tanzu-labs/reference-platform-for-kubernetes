@@ -57,7 +57,7 @@ spec:
           - "-c"
           - |
             cat /etc/kubernetes/manifests/kube-apiserver.yaml > /etc/kubernetes/backup/kube-apiserver.yaml.orig
-            /usr/bin/ytt -f /etc/kubernetes/manifests/kube-apiserver.yaml -f /etc/kubernetes/kube-apiserver-config-overlay.yaml > /etc/kubernetes/backup/kube-apiserver.yaml.new
+            /usr/bin/ytt --ignore-unknown-comments -f /etc/kubernetes/manifests/kube-apiserver.yaml -f /etc/kubernetes/kube-apiserver-config-overlay.yaml > /etc/kubernetes/backup/kube-apiserver.yaml.new
             cat /etc/kubernetes/backup/kube-apiserver.yaml.new > /etc/kubernetes/manifests/kube-apiserver.yaml
         volumeMounts:
         - mountPath: /etc/kubernetes/manifests

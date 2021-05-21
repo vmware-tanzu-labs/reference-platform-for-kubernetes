@@ -1,3 +1,5 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
 ---
 rpk_components:
   - name:    "{{ rpk_role_name }}"
