@@ -11,6 +11,8 @@ jobs:
     name: "Detect File Changes"
     runs-on: "ubuntu-latest"
     steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
       - name: "Detect File Changes"
         uses: "tj-actions/verify-changed-files@v6.2"
         id: "changed-files"
