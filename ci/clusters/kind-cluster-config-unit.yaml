@@ -19,7 +19,7 @@ networking:
   apiServerAddress: 127.0.0.1
 nodes:
   - role: worker
-    image: projects.registry.vmware.com/rpk/kind:v1.19.1
+    image: kindest/node:v1.19.1
     extraPortMappings:
       - containerPort: 80
         hostPort: 80
@@ -30,8 +30,8 @@ nodes:
         protocol: TCP
         listenAddress: "0.0.0.0"
   - role: worker
-    image: projects.registry.vmware.com/rpk/kind:v1.19.1
+    image: kindest/node:v1.19.1
   - role: worker
-    image: projects.registry.vmware.com/rpk/kind:v1.19.1
+    image: kindest/node:v1.19.1
   - role: control-plane
-    image: projects.registry.vmware.com/rpk/kind:v1.19.1
+    image: kindest/node:v1.19.1
