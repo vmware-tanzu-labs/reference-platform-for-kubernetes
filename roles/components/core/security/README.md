@@ -27,7 +27,7 @@ The following sizing requirements must be met for this role to operate properly.
 | tanzu_security.namespace | Namespace for security components | "tanzu-security" | string | yes |
 | tanzu_security.staging_dir | Local directory to write the staging manfiests to | "{{ rpk_staging_dir }}/{{ tanzu_security.namespace }}" | string | yes |
 | tanzu_security.tls_providers | Providers to configure for creating CA Certs ("ca", "letsencrypt-stage", "letsencrypt-prod", "wildcard") | "ca" | string | yes |
-| tanzu_security.default_resources | Default resource allocation. | Varies.  See `common/vars/main.yaml` | dict | yes |
+| tanzu_security.default_resources | Default resource allocation. | Varies.  See `common/defaults/main.yaml` | dict | yes |
 | tanzu_security.tls_root_ca_cert | Certificate for self signed root CA | "" | string | no |
 | tanzu_security.tls_root_ca_key | Key for self signed root CA | "" | string | no |
 | tanzu_security.actions.update_k8s_ca | Instructs RPK to update the Kube Nodes trusted CAs with the CA cert and reload Containerd | "true" | boolean | yes |
