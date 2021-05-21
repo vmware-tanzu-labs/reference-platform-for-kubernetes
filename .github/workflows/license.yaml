@@ -1,5 +1,5 @@
 ---
-name: Check License Lines
+name: License Check
 on:
   - push
   - pull_request

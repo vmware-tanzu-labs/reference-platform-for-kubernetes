@@ -12,19 +12,4 @@ jobs:
     name: Unit Test Workload Tenancy
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@master
-      - name: Initialize KIND Cluster
-        uses: container-tools/kind-action@v1
-        with:
-          cluster_name: rpk-kind
-          kubectl_version: v1.20.0
-          version: v0.10.0
-          config: ci/clusters/kind-cluster-config-unit.yaml
-      - run: kubectl config get-contexts; kubectl config current-context; echo $KUBECONFIG
-      - name: Build the Image
-        run: make build
-      - name: Setup KIND Cluster
-        run: make setup.kind.network
-      - name: Deploy the Component
-        run: ROLE=workload-tenancy INVENTORY=`pwd`/ci/clusters/kind-cluster-unit.yaml make deploy.role
+      - uses: ./.github/action-unit-test

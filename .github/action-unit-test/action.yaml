@@ -1,0 +1,18 @@
+name: Common Unit Test Action
+description: Common Unit Test Action
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout Code
+      uses: actions/checkout@master
+    - name: Initialize KIND Cluster
+      uses: container-tools/kind-action@v1
+      with:
+        cluster_name: rpk-kind
+        kubectl_version: v1.20.0
+        version: v0.10.0
+        config: ci/clusters/kind-cluster-config-unit.yaml
+    - name: Setup KIND Cluster
+      run: make setup.kind.network
+    - name: Deploy the Component
+      run: ROLE=${RPK_ROLE} INVENTORY=`pwd`/ci/clusters/kind-cluster-unit.yaml make deploy.test.role
