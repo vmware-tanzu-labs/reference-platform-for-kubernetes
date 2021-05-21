@@ -36,6 +36,10 @@ runs:
     - name: "Setup KIND Cluster"
       shell: "bash"
       run: "make setup.kind && make setup.kind.network"
+      env:
+        KIND_INVENTORY: "ci/clusters/kind-cluster-unit.yaml"
+        KIND_BASE_CONFIG: "ci/clusters/kind-cluster-config-unit.yaml"
+        KIND_CLUSTER: "rpk-kind"
 
     - name: "Deploy the Component"
       shell: "bash"
