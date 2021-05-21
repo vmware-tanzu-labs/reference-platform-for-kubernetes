@@ -26,4 +26,4 @@ jobs:
       - name: Setup KIND Cluster
         run: make setup.kind.network
       - name: Deploy the Component
-        run: ROLE=workload-tenancy INVENTORY=ci/clusters/kind-cluster-unit.yaml make deploy.role
+        run: ROLE=workload-tenancy INVENTORY=`pwd`/ci/clusters/kind-cluster-unit.yaml make deploy.role
