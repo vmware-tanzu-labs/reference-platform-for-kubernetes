@@ -29,8 +29,8 @@ do not need to be explicitly specified.
 | tanzu_workload_tenancy.namespace_operator.service_account | Service account used to run the namespace-operator | "namespace-operator" | string | yes |
 | tanzu_workload_tenancy.namespace_operator.clusterrole | Cluster Role used by service account which runs the namespace-operator | "namespace-operator-clusterrole" | string | yes |
 | tanzu_workload_tenancy.namespace_operator.clusterrolebinding | Cluster Role Binding used by service account/role which runs the namespace-operator | "namespace-operator-clusterrolebinding" | string | yes |
-| tanzu_workload_tenancy.namespace_operator.image | namespace-operator image | "scottd018/namespace-operator" | string | yes |
-| tanzu_workload_tenancy.namespace_operator.image_tag | namespace-operator image tag | "v0.0.1beta" | string | yes |
+| tanzu_workload_tenancy.namespace_operator.image | namespace-operator image | "projects.registry.vmware.com/rpk/namespace-operator" | string | yes |
+| tanzu_workload_tenancy.namespace_operator.image_tag | namespace-operator image tag | "v1.2.10" | string | yes |
 | tanzu_workload_tenancy.namespace_operator.replicas | namespace-operator replica count | 2 | integer | yes |
 | tanzu_workload_tenancy.namespace_operator.resources | Normal Kubernetes resource construct defining resource requirements | See `common/vars/main.yaml` | dict | yes |
 
