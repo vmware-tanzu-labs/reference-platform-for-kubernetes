@@ -1,0 +1,22 @@
+{
+    "**/*.go": [
+        "// Copyright 2006-2021 VMware, Inc.",
+        "// SPDX-License-Identifier: MIT"
+    ],
+    "**/*.yml": [
+        "# Copyright 2006-2021 VMware, Inc.",
+        "# SPDX-License-Identifier: MIT"
+    ],
+    "**/*.yaml": [
+        "# Copyright 2006-2021 VMware, Inc.",
+        "# SPDX-License-Identifier: MIT"
+    ],
+    "**/*.yaml.j2": [
+        "# Copyright 2006-2021 VMware, Inc.",
+        "# SPDX-License-Identifier: MIT"
+    ],
+    "**/*.sh": [
+        "# Copyright 2006-2021 VMware, Inc.",
+        "# SPDX-License-Identifier: MIT"
+    ]
+}
