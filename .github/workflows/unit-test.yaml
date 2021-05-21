@@ -8,13 +8,36 @@ on:
 jobs:
 
   # TODO: hard-coded for now; find a way to make this dynamic
+  unit-test-autoscaling:
+    name: "Unit Test Autoscaling"
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
+      - name: "Detect File Changes"
+        uses: "tj-actions/verify-changed-files@v6.2"
+        id: "changed-files"
+        with:
+          files: |
+            roles/components/core/autoscaling
+      - uses: "./.github/action-unit-test"
+        if: "steps.changed-files.outputs.files_changed == 'true'"
+        with:
+          component: "autoscaling"
+
   unit-test-workload-tenancy:
     name: "Unit Test Workload Tenancy"
     runs-on: "ubuntu-latest"
     steps:
       - name: "Checkout Code"
-        uses: "actions/checkout@master"
+        uses: "actions/checkout@v2"
+      - name: "Detect File Changes"
+        uses: "tj-actions/verify-changed-files@v6.2"
+        id: "changed-files"
+        with:
+          files: |
+            roles/components/core/workload-tenancy
       - uses: "./.github/action-unit-test"
+        if: "steps.changed-files.outputs.files_changed == 'true'"
         with:
           component: "workload-tenancy"
-
