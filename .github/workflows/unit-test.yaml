@@ -14,7 +14,7 @@ jobs:
       - name: "Checkout Code"
         uses: "actions/checkout@v2"
         with:
-          fetch-depth: 2
+          fetch-depth: 0
       - name: "Detect File Changes"
         uses: "tj-actions/verify-changed-files@v5.3"
         id: "changed-files"
@@ -24,10 +24,9 @@ jobs:
             echo "$file was modified"
           done
         env:
-          CHANGED: ${{ steps.changed-files.outputs.all_modified_files }}
+          CHANGED: ${{ steps.changed-files.outputs.all_changed_files }}
     outputs:
-      changed-files: ${{ steps.changed-files.outputs.all_modified_files }}
-      changed: ${{ steps.changed-files.outputs.files_changed }}
+      changed-files: ${{ steps.changed-files.outputs.all_changed_files }}
 
   # TODO: hard-coded for now; find a way to make this dynamic
   unit-test-autoscaling:
@@ -38,7 +37,7 @@ jobs:
       - name: "Checkout Code"
         uses: "actions/checkout@v2"
       - uses: "./.github/action-unit-test"
-        if: "needs.detect-file-changes.changed == 'true'"
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/autoscaling')"
         with:
           component: "autoscaling"
 
@@ -50,6 +49,6 @@ jobs:
       - name: "Checkout Code"
         uses: "actions/checkout@v2"
       - uses: "./.github/action-unit-test"
-        if: "needs.detect-file-changes.changed == 'true'"
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/workload-tenancy')"
         with:
           component: "workload-tenancy"
