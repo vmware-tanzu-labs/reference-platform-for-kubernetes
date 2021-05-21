@@ -1,0 +1,76 @@
+#
+# NOTE: this is a typical ansible inventory in YAML format.  please only modify variables under GLOBAL VARS
+#       and REQUIRED VARS unless you know what you are doing.
+#
+---
+all:
+  #
+  # GLOBAL VARS
+  #
+  vars:
+    #
+    # OPTIONAL VARS
+    #   NOTE: the below vars are optional for a standard platform deployment but may be required
+    #         depending upon which roles are enabled in your profile
+    #
+    # optional_vars_go_here: ""
+    aws_access_key:                        "my_aws_access_key_id"
+    aws_secret_key:                        "my_aws_secret_key_id"
+    azure_tenant_id:                       "my_azure_tenant_id"
+    azure_subscription_id:                 "my_azure_subscription_id"
+    azure_client_id:                       "my_azure_client_id"
+    azure_client_secret:                   "my_azure_client_secret"
+    azure_dns_resource_group_name:         "my_azure_dns_resource_group_name"
+    tanzu_mission_control_org_name:        ""
+    tanzu_mission_control_api_token:       ""
+    tanzu_service_mesh_api_token:          ""
+    tanzu_service_mesh_url:                ""
+    tanzu_observability_org_name:          ""
+    tanzu_observability_api_token:         ""
+    tanzu_build_service_username:          ""
+    tanzu_build_service_password:          ""
+    tanzu_sql_username:                    ""
+    tanzu_sql_password:                    ""
+    tanzu_network_api_token:               ""
+    tanzu_network_legacy_api_token:        ""
+    tanzu_application_catalog_username:    ""
+    tanzu_application_catalog_password:    ""
+    tanzu_application_catalog_api_token:   ""
+    tanzu_spring_cloud_data_flow_username: ""
+    tanzu_spring_cloud_data_flow_password: ""
+    tanzu_default_tls_provider:            "ca"
+
+  children:
+    #
+    # azure cluster example
+    #
+    # NOTE: hosts are placeholder hosts which represent the tkg clusters since we use a
+    # local connection with kubectl.  clusters are grouped by provider type with the
+    # tanzu_provider variable describing the type of provider that tkg is running upon.
+    #
+    azure_clusters:
+      vars:
+        tanzu_provider:             "azure"
+        tanzu_dns_provider:         "internal"  # only internal, route53 and azure supported for now
+        tanzu_default_tls_provider: "ca"
+      hosts:
+        azure_tanzu_cluster1:
+          #
+          # REQUIRED VARS: AZURE
+          #
+          tanzu_kubectl_context:                    "infra-dev-azure-admin@infra-dev-azure"
+          tanzu_management_cluster_kubectl_context: "mgmt-dev-azure-admin@mgmt-dev-azure"
+          tanzu_ingress_domain:                     "azure.example.com"
+          tanzu_cluster_name:                       "azure"
+          rpk_profile:                              "platform"
+          rpk_demo:                                 false
+          tanzu_mission_control_cluster_group:      "rpk-clusters"
+          tanzu_storage_classes_azure: []
+          # NOTE: the following is an example specifying additional storage classes
+          #       see all options at roles/storage/README.md and roles/storage/common/vars/main.yaml
+          # tanzu_storage_classes_azure:
+          #   - name:                  "azure-example-sc"
+          #   - name:                  "azure-premium-sc"
+          #     storageaccounttype:    "Premium_LRS"
+          #     kind:                  "dedicated"
+          #     cachingmode:           "ReadWrite"

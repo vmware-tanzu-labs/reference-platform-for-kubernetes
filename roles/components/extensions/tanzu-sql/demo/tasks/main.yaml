@@ -1,0 +1,11 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "deploy small postgresql instance"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "rpk-postgres-small"
+    manifest_template:    "pg-small-instance.yaml.j2"
+    manifest_file:        "pg-small-instance.yaml"
+    manifest_staging_dir: "{{ tanzu_sql.staging_dir }}"

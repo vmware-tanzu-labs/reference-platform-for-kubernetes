@@ -1,0 +1,14 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+dependencies:
+  - component: "storage"
+    priority:  100
+  - component: "security"
+    priority:  200
+  - component: "ingress"
+    priority:  400
+  - component: "monitoring"
+    priority:  500
+  - component: "secret-management/hashicorp-vault"
+    priority:  600

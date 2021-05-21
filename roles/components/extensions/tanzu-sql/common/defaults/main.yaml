@@ -1,0 +1,28 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_sql:
+  # common vars
+  namespace:   "tanzu-sql"
+  staging_dir: "{{ rpk_staging_dir }}/tanzu-sql"
+  module: "tanzu-sql"
+  demo:
+    storage_class: "gp2-test"
+
+  registry:
+    project:
+      project_name: "sql"
+      metadata:
+        auto_scan: "false"
+        public:    "true"
+    source_url:      "dev.registry.pivotal.io"  # to be defined
+    destination_tag: "rpk-1.0"
+    sql_images:
+      - name: "postgres-operator"
+        tag:  "v1.0.0-c1"
+      - name: "postgres-instance"
+        tag:  "v1.0.0-c1"
+
+  # use namespace operator or not
+  workload_tenancy:
+    enabled: false

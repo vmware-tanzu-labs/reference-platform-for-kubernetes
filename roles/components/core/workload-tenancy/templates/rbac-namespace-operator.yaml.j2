@@ -1,0 +1,92 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ tanzu_workload_tenancy.namespace_operator.service_account }}
+  namespace: {{ tanzu_workload_tenancy.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ tanzu_workload_tenancy.namespace_operator.clusterrole }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps/status
+    verbs:
+      - get
+      - update
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+      - limitranges
+      - resourcequotas
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - apiextensions.k8s.io
+    resources:
+      - customresourcedefinitions
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - tenancy.platform.cnr.vmware.com
+    resources:
+      - tanzunamespaces
+      - tanzunamespaces/status
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ tanzu_workload_tenancy.namespace_operator.clusterrolebinding }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ tanzu_workload_tenancy.namespace_operator.clusterrole }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ tanzu_workload_tenancy.namespace_operator.service_account }}
+    namespace: {{ tanzu_workload_tenancy.namespace }}

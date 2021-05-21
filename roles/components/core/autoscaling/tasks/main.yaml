@@ -1,0 +1,75 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# NAMESPACES
+#
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_autoscaling.staging_dir }}"
+
+- name: "create namespace"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_autoscaling.namespace }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_autoscaling.staging_dir }}/tanzu-namespace.yaml"
+
+#
+# VERTICAL POD AUTOSCALER
+#
+- name: "ensure vpa custom resource definitions exist"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "vpa custom resource definitions"
+    manifest_template:    "vpa-crds.yaml.j2"
+    manifest_file:        "vpa-crds.yaml"
+    manifest_staging_dir: "{{ tanzu_autoscaling.staging_dir }}"
+
+- name: "ensure vpa rbac exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "vpa rbac"
+    manifest_template:    "vpa-rbac.yaml.j2"
+    manifest_file:        "vpa-rbac.yaml"
+    manifest_staging_dir: "{{ tanzu_autoscaling.staging_dir }}"
+
+- name: "add tls certificate for vpa mutating admission webhook"
+  import_role:
+    name: "common/tls-certificate"
+  vars:
+    fqdn:           "vpa-webhook"
+    namespace:      "{{ tanzu_autoscaling.namespace }}"
+    secret:         "vpa-webhook-cert"
+    tls_provider:   "self"
+    dns:
+      - "vpa-webhook"
+      - "vpa-webhook.{{ tanzu_autoscaling.namespace }}"
+      - "vpa-webhook.{{ tanzu_autoscaling.namespace }}.svc"
+      - "vpa-webhook.{{ tanzu_autoscaling.namespace }}.svc.cluster.local"
+    ip:
+      - "127.0.0.1"
+
+- name: "ensure vpa app components exist"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "vpa app"
+    manifest_template:    "vpa-app.yaml.j2"
+    manifest_file:        "vpa-app.yaml"
+    manifest_staging_dir: "{{ tanzu_autoscaling.staging_dir }}"
+
+- name: "ensure vpa validating webhook config exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "vpa validating webhook config"
+    manifest_template:    "vpa-webhook.yaml.j2"
+    manifest_file:        "vpa-webhook.yaml"
+    manifest_staging_dir: "{{ tanzu_autoscaling.staging_dir }}"
+

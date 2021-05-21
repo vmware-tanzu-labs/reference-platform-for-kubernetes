@@ -1,0 +1,329 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istio-system
+  labels:
+    app.kubernetes.io/name: istio-system
+    name: {{ tanzu_service_mesh.namespaces.istio }}
+    istio-injection: disabled
+# NOTE: above namespace has been defined to avoid potential issues on a full RPK Deployment
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ tanzu_service_mesh.namespaces.tsm }}
+  labels:
+    app.kubernetes.io/name: tanzu-service-mesh
+    owner: operator-deployer
+    configured-by: vmware-tsm
+    name: {{ tanzu_service_mesh.namespaces.tsm }}
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: tsmclusters.tsm.vmware.com
+  labels:
+    app.kubernetes.io/name: tanzu-service-mesh
+    owner: operator-deployer
+    configured-by: vmware-tsm
+spec:
+  group: tsm.vmware.com
+  version: v1
+  names:
+    kind: TsmCluster
+    plural: tsmclusters
+  scope: Namespaced
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: 'tsm-agent-operator'
+  namespace: {{ tanzu_service_mesh.namespaces.tsm }}
+  labels:
+    app.kubernetes.io/name: tanzu-service-mesh
+    owner: operator-deployer
+    configured-by: vmware-tsm
+data:
+  .tsm-agent-operator.yaml: |
+    allspark-version: "v1.6.13"
+    insecureskipverify: false
+    maxdownloadretry: 5
+    maxinstallationretry: 5
+    memorybufflimit: 10485760
+    workingthreadnum: 5
+    installationbucket: tsm-release
+    installationregion: us-west-2
+    installationbasename: installation.yaml
+    livenessprobeport: 9090
+    livenessprobepath: /healthz
+    notliveinseconds: 180
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: operator--srv-acnt
+  namespace: {{ tanzu_service_mesh.namespaces.tsm }}
+  labels:
+    app.kubernetes.io/name: tanzu-service-mesh
+    owner: operator-deployer
+    configured-by: vmware-tsm
+---
+# rbac_role_binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: operator-cluster-admin-rb
+  labels:
+    app.kubernetes.io/name: tanzu-service-mesh
+    owner: operator-deployer
+    configured-by: vmware-tsm
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: ''
+subjects:
+- kind: ServiceAccount
+  name: operator--srv-acnt
+  namespace: {{ tanzu_service_mesh.namespaces.tsm }}
+---
+# TSM client cluster Operator
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tsm-agent-operator
+  namespace: {{ tanzu_service_mesh.namespaces.tsm }}
+  labels:
+    app.kubernetes.io/name: tanzu-service-mesh
+    owner: operator-deployer
+    configured-by: vmware-tsm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tanzu-service-mesh
+      app: 'tsm-agent-operator'
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tanzu-service-mesh
+        app: 'tsm-agent-operator'
+    spec:
+      imagePullSecrets:
+      - name: ecr-read-only--docker-credentials
+      serviceAccountName: operator--srv-acnt
+      containers:
+      - image: "{{ tanzu_service_mesh.images.tsm_agent_operator.image }}:{{ tanzu_service_mesh.images.tsm_agent_operator.image_tag }}"
+        imagePullPolicy: Always
+        name: 'tsm-agent-operator'
+        ports:
+        - name: liveness-port
+          containerPort: 9090
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 9090
+          failureThreshold: 3
+          periodSeconds: 180
+        volumeMounts:
+        - name: config-volume
+          mountPath: /root
+        env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: operator-ecr-read-only--aws-credentials
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: operator-ecr-read-only--aws-credentials
+              key: AWS_SECRET_ACCESS_KEY
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+      restartPolicy: Always
+      volumes:
+      - name: config-volume
+        configMap:
+          name: 'tsm-agent-operator'
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: operator-ecr-read-only--service-account
+  namespace: {{ tanzu_service_mesh.namespaces.tsm }}
+  labels:
+    app.kubernetes.io/name: tanzu-service-mesh
+    owner: operator-deployer
+    configured-by: vmware-tsm
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: operator-ecr-read-only--aws-credentials
+  namespace: {{ tanzu_service_mesh.namespaces.tsm }}
+  labels:
+    app.kubernetes.io/name: tanzu-service-mesh
+    owner: operator-deployer
+    configured-by: vmware-tsm
+type: Opaque
+data:
+  AWS_ACCESS_KEY_ID: 'QUtJQUpFREg1NERBUTRHWFcyRUE='
+  AWS_SECRET_ACCESS_KEY: 'WFVUU0ptaXdYNFN1bzBYZ0kxMWFhU2thUXliZTdVYVVDSjl2Mk4yWQ=='
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: operator-ecr-read-only--role
+  namespace: {{ tanzu_service_mesh.namespaces.tsm }}
+  labels:
+    app.kubernetes.io/name: tanzu-service-mesh
+    owner: operator-deployer
+    configured-by: vmware-tsm
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["create", "get", "watch", "list", "update", "delete"]
+- apiGroups: ["policy"]
+  resources: ["podsecuritypolicies"]
+  verbs: ["use"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: operator-ecr-read-only--role-binding
+  namespace: {{ tanzu_service_mesh.namespaces.tsm }}
+  labels:
+    app.kubernetes.io/name: tanzu-service-mesh
+    owner: operator-deployer
+    configured-by: vmware-tsm
+subjects:
+- kind: ServiceAccount
+  name: operator-ecr-read-only--service-account
+roleRef:
+  kind: Role
+  name: operator-ecr-read-only--role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: operator-ecr-read-only--renew-token
+  namespace: {{ tanzu_service_mesh.namespaces.tsm }}
+  labels:
+    app.kubernetes.io/name: tanzu-service-mesh
+    owner: operator-deployer
+    configured-by: vmware-tsm
+spec:
+  successfulJobsHistoryLimit: 0
+  failedJobsHistoryLimit: 1
+  schedule: "0 */8 * * *"
+  # schedule: "*/1 * * * *"
+  jobTemplate:
+    spec: &cronjob_spec
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: tanzu-service-mesh
+            run: operator-ecr-read-only--renew-token
+        spec:
+          serviceAccountName: operator-ecr-read-only--service-account
+          containers:
+          - name: operator-ecr-read-only--renew-token
+            # Image in public repo. See ticket AS-1019
+            image: {{ tanzu_service_mesh.images.operator_ecr.image }}:{{ tanzu_service_mesh.images.operator_ecr.image_tag }}
+            # imagePullPolicy: Always
+            imagePullPolicy: IfNotPresent
+            env:
+              - name: AWS_ACCESS_KEY_ID
+                valueFrom:
+                  secretKeyRef:
+                    name: operator-ecr-read-only--aws-credentials
+                    key: AWS_ACCESS_KEY_ID
+              - name: AWS_SECRET_ACCESS_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: operator-ecr-read-only--aws-credentials
+                    key: AWS_SECRET_ACCESS_KEY
+            command:
+            - "/bin/bash"
+            - "-c"
+            - |
+              aws ecr get-login --no-include-email --region us-west-2 > aws.login.dt
+              export DOCKER_SERVER=`cat aws.login.dt | cut -d ' ' -f 7`
+              export DOCKER_USERNAME='AWS'
+              export DOCKER_PASSWORD=`cat aws.login.dt | cut -d' ' -f 6`
+
+              # Secret will be created in current namespace
+              kubectl delete secret ecr-read-only--docker-credentials || true
+              kubectl create secret docker-registry ecr-read-only--docker-credentials \
+                --docker-server=$DOCKER_SERVER \
+                --docker-username=$DOCKER_USERNAME \
+                --docker-password=$DOCKER_PASSWORD \
+                --docker-email=no@email.local
+          restartPolicy: Never
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: operator-ecr-read-only--renew-token
+  namespace: {{ tanzu_service_mesh.namespaces.tsm }}
+  labels:
+    app.kubernetes.io/name: tanzu-service-mesh
+    owner: operator-deployer
+    configured-by: vmware-tsm
+spec:
+  # Note that a YAML anchor does NOT work across YAML document :-(
+  # <<: *cronjob_spec
+  backoffLimit: 4
+  template:
+    metadata:
+      name: operator-ecr-read-only--renew-token
+      labels:
+        app.kubernetes.io/name: tanzu-service-mesh
+        owner: operator-deployer
+        configured-by: vmware-tsm
+    spec:
+      serviceAccountName: operator-ecr-read-only--service-account
+      containers:
+      - name: operator-ecr-read-only--renew-token
+        image: {{ tanzu_service_mesh.images.operator_ecr.image }}:{{ tanzu_service_mesh.images.operator_ecr.image_tag }}
+        # imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
+        env:
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: operator-ecr-read-only--aws-credentials
+                key: AWS_ACCESS_KEY_ID
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: operator-ecr-read-only--aws-credentials
+                key: AWS_SECRET_ACCESS_KEY
+        command:
+        - "/bin/bash"
+        - "-c"
+        - |
+          aws ecr get-login --no-include-email --region us-west-2 > aws.login.dt
+          export DOCKER_SERVER=`cat aws.login.dt | cut -d ' ' -f 7`
+          export DOCKER_USERNAME='AWS'
+          export DOCKER_PASSWORD=`cat aws.login.dt | cut -d' ' -f 6`
+
+          # Secret will be created in current namespace
+          kubectl delete secret ecr-read-only--docker-credentials || true
+          kubectl create secret docker-registry ecr-read-only--docker-credentials \
+            --docker-server=$DOCKER_SERVER \
+            --docker-username=$DOCKER_USERNAME \
+            --docker-password=$DOCKER_PASSWORD \
+            --docker-email=no@email.local
+      restartPolicy: Never
+---

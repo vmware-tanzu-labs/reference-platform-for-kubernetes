@@ -1,0 +1,35 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- when:
+    - tanzu_ingress_domain is defined
+    - (tanzu_dns_provider | default('route53')) == 'legacy'
+  block:
+    - name: "create the aws dns zone"
+      route53_zone:
+        state:          "present"
+        zone:           "{{ tanzu_ingress_domain }}"
+        comment:        "aws route53 zone for tanzu cluster {{ tanzu_cluster_name }}"
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+      register: dns_zone
+
+    - name: "print dns zone info"
+      debug:
+        var: dns_zone
+        verbosity: 3
+
+    - name: "get nameservers"
+      route53_info:
+        type:              "NS"
+        query:             "record_sets"
+        hosted_zone_id:    "{{ dns_zone.result.zone_id }}"
+        start_record_name: "{{ tanzu_ingress_domain }}"
+        aws_access_key:    "{{ aws_access_key }}"
+        aws_secret_key:    "{{ aws_secret_key }}"
+      register: ns_info
+
+    - name: "print nameserver info"
+      debug:
+        var: ns_info
+        verbosity: 3

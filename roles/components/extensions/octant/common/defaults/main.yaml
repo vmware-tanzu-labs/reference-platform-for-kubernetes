@@ -1,0 +1,30 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_dashboard:
+  # common vars
+  namespace:   "tanzu-dashboard"
+  staging_dir: "{{ rpk_staging_dir }}/tanzu-dashboard"
+
+  # rbac vars
+  service_account:    "octant"
+  clusterrole:        "octant"
+  clusterrolebinding: "octant"
+  resources:
+    requests:
+      cpu:    "150m"
+      memory: "64Mi"
+    limits:
+      cpu:    "500m"
+      memory: "128Mi"
+
+  # app vars
+  image:     "projects.registry.vmware.com/rpk/octant"
+  image_tag: "latest"  # TODO: once this image supports versions, switch to version
+
+  # expose vars
+  dns: "dashboard.{{ tanzu_ingress_domain }}"
+
+  # use namespace operator or not
+  workload_tenancy:
+    enabled: false

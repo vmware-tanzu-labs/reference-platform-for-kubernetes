@@ -1,0 +1,89 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: set ingress ip for kind"
+  set_fact:
+    ingress_ip: "127.0.0.1"
+  when:
+    - tanzu_provider == "kind"
+    - ingress_ip == ''
+
+- when:
+    - (ingress_ip is undefined) or
+      (ingress_ip == '')
+  block:
+    - name: "get ingress load balancer resource"
+      k8s_info:
+        api_version: "v1"
+        kind:        "Service"
+        namespace:   "{{ tanzu_ingress.namespace }}"
+        name:        "envoy"
+        context:     "{{ tanzu_kubectl_context }}"
+      retries:  60
+      delay:    5
+      register: ingress_load_balancer
+      until:
+        - (ingress_load_balancer.resources[0].status.loadBalancer.ingress[0].ip is defined) or
+          (ingress_load_balancer.resources[0].status.loadBalancer.ingress[0].hostname is defined)
+
+    - name: "get ingress ip"
+      set_fact:
+        ingress_ip: "{{ ingress_load_balancer.resources[0].status.loadBalancer.ingress[0].ip | default('') }}"
+
+    - when: ingress_ip == ''
+      block:
+        - name: "get the ingress hostname"
+          set_fact:
+            ingress_hostname: "{{ ingress_load_balancer.resources[0].status.loadBalancer.ingress[0].hostname | default('') }}"
+
+        - name: "ensure we have the hostname"
+          fail:
+            msg: "unable to determine the ip or hostname for the load balancer"
+          when: ingress_hostname == ''
+
+        #
+        # NOTE: we would like to lookup DNS in the following manner, but the dig plugin caches the result
+        #       of the first run, so if the first run cannot resolve DNS, it will never resolve DNS.  To get
+        #       around this, we will fall back to the command module.
+        #
+        # - name: "lookup the ingress ip from the ingress_hostname"
+        #   set_fact:
+        #     ingress_lookup: "{{ lookup('dig', ingress_hostname) }}"
+        #   until:   ingress_lookup != 'NXDOMAIN'
+        #   retries: 60
+        #   delay:   5
+
+        - name: "lookup the ingress ip from the ingress_hostname"
+          command:      "dig {{ ingress_hostname }} +short"
+          changed_when: false
+          register:     ingress_lookup
+          retries:      60
+          delay:        5
+          until:
+            - ingress_lookup.stdout != ""
+            - not ingress_lookup.failed
+
+        - name: "ensure we resolved the hostname properly"
+          fail:
+            msg: "unable to resolve hostname {{ ingress_hostname }}"
+          when: ingress_lookup.stdout == ""
+
+        - name: "set the ingress ip"
+          set_fact:
+            ingress_ip: "{{ (ingress_lookup.stdout_lines)[0] }}"
+
+- name: "inspect the ingress ip"
+  debug:
+    var:       ingress_ip
+    verbosity: 2
+
+- when: tanzu_ingress_domain == "xip.io"
+  block:
+    - name: set ingress domain when using dynamic ip provider
+      set_fact:
+        tanzu_ingress_domain: "{{ ingress_ip }}.{{ tanzu_ingress_domain }}"
+
+    - name: "inspect the ingress domain when using dynamic ip provider"
+      debug:
+        var: tanzu_ingress_domain
+        verbosity: 2

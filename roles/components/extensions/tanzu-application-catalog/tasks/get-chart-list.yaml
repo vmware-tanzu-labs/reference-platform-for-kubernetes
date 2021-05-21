@@ -1,0 +1,61 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "set the chart list when predefined"
+  set_fact:
+    _tac_chart_list: "{{ tanzu_application_catalog.chart_list }}"
+  when: (tanzu_application_catalog.chart_list | length) > 0
+
+- name: "set the chart list when undefined (pull list from tac)"
+  when: (tanzu_application_catalog.chart_list | length) == 0
+  block:
+    - name: "login to tac"
+      shell: "tac login --api-token {{ tanzu_application_catalog_api_token }} --context-name {{ tanzu_kubectl_context }} --set-default y"
+      changed_when: false
+      tags:
+        - skip_ansible_lint
+
+    - name: "list tac artifacts"
+      shell: "tac get apps --asset-type chart | python -m json.tool"
+      changed_when: false
+      tags:
+        - skip_ansible_lint
+      register: _tac_chart_artifacts
+
+    - name: "add full chart info to _tac_chart_list_raw_output"
+      shell: "tac get app {{ item.1.id }}"
+      changed_when: false
+      with_subelements:
+        - "{{ _tac_chart_artifacts.stdout | from_json }}"
+        - "assets"
+      tags:
+        - skip_ansible_lint
+      register: _tac_chart_list_raw_output
+
+    - name: "set the _tac_chart_list and _tac_chart_list_raw_data"
+      set_fact:
+        _tac_chart_list:          []
+        _tac_chart_list_raw_data: []
+
+    - name: "add charts to _tac_chart_list_raw_data"
+      set_fact:
+        _tac_chart_list_raw_data: "{{ _tac_chart_list_raw_data + [(item.stdout | from_json)] }}"
+      with_items: "{{ _tac_chart_list_raw_output.results }}"
+
+    - name: "add charts to _tac_chart_list"
+      set_fact:
+        _tac_chart_list: "{{ _tac_chart_list + [repo + '/charts/' + name + ':' + tag] }}"
+      with_subelements:
+        - "{{ _tac_chart_list_raw_data }}"
+        - "releases"
+      vars:
+        name: "{{ item.1.artifact.chart_release.name }}"
+        repo: "{{ item.1.artifact.chart_release.repository.split('://')[-1].split('/charts')[0] }}"
+        tag:  "{{ item.1.artifact.chart_release.version }}"
+      when:
+        - item.1.artifact.chart_release is defined
+        - (item.0.status | default('') | lower) == 'released'
+
+    - name: "ensure the _tac_chart_list only has unique charts"
+      set_fact:
+        _tac_chart_list: "{{ _tac_chart_list | list | unique }}"

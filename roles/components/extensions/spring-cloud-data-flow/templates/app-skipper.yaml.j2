@@ -1,0 +1,258 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skipper-config
+  namespace:  {{ tanzu_spring_cloud_data_flow.namespace }}
+  labels:
+    app.kubernetes.io/name: "spring-cloud-data-flow-skipper"
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data-flow-skipper-config"
+data:
+  application-broker.yaml: |
+    spring:
+      cloud:
+        skipper:
+          server:
+            platform:
+              kubernetes:
+                accounts:
+                  default:
+                    environmentVariables: 'SPRING_CLOUD_CONFIG_ENABLED=false,SPRING_RABBITMQ_HOST=${RABBITMQ_SERVICE_HOST},SPRING_RABBITMQ_PORT=${RABBITMQ_SERVICE_PORT_AMQP},SPRING_RABBITMQ_USERNAME=user,SPRING_RABBITMQ_PASSWORD=${broker-password}'
+  application-database.yaml: |
+    spring:
+      datasource:
+        url: jdbc:postgresql://postgresql:5432/dataflow
+        username: postgres
+        password: ${database-password}
+        driverClassName: org.postgresql.Driver
+        testOnBorrow: true
+        validationQuery: "SELECT 1"
+  application.yaml: |
+    spring:
+      cloud:
+        skipper:
+          server:
+            platform:
+              kubernetes:
+                accounts:
+                  default:
+                    limits:
+                      memory: 512Mi
+                      cpu: 400m
+                    requests:
+                      memory: 512Mi
+                      cpu: 200m
+                    readinessProbeDelay: 90
+                    livenessProbeDelay: 120
+          security:
+            authorization:
+              permit-all-paths: "/actuator/health,/actuator/info,/authenticate,/security/info,/features,/assets/**,/dashboard/logout-success-oauth.html"
+  bootstrap.yaml: |
+    spring:
+      cloud:
+        config:
+          enabled: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/name: "spring-cloud-data-flow-skipper"
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data-flow-skipper-service-account"
+  name: scdf-skipper
+  namespace:  {{ tanzu_spring_cloud_data_flow.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/name: "spring-cloud-data-flow-skipper"
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data-flow-skipper-role"
+  name: skipper-role
+  namespace:  {{ tanzu_spring_cloud_data_flow.namespace }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - services
+  - persistentvolumeclaims
+  - replicationcontrollers
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  - pods/log
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  - deployments
+  - replicasets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+  - update
+  - patch
+- apiGroups:
+  - extensions
+  resources:
+  - deployments
+  - replicasets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+  - update
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: "spring-cloud-data-flow-skipper"
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data-flow-skipper-role-binding"
+  name: skipper-rb
+  namespace:  {{ tanzu_spring_cloud_data_flow.namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: skipper-role
+subjects:
+- kind: ServiceAccount
+  name: scdf-skipper
+  namespace:  {{ tanzu_spring_cloud_data_flow.namespace }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: "spring-cloud-data-flow-skipper"
+    spring-deployment-id: scdf
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data-flow-skipper-service"
+  name: skipper
+  namespace: {{ tanzu_spring_cloud_data_flow.namespace }}
+spec:
+  ports:
+  - port: 80
+    targetPort: 7577
+  selector:
+    app.kubernetes.io/name: "spring-cloud-data-flow-skipper"
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: "spring-cloud-data-flow-skipper"
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data-flow-skipper-deployment"
+  name: skipper
+  namespace: {{ tanzu_spring_cloud_data_flow.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "spring-cloud-data-flow-skipper"
+  template:
+    namespace: {{ tanzu_spring_cloud_data_flow.namespace }}
+    metadata:
+      labels:
+        app.kubernetes.io/name: "spring-cloud-data-flow-skipper"
+        rpk.heritage: "true"
+        rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    spec:
+      containers:
+      - env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: database,broker
+        - name: SPRING_CONFIG_ADDITIONAL_LOCATION
+          value: /workspace/runtime/config/
+        - name: SPRING_CLOUD_KUBERNETES_CONFIG_ENABLE_API
+          value: "false"
+        - name: SPRING_CLOUD_KUBERNETES_SECRETS_PATHS
+          value: /workspace/runtime/secrets
+        # image: registry.pivotal.io/p-scdf-for-kubernetes/spring-cloud-skipper-server@sha256:1aedd8dcf185ca50788208e063a47332ffa5afd7ef5d114c2a8a4d697544d416
+        image: {{ tanzu_container_registry.core.dns +'/'+ tanzu_spring_cloud_data_flow.registry.project.project_name + '/spring-cloud-skipper-server:' + tanzu_spring_cloud_data_flow.registry.destination_tag }}
+        imagePullPolicy: Always
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 7577
+          initialDelaySeconds: 90
+          periodSeconds: 30
+        name: skipper
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          httpGet:
+            path: /actuator/info
+            port: 7577
+          initialDelaySeconds: 60
+          periodSeconds: 15
+        resources:
+          limits:
+            cpu: 1
+            memory: 768Mi
+          requests:
+            cpu: 500m
+            memory: 768Mi
+        volumeMounts:
+        - mountPath: /workspace/runtime/secrets/broker
+          name: broker
+          readOnly: true
+        - mountPath: /workspace/runtime/secrets/database
+          name: database
+          readOnly: true
+        - mountPath: /workspace/runtime/config
+          name: config
+          readOnly: true
+      imagePullSecrets:
+      - name: scdf-image-regcred
+      serviceAccountName: scdf-skipper
+      volumes:
+      - name: broker
+        secret:
+          items:
+          - key: rabbitmq-password
+            path: broker-password
+          secretName: rabbitmq
+      - name: database
+        secret:
+          items:
+          - key: postgresql-password
+            path: database-password
+          secretName: postgresql
+      - configMap:
+          name: skipper-config
+        name: config

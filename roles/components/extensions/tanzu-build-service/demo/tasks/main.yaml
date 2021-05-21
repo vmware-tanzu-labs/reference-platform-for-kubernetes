@@ -1,0 +1,30 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "get default sa in kpack namespace"
+  k8s_info:
+    api_version: "v1"
+    kind:        "ServiceAccount"
+    name:        "default"
+    namespace:   "{{ tanzu_build_service.namespace_kpack }}"
+  register: _default_sa
+
+- set_fact:
+    _builder_sa: "{{ _default_sa.resources[0] | combine( {'secrets': [{'name': _default_sa.resources[0].secrets[0].name } , {'name' : 'rpk-registry-secret'}]} )  }}"
+
+- name: "update builder secret account definition"
+  k8s:
+    state:      "present"
+    definition: "{{ _builder_sa }} "
+
+- name: "deploying demo resources"
+  include_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "demo resource - {{ item }} "
+    manifest_template:    "{{ item }}.yaml.j2"
+    manifest_file:        "{{ item }}.yaml"
+    manifest_staging_dir: "{{ tanzu_build_service.staging_dir }}"
+  with_items:
+    - "rpk-registry-secret"
+    - "image"

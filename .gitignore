@@ -1,0 +1,30 @@
+# ignore virtual environments created by project users
+ansible-virtualenv/
+
+# ignore ansible external dependencies
+roles/external/
+modules/external/
+
+# ignore any logging or ansible retries
+*.retry
+*.log
+
+# ignore python cache
+**/__pycache__/*
+
+# ignore ide directory
+.DS_Store
+
+# ignore inventories built from makefile
+build/
+
+# ignore custom local settings
+.vscode/settings.json
+build/hosts
+build/manifests/*
+
+# ignore temp built doc templates
+roles/support/build-docs/templates/built
+
+# ignore github directory
+.github/

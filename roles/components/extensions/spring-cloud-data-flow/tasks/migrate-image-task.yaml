@@ -1,0 +1,62 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "set fact for total number of images to be migrated"
+  set_fact:
+    img_count: "{{ (tanzu_spring_cloud_data_flow.registry.images | length)  }}"
+
+- name: "retry counter"
+  set_fact:
+    retry_count: "{{ 0 if retry_count is undefined else retry_count | int + 1 }}"
+
+- name: "remove previous job if exist"
+  k8s:
+    state:     "absent"
+    context:   "{{ tanzu_kubectl_context }}"
+    kind:      "{{ item.kind }}"
+    name:      "{{ item.name }}"
+    namespace: "{{ tanzu_spring_cloud_data_flow.namespace }}"
+    wait:      true
+  with_items:
+    - name: "rpk-tscdf-image-migrate-job"
+      kind: "Job"
+    - name: "job-registry-auth-config"
+      kind: "ConfigMap"
+
+- name: "ensure image migration job exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "image-migrate-job"
+    manifest_template:    "job-image-migrate.yaml.j2"
+    manifest_file:        "job-image-migrate.yaml"
+    manifest_staging_dir: "{{ tanzu_spring_cloud_data_flow.staging_dir }}"
+
+- name: "ensure rpk-tcsg-image-migrate-job job succeeded"
+  import_role:
+    name: "common/wait-for-job"
+  vars:
+    name:      "rpk-tscdf-image-migrate-job"
+    namespace: "{{ tanzu_spring_cloud_data_flow.namespace }}"
+    retries:   360
+    delay:     5
+
+- name: "get total number of repositories or images created"
+  uri:
+    url:              "https://{{ tanzu_container_registry.core.dns }}/api/v2.0/projects?name={{ tanzu_spring_cloud_data_flow.registry.project.project_name }}"
+    user:             "{{ tanzu_container_registry.admin_username }}"
+    password:         "{{ tanzu_container_registry.admin_password }}"
+    method:           "GET"
+    status_code:      [200, 304]
+    force_basic_auth: true
+    validate_certs:   false
+  register: hinfo
+
+- name: "break the loop when all images exist"
+  set_fact:
+    retry_count: "10"
+  when: "( hinfo.json[0].repo_count |int == img_count | int )"
+
+- name: "re-run task if image count does not match"
+  include_tasks: migrate-image-task.yaml
+  when: "(retry_count | int < 3)"

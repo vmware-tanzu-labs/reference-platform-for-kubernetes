@@ -1,0 +1,214 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: dex
+  namespace: "{{ tanzu_identity.namespace }}"
+  labels:
+    app.kubernetes.io/name: dex
+spec:
+  type: ClusterIP
+  ports:
+  - name: https
+    protocol: TCP
+    port: 443
+    targetPort: https
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: http
+  selector:
+    app.kubernetes.io/name: dex
+---
+kind: Ingress
+apiVersion: extensions/v1beta1
+metadata:
+  name: dex
+  namespace: "{{ tanzu_identity.namespace }}"
+  annotations:
+    external-dns.alpha.kubernetes.io/target: "{{ tanzu_ingress.dns }}"
+spec:
+  rules:
+  - host: "{{ tanzu_identity.dex.dns }}"
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: dex
+          servicePort: 80
+  tls:
+  - hosts:
+    - "{{ tanzu_identity.dex.dns }}"
+    secretName: dex-cert-tls
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dex
+  namespace: "{{ tanzu_identity.namespace }}"
+data:
+  config.yaml: |
+    issuer: https://{{ tanzu_identity.dex.dns }}
+    frontend:
+      theme: tkg
+    web:
+      http: 0.0.0.0:5556
+      tlsCert: /etc/dex/tls/tls.crt
+      tlsKey: /etc/dex/tls/tls.key
+    expiry:
+      signingKeys: 10m
+      idTokens: 5m
+    logger:
+      level: debug
+      format: json
+    staticClients:
+    - id: tanzu
+      redirectURIs:
+      - https://{{ tanzu_identity.gangway.dns }}/callback
+      name: tanzu
+      secret: tanzu-security
+    connectors:
+    - type: mockCallback
+      id: mock
+      name: Example
+    - type: ldap
+      name: OpenLDAP
+      id: ldap
+      config:
+        host: ldap:389
+        insecureNoSSL: true
+        bindDN: cn=admin,{{ tanzu_identity.ldap.base_dn }}
+        bindPW: admin
+        usernamePrompt: Email Address
+        userSearch:
+          baseDN: ou=People,{{ tanzu_identity.ldap.base_dn }}
+          filter: (objectClass=person)
+          username: mail
+          idAttr: DN
+          emailAttr: mail
+          nameAttr: cn
+        groupSearch:
+          baseDN: ou=Groups,{{ tanzu_identity.ldap.base_dn }}
+          filter: (objectClass=groupOfNames)
+          userMatchers:
+          - userAttr: DN
+          groupAttr: member
+          nameAttr: cn
+    oauth2:
+      skipApprovalScreen: true
+      responseTypes:
+      - code
+      - token
+      - id_token
+    storage:
+      type: kubernetes
+      config:
+        inCluster: true
+    enablePasswordDB: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: "{{ tanzu_identity.dex.service_account }}"
+  namespace: "{{ tanzu_identity.namespace }}"
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: "{{ tanzu_identity.dex.clusterrole }}"
+  namespace: "{{ tanzu_identity.namespace }}"
+rules:
+- apiGroups:
+  - dex.coreos.com
+  resources:
+  - '*'
+  verbs:
+  - '*'
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: "{{ tanzu_identity.dex.clusterrolebinding }}"
+  namespace: "{{ tanzu_identity.namespace }}"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: "{{ tanzu_identity.dex.clusterrole }}"
+subjects:
+- kind: ServiceAccount
+  name: "{{ tanzu_identity.dex.service_account }}"
+  namespace: "{{ tanzu_identity.namespace }}"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: dex
+  name: dex
+  namespace: "{{ tanzu_identity.namespace }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dex
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dex
+        revision: "1"
+    spec:
+      containers:
+      - command:
+        - /usr/local/bin/dex
+        - serve
+        - /etc/dex/cfg/config.yaml
+        image: {{ tanzu_identity.dex.image }}:{{ tanzu_identity.dex.image_tag }}
+        imagePullPolicy: IfNotPresent
+        name: dex
+        ports:
+        - containerPort: 5556
+          name: http
+          protocol: TCP
+        resources: {{ tanzu_identity.dex.resources }}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/dex/cfg
+          name: config
+        - name: tls
+          mountPath: /etc/dex/tls
+      dnsPolicy: ClusterFirst
+      serviceAccountName: "{{ tanzu_identity.dex.service_account }}"
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: config.yaml
+            path: config.yaml
+          name: dex
+        name: config
+      - name: tls
+        secret:
+          secretName: dex-cert-tls
+      - name: theme
+        emptyDir: {}

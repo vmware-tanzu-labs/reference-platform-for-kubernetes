@@ -1,0 +1,83 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure the demo service is removed to ensure that its dns entry is cleaned"
+  k8s:
+    state:       "absent"
+    context:     "{{ tanzu_kubectl_context }}"
+    kind:        "Ingress"
+    name:        "{{ tanzu_ingress.demo.resource_name }}"
+    namespace:   "{{ tanzu_ingress.demo.namespace }}"
+    api_version: "extensions/v1beta1"
+
+- name: "ensure the load balancer service is removed to ensure that its dns entry is cleaned"
+  k8s:
+    state:       "absent"
+    context:     "{{ tanzu_kubectl_context }}"
+    kind:        "Service"
+    name:        "envoy"
+    namespace:   "{{ tanzu_ingress.namespace }}"
+    api_version: "v1"
+
+- name: "pause to allow external-dns to clean the load balancer service record"
+  pause:
+    seconds: "{{ (tanzu_ingress.external_dns.sync_interval_seconds | int) + 10 }}"
+
+- name: "ensure the namespaces are removed"
+  include_role:
+    name: "common/namespace/clean"
+  vars:
+    namespace: "{{ item }}"
+  with_items:
+    - "{{ tanzu_ingress.namespace }}"
+    - "{{ tanzu_ingress.demo.namespace }}"
+
+- name: "ensure the custom resource definitions are removed"
+  k8s:
+    state:       "absent"
+    context:     "{{ tanzu_kubectl_context }}"
+    kind:        "CustomResourceDefinition"
+    name:        "{{ item }}"
+    api_version: "apiextensions.k8s.io/v1"
+  with_items:
+    - tlscertificatedelegations.contour.heptio.com
+    - tlscertificatedelegations.projectcontour.io
+    - httpproxies.projectcontour.io
+    - ingressroutes.contour.heptio.com
+
+- name: "ensure the mutating webhook configuration is removed"
+  k8s:
+    state:       "absent"
+    context:     "{{ tanzu_kubectl_context }}"
+    kind:        "MutatingWebhookConfiguration"
+    name:        "cert-manager-webhook"
+    api_version: "admissionregistration.k8s.io/v1"
+    namespace:   "{{ tanzu_ingress.namespace }}"
+
+- name: "ensure the mutating webhook configuration is removed"
+  k8s:
+    state:       "absent"
+    context:     "{{ tanzu_kubectl_context }}"
+    kind:        "MutatingWebhookConfiguration"
+    name:        "cert-manager-webhook"
+    api_version: "admissionregistration.k8s.io/v1"
+
+- name: "ensure the cluster-wide rbac resources are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "{{ item.kind }}"
+    name:    "{{ item.name }}"
+  with_items:
+    - name: "contour"
+      kind: "ClusterRole"
+    - name: "contour"
+      kind: "ClusterRoleBinding"
+    - name: "{{ tanzu_ingress.external_dns.resource_name }}"
+      kind: "ClusterRole"
+    - name: "{{ tanzu_ingress.external_dns.resource_name }}"
+      kind: "ClusterRoleBinding"
+    - name: "{{ tanzu_ingress.external_dns.resource_name }}-viewer"
+      kind: "ClusterRole"
+    - name: "{{ tanzu_ingress.external_dns.resource_name }}-viewer"
+      kind: "ClusterRoleBinding"

@@ -1,0 +1,99 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# inputs:
+#   component (string):        the name of the component being deployed (e.g. storage)
+#   values    (list of dicts): the values to use for this component
+#
+# example:
+#   - name: "generate manifests with ytt"
+#     import_role:
+#       name: "common/ytt"
+#     vars:
+#       component: "tanzu-storage"
+#       values:
+#         - tanzu_storage:    "{{ tanzu_storage }}"
+#         - component_values: "{{ tanzu_storage }}"
+#
+- name: "ensure component-specific directory structure exists"
+  file:
+    path:  "{{ staging_dir }}/{{ directory }}"
+    state: "directory"
+    mode:  "0700"
+  changed_when: false
+  loop:
+    - "base"
+    - "manifests"
+    - "overlays"
+    - "templates"
+    - "values"
+  loop_control:
+    loop_var: directory
+
+#
+# NOTE: use copy module here rather than template module to avoid
+#       conflicts with templates and files/templates
+#
+- name: "create component-specific ytt values file"
+  copy:
+    dest: "{{ staging_dir }}/values/component-values.yaml"
+    mode: "0440"
+    content: |
+      #@data/values
+      ---
+      {% if values | length > 0 %}
+      {% for item in values %}
+      #@overlay/match missing_ok=True
+      #@overlay/match-child-defaults missing_ok=True
+      {{ item | to_nice_yaml }}
+      {% endfor %}
+      {% else %}
+      # no custom values list found, using
+      # all vars and hoping for the best.
+      #@overlay/match missing_ok=True
+      #@overlay/match-child-defaults missing_ok=True
+      {{ vars | to_nice_yaml }}
+      {% endif %}
+  changed_when: false
+
+- name: "create component-specific ytt files"
+  copy:
+    src:            "{{ component_directory }}/"
+    dest:           "{{ staging_dir }}/{{ component_directory }}/"
+    mode:           "0400"
+    directory_mode: "0700"
+    force:          true
+  changed_when: false
+  loop:
+    - "base"
+    - "overlays"
+    - "templates"
+  loop_control:
+    loop_var: component_directory
+    label:    "{{ component_directory }}"
+
+#
+# NOTE: pass in sources as var to more easily document what is happening
+#
+- name: "process files with ytt"
+  ytt:
+    src:              "{{ lookup('flattened', sources) }}"
+    output_directory: "{{ output_dir }}"
+  changed_when: false
+  vars:
+    # discovered_values:   values discovered during pre-flight processing and able to be used by data.values.discovered_values
+    # component_values:    values passed in from the component and able to be used by data.values.component_values (shared -
+    #                      e.g. data.values.component_values.namespace) or by data.values.component_name (component - e.g.
+    #                      data.values.tanzu_storage.namespace)
+    # component_base:      raw, unmodified yaml files from each components files/base directory
+    # component_templates: ytt templated files from each components files/templates directory
+    # component_overlays:  overlay manipulation of base + templates + values from each components files/overlays directory
+    # common_files:        common templates/overlays/bases that are applicable to all components
+    sources:
+      - "{{ discovered_values }}"
+      - "{{ component_values }}"
+      - "{{ component_base }}"
+      - "{{ component_templates }}"
+      - "{{ component_overlays }}"
+      - "{{ common_files }}"

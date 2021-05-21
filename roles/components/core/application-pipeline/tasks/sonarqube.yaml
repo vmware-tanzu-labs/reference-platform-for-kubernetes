@@ -1,0 +1,36 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure sonarqube persistence layer exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "sonarqube persistence layer"
+    manifest_template:    "app-sonarqube-postgresql.yaml.j2"
+    manifest_file:        "app-sonarqube-postgresql.yaml"
+    manifest_staging_dir: "{{ tanzu_app_pipeline.staging_dir }}"
+
+- name: "ensure sonarqube pod security policy exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "sonarqube psp"
+    manifest_template:    "psp-sonarqube.yaml.j2"
+    manifest_file:        "psp-sonarqube.yaml"
+    manifest_staging_dir: "{{ tanzu_app_pipeline.staging_dir }}"
+
+- name: "ensure sonarqube exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "sonarqube"
+    manifest_template:    "app-sonarqube.yaml.j2"
+    manifest_file:        "app-sonarqube.yaml"
+    manifest_staging_dir: "{{ tanzu_app_pipeline.staging_dir }}"
+
+- name: "ensure dns resolvability for sonarqube"
+  import_role:
+    name: "common/etc-hosts"
+  vars:
+    ip:   "{{ ingress_ip }}"
+    fqdn: "{{ tanzu_app_pipeline.code_analyzer.dns }}"

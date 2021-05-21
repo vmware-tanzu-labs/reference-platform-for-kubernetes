@@ -1,0 +1,44 @@
+{% include 'sections/common/super_quick_start.md'%}
+
+
+## Detailed Quick Start
+
+This guide will take you through all of the necessary steps to prepare for and to deploy RPK.
+
+### Ensure KIND Kubeconfig Cluster Contexts Exist
+
+Make sure your local kubeconfig contains the reference to your deployed cluster:
+
+```bash
+kubectl config get-contexts
+```
+
+If the KIND kubeconfig context is missing, execute the following command:
+
+```bash
+kind get kubeconfig --name rpk >> ~/.kube/config
+```
+
+{% include 'sections/common/inventory.md' %}
+
+
+### 2. Set Variables
+
+{% include 'sections/common/common_vars.md' %}
+
+
+#### 2b. Additional/Optional Variables (Expert)
+
+{% include 'sections/common/additional_vars.md' %}
+
+
+### 3. Build RPK Container Image
+
+{% include 'sections/common/build.md' %}
+
+
+### 4. Deploy RPK to Your KIND Cluster
+
+At this point, you should have completed all the necessary prerequisite work to deploy RPK to your workload cluster.  You are now ready to Deploy RPK.
+
+{% include 'sections/common/deploy.md' %}

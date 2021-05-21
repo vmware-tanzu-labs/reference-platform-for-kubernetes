@@ -1,0 +1,28 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_workload_tenancy:
+  # common vars
+  namespace:      "tanzu-workload-tenancy"
+  demo_namespace: "tanzu-demo"
+  staging_dir:    "{{ rpk_staging_dir }}/tanzu-workload-tenancy"
+
+  # namespace operator vars
+  namespace_operator:
+    # rbac
+    service_account:    "namespace-operator"
+    clusterrole:        "namespace-operator-clusterrole"
+    clusterrolebinding: "namespace-operator-clusterrolebinding"
+
+    # app
+    image:     "projects.registry.vmware.com/rpk/namespace-operator"
+    image_tag: "v1.2.10"
+    replicas:  2
+    app_name:  "namespace-operator"
+    resources:
+      requests:
+        memory: "16Mi"
+        cpu:    "10m"
+      limits:
+        memory: "64Mi"
+        cpu:    "40m"

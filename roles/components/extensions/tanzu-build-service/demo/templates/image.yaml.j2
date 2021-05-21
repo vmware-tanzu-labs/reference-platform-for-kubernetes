@@ -1,0 +1,22 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+apiVersion: kpack.io/v1alpha1
+kind: Image
+metadata:
+  name: sample-app-nodejs
+  namespace: {{ tanzu_build_service.namespace_kpack }}
+spec:
+  builder:
+    kind: ClusterBuilder
+    name: {{ tanzu_build_service.demo.builder.name }}
+  cacheSize: 2G
+  failedBuildHistoryLimit: 10
+  imageTaggingStrategy: BuildNumber
+  serviceAccountName: canonical-registry-serviceaccount
+  source:
+    git:
+      revision: master
+      url: https://github.com/robinfoe/sample-app-nodejs
+  successBuildHistoryLimit: 10
+  tag: {{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/sample-app-nodejs' }}
+

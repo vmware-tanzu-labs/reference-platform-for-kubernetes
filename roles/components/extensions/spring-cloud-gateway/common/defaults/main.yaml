@@ -1,0 +1,39 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_spring_cloud_gateway:
+  # common vars
+  namespace:   "tanzu-spring-cloud-gateway"
+  staging_dir: "{{ rpk_staging_dir }}/tanzu-spring-cloud-gateway"
+  module:      "spring-cloud-gateway"
+
+  demo:
+    dns: spring-cloud-gateway-demo.{{ tanzu_ingress_domain }}
+
+  security:
+    policy:
+      role: "rpk-tanzu-spring-cloud-gateway-cluster-role"
+      role_bind: "rpk-tanzu-spring-cloud-gateway-cluster-role-binding"
+      name: "rpk-tanzu-spring-cloud-gateway-psp"
+
+  pivnet:
+    version: "1.0.0-beta.3"
+    download_url: https://network.pivotal.io/api/v2/products/spring-cloud-gateway-for-kubernetes/releases/771839/product_files/821598/download
+    download_sha: "cfa166713d5e8db6d9c3d352b8d56d674be28d064258797172d425fdba8bd761"
+
+  registry:
+    project:
+      project_name:  "spring-cloud-gateway"
+      metadata:
+        auto_scan:   "false"
+        public:      "false"
+    destination_tag: "rpk-1.0"
+    images:
+      - name: "scg-reconciler"
+        tag:  "v1.0.0-beta.3"
+      - name: "gateway"
+        tag:  "v1.0.0-beta.3"
+
+  # use namespace operator or not
+  workload_tenancy:
+    enabled: false

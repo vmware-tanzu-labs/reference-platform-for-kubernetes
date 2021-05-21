@@ -1,0 +1,96 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: postgres-operator-cluster-role
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_sql.module }}"
+    rpk.resource: "postgres-cluster-role"
+rules:
+- apiGroups: [apiextensions.k8s.io]
+  resources: [customresourcedefinitions]
+  verbs: ['*']
+- apiGroups: [certificates.k8s.io]
+  resources: [certificatesigningrequests]
+  verbs: ['*']
+- apiGroups: [certificates.k8s.io]
+  resources: [certificatesigningrequests/approval]
+  verbs: ['*']
+- apiGroups: [admissionregistration.k8s.io]
+  resources: [validatingwebhookconfigurations]
+  verbs: ['*']
+- apiGroups: [postgres.pivotal.io]
+  resources: [postgresinstances]
+  verbs: ['*']
+- apiGroups: [apps]
+  resources: [deployments]
+  verbs: ['*']
+- apiGroups: [apps]
+  resources: [statefulsets]
+  verbs: ['*']
+- apiGroups: [""]
+  resources:
+  - configmaps
+  - secrets
+  verbs: ['*']
+- apiGroups: [""]
+  resources:
+  - statefulsets
+  - pods
+  - nodes
+  - services
+  - endpoints
+  - persistentvolumeclaims
+  - events
+  verbs: ['*']
+- apiGroups: [""]
+  resources:
+  - services
+  - endpoints
+  verbs:
+  - get
+  - create
+  - update
+- apiGroups: [""]
+  resources: [nodes]
+  verbs:
+  - list
+  - watch
+- apiGroups: [""]
+  resources: [namespaces]
+  verbs:
+  - list
+  - watch
+- apiGroups: [""]
+  resources: ["pods/exec"]
+  verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: postgres-operator-cluster-role-binding
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_sql.module }}"
+    rpk.resource: "postgres-cluster-role-binding"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: postgres-operator-cluster-role
+subjects:
+- kind: ServiceAccount
+  name: postgres-operator-service-account
+  namespace: {{ tanzu_sql.namespace }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: postgres-operator-service-account
+  namespace: {{ tanzu_sql.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_sql.module }}"
+    rpk.resource: "postgres-service-account"

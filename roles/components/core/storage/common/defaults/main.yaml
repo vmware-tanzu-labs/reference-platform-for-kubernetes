@@ -1,0 +1,192 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_storage:
+  # common
+  namespace:   "tanzu-storage"
+  staging_dir: "{{ rpk_staging_dir }}/tanzu-storage"
+  component:   "storage"
+
+  # resources
+  default_resources: "{{ rpk_default_resources }}"
+  default_quota:     "{{ rpk_default_quota }}"
+  default_maximums:
+    cpu:    "1000m"
+    memory: "128Mi"
+
+  # storage class defaults
+  storage_class_defaults:
+    default:             false
+    file_system:         "ext4"
+    expandable:          false
+    reclaim_policy:      "Delete"
+    volume_binding_mode: "WaitForFirstConsumer"
+    mount_options: []
+
+  # ephemeral / host path
+  #   NOTE: accessed via tanzu_storage.ephemeral.<key>
+  ephemeral:
+    provisioner:  "hostpath.csi.k8s.io"
+    name:         "tanzu-ephemeral"
+
+    # attacher
+    csi_attacher:
+      image:         "quay.io/k8scsi/csi-attacher"
+      image_tag:     "v2.2.0"
+      resource_name: "csi-hostpath-attacher"
+
+    # plugin
+    csi_plugin:
+      image:         "quay.io/k8scsi/hostpathplugin"
+      image_tag:     "v1.3.0"
+      resource_name: "csi-hostpath-plugin"
+
+    # provisioner
+    csi_provisioner:
+      image:         "gcr.io/k8s-staging-sig-storage/csi-provisioner"
+      image_tag:     "v1.6.0"
+      resource_name: "csi-hostpath-provisioner"
+
+    # resizer
+    csi_resizer:
+      image:         "quay.io/k8scsi/csi-resizer"
+      image_tag:     "v0.5.0"
+      resource_name: "csi-hostpath-resizer"
+
+    # snapshotter
+    csi_snapshotter:
+      image:         "quay.io/k8scsi/csi-snapshotter"
+      image_tag:     "v2.1.1"
+      resource_name: "csi-hostpath-snapshotter"
+
+    # snapshot controller
+    csi_snapshot_controller:
+      image:         "quay.io/k8scsi/snapshot-controller"
+      image_tag:     "v2.1.1"
+      resource_name: "csi-hostpath-snapshot-controller"
+
+  # aws
+  #   NOTE: accessed via tanzu_storage.aws.<key>
+  #
+  # see https://kubernetes.io/docs/concepts/storage/storage-classes/#the-storageclass-resource
+  #
+  # the following is not defaulted and should be explicitly set on an object which represents
+  # the tanzu cluster
+  #
+  # tanzu_storage:
+  #   aws:
+  #     storage_classes:
+  #       - name:           ''
+  #         default:        "false"
+  #         type:           "gp2"   # io2, gp2, sc1, st1
+  #         iops_per_gb:    "10"    # only applicable to io2
+  #         file_system:    "ext4"
+  #         encrypted:      "false"
+  #         kms_key_id:     ""      # only applicable to encrypted volumes
+  #         expandable:     false
+  #         reclaim_policy: "Delete"
+  #         mount_options:  []
+  aws:
+    provisioner: "kubernetes.io/aws-ebs"
+    defaults:
+      type:        "gp2"
+      iops_per_gb: "10"
+      encrypted:   "false"
+      kms_key_id:  ""
+    storage_classes:
+      - name:    "tanzu-default-aws"
+        default: true
+
+  # azure
+  #   NOTE: accessed via tanzu_storage.azure.<key>
+  #
+  # see https://kubernetes.io/docs/concepts/storage/storage-classes/#the-storageclass-resource
+  #
+  # the following is not defaulted and should be explicitly set on an object which represents
+  # the tanzu cluster
+  #
+  # tanzu_storage:
+  #   azure:
+  #     storage_classes:
+  #       - name:           ""
+  #         default:        "false"
+  #         type:           "Standard_LRS"  # Azure storage account Sku tier. Only Premium VMs can attach Premium_LRS disks
+  #         kind:           "managed"       # shared, dedicated, managed
+  #         resource_group: ""              # Resource Group where Azure disk will be created. Default is K8s node RG
+  #         caching_mode:   "ReadOnly"      # ReadOnly, ReadWrite, None
+  #         file_system:    "ext4"
+  #         expandable:     false
+  #         reclaim_policy: "Delete"
+  azure:
+    provisioner:  "kubernetes.io/azure-disk"
+    defaults:
+      kind:           "managed"
+      type:           "Standard_LRS"
+      caching_mode:   "ReadOnly"
+      resource_group: ""
+    storage_classes:
+      - name:    "tanzu-default-azure"
+        default: true
+
+  # kind
+  #   NOTE: accessed via tanzu_storage.kind.<key>
+  #
+  # see https://kubernetes.io/docs/concepts/storage/storage-classes/#the-storageclass-resource
+  #
+  # the following is not defaulted and should be explicitly set on an object which represents
+  # the tanzu cluster
+  #
+  # tanzu_storage:
+  #   kind:
+  #     storage_classes:
+  #       - name:                  "standard"
+  #         default_storage_class: true
+  #         provisioner:           "rancher.io/local-path"
+  #         reclaim_policy:        "Delete"
+  #         volume_binding_mode:   "WaitForFirstConsumer"
+  #       - name:                  "ephemeral"
+  #         provisioner:           "hostpath.csi.k8s.io"
+  #         reclaimPolicy:         "Delete"
+  #         volume_binding_mode:   "Immediate"
+  kind:
+    defaults:
+      provisioner: "rancher.io/local-path"
+    storage_classes:
+      - name:    "tanzu-default-kind"
+        default: true
+
+  # vmware
+  #   NOTE: accessed via tanzu_storage.vmware.<key>
+  #
+  # see https://kubernetes.io/docs/concepts/storage/storage-classes/#the-storageclass-resource
+  #
+  # the following is not defaulted and should be explicitly set on an object which represents
+  # the tanzu cluster
+  #
+  # tanzu_storage:
+  #   vmware:
+  #     storage_classes:
+  #       - name:       ''
+  #         datastores: []
+  #         default_storage_class: false
+  #         expandable:            false
+  #         reclaim_policy:        "Delete"
+  #         file_system:           "ext4"
+  #         mount_options:         []
+  #         disk_format:           "thin"
+  vmware:
+    provisioner:             "csi.vsphere.vmware.com"
+    vcenter_tag_category:    "Tanzu Storage Class"
+    vcenter_tag_description: "Tanzu Storage Class"
+    storage_classes: []
+    config_job:
+      name:                "vmware-config-job"
+      playbook_config_map: "vmware-config-job-playbook"
+      vars_secret:         "vmware-config-job-vars"
+      resources:
+        requests:
+          cpu:    "500m"
+          memory: "64Mi"
+        limits:
+          cpu:    "1000m"
+          memory: "128Mi"

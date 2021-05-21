@@ -1,0 +1,51 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "register job name"
+  set_fact:
+    _job_name: "{{ ('kube-apiserver-config-' + item.metadata.name) | eskape }}"
+
+- name: "ensure {{ _job_name }} job exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "kube-apiserver configuration update job"
+    manifest_template:    "job-kube-apiserver.yaml.j2"
+    manifest_file:        "job-kube-apiserver.yaml"
+    manifest_staging_dir: "{{ tanzu_identity.staging_dir }}"
+    name:                 "{{ item.metadata.name }}"
+
+- name: "ensure {{ _job_name }} job succeeded"
+  import_role:
+    name: "common/wait-for-job"
+  vars:
+    name:      "{{ _job_name }}"
+    namespace: "{{ tanzu_identity.namespace }}"
+    retries:   50
+    delay:     5
+
+- name: "wait for the kube-apiserver to go offline (if necessary) on {{ item.metadata.name }}"
+  uri:
+    url:            "{{ tanzu_apiserver_url }}/readyz"
+    validate_certs: false
+  register:    kube_api_server_status
+  until:       kube_api_server_status.status != 200
+  retries:     30
+  delay:       1
+  failed_when: false
+
+- name: "wait for the kube-apiserver to come online on {{ item.metadata.name }}"
+  uri:
+    url:            "{{ tanzu_apiserver_url }}/readyz"
+    validate_certs: false
+  register: kube_api_server_status
+  until:    kube_api_server_status.status == 200
+  retries:  40
+  delay:    3
+
+- name: "warn deployer of kube-apiserver configuration failure on {{ item.metadata.name }}"
+  when: kube_api_server_status.failed
+  debug:
+    msg: "kube-apiserver communication failed on {{ name }}.\nYou may need to restore the config from /etc/kubernetes/backup/kube-apiserver.conf.orig"
+    verbosity: 0
+  failed_when: true

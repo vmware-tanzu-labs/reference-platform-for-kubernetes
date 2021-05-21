@@ -1,0 +1,130 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ldap
+  namespace: "{{ tanzu_identity.namespace }}"
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: ldap
+  namespace: "{{ tanzu_identity.namespace }}"
+  labels:
+    app.kubernetes.io/name: ldap
+spec:
+  type: ClusterIP
+  ports:
+    - name: "ldap"
+      protocol: TCP
+      port: 389
+      targetPort: "ldap"
+    - name: "ldaps"
+      protocol: TCP
+      port: 636
+      targetPort: "ldaps"
+  selector:
+    app.kubernetes.io/name: ldap
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ldif-config
+  namespace: "{{ tanzu_identity.namespace }}"
+data:
+  config-ldap.ldif: |-
+
+    dn: ou=People,{{ tanzu_identity.ldap.base_dn }}
+    objectClass: organizationalUnit
+    ou: People
+
+{% for user in tanzu_identity.demo_users %}
+    dn: cn={{ user.first_name }},ou=People,{{ tanzu_identity.ldap.base_dn }}
+    objectClass: person
+    objectClass: inetOrgPerson
+    sn: {{ user.last_name }}
+    cn: {{ user.first_name }}
+    mail: {{ user.email }}
+    userpassword: {{ user.password }}
+
+{% endfor %}
+
+    # Group definitions.
+
+    dn: ou=Groups,{{ tanzu_identity.ldap.base_dn }}
+    objectClass: organizationalUnit
+    ou: Groups
+
+    dn: cn=admins,ou=Groups,{{ tanzu_identity.ldap.base_dn }}
+    objectClass: groupOfNames
+    cn: admins
+
+    dn: cn=developers,ou=Groups,{{ tanzu_identity.ldap.base_dn }}
+    objectClass: groupOfNames
+    cn: developers
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: ldap
+  name: ldap
+  namespace: "{{ tanzu_identity.namespace }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ldap
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ldap
+        revision: "1"
+    spec:
+      securityContext:
+        runAsUser: 0
+      serviceAccountName: ldap
+      containers:
+        - name: ldap
+          image: {{ tanzu_identity.ldap.image }}:{{ tanzu_identity.ldap.image_tag }}
+          imagePullPolicy: IfNotPresent
+          args: ["--copy-service"]
+          env:
+            - name: LDAP_DOMAIN
+              value: "{{ tanzu_ingress_domain }}"
+            - name: LDAP_BASE_DN
+              value: "{{ tanzu_identity.ldap.base_dn }}"
+          ports:
+            - containerPort: 389
+              name: ldap
+              protocol: TCP
+            - containerPort: 636
+              name: ldaps
+              protocol: TCP
+          resources: {{ tanzu_identity.ldap.resources }}
+          volumeMounts:
+            - name: ldif-config
+              mountPath: /container/service/slapd/assets/config/bootstrap/ldif/custom
+            - name: ldap-data
+              mountPath: /var/lib/ldap
+            - name: ldap-config
+              mountPath: /etc/ldap/slapd.d
+            - name: ldap-certs
+              mountPath: /container/service/slapd/assets/certs
+      volumes:
+        - name: ldif-config
+          configMap:
+            name: ldif-config
+        - name: ldap-data
+          emptyDir: {}
+        - name: ldap-config
+          emptyDir: {}
+        - name: ldap-certs
+          emptyDir: {}

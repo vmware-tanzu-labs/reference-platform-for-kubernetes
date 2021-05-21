@@ -1,0 +1,37 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# DEPLOY TOOLCHAIN DEMOS
+#
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_app_pipeline.staging_dir }}/demo"
+
+- name: "deploy toolchain demos"
+  include_tasks: "{{ item }}.yaml"
+  with_items:
+    - gitea
+    - sonatype-nexus
+    - jenkins
+    - sonarqube
+
+#
+# PRINT ACCESS INFO
+#
+- name: "you may access your application with the following information"
+  debug:
+    msg:
+      - "Git (Gitea) URL: http://{{ tanzu_app_pipeline.git.http.dns }}"
+      - "Git (Gitea) Username: {{ tanzu_app_pipeline.git.username }}"
+      - "Git (Gitea) Password: {{ tanzu_app_pipeline.git.password }}"
+      - "Artifact Repo (Sonatype Nexus) URL: http://{{ tanzu_app_pipeline.artifact_repo.dns }}"
+      - "Artifact Repo (Sonatype Nexus) Username: {{ tanzu_app_pipeline.artifact_repo.username }}"
+      - "Artifact Repo (Sonatype Nexus) Password: {{ tanzu_app_pipeline.artifact_repo.password }}"
+      - "Code Analyzer (Sonarqube) URL: http://{{ tanzu_app_pipeline.code_analyzer.dns }}"
+      - "CI Tool (Jenkins) URL: http://{{ tanzu_app_pipeline.ci.dns }}"
+      - "CI Tool (Jenkins) Username: {{ tanzu_app_pipeline.ci.username }}"
+      - "CI Tool (Jenkins) Password: {{ tanzu_app_pipeline.ci.password }}"
+    verbosity: 0

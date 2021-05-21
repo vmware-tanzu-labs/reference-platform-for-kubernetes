@@ -1,0 +1,36 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+rpk_components:
+  - name:    "workload-tenancy"
+    enabled: true
+  - name:    "networking"
+    enabled: true
+  - name:    "security"
+    enabled: true
+  - name:    "admission-control"
+    enabled: true
+  - name:    "storage"
+    enabled: true
+  - name:    "ingress"
+    enabled: true
+  - name:    "identity"
+    enabled: true
+  - name:    "monitoring"
+    enabled: true
+  - name:    "container-registry"
+    enabled: true
+  - name:    "logging"
+    enabled: true
+  - name:    "autoscaling"
+    enabled: true
+  - name:    "secret-management/hashicorp-vault"
+    enabled: true
+  - name:    "secret-management/etcd-encryption"
+    enabled: false
+  - name:    "application-stack"
+    enabled: true
+  - name:    "application-pipeline"
+    enabled: true
+  - name:    "service-mesh/istio"
+    enabled: false

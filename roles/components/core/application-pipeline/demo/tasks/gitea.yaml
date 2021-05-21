@@ -1,0 +1,115 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "wait for dns"
+  import_role:
+    name: "common/wait-for-dns"
+  vars:
+    hostname: "{{ tanzu_app_pipeline.git.http.dns }}"
+
+- name: "ensure gitea create user job exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "gitea create user job"
+    manifest_template:    "job-gitea-user.yaml.j2"
+    manifest_file:        "demo/job-gitea-user.yaml"
+    manifest_staging_dir: "{{ tanzu_app_pipeline.staging_dir }}"
+
+# TODO: move to common/wait-for-job when it is merged
+- name: "ensure gitea create user job completed successfully"
+  k8s_info:
+    api_version: "batch/v1"
+    kind:        "Job"
+    namespace:   "{{ tanzu_app_pipeline.namespace }}"
+    name:        "gitea-create-user"
+    context:     "{{ tanzu_kubectl_context }}"
+  register:    _create_user_job
+  until:       _create_user_job.resources[0].status.succeeded | default("False") | bool
+  retries:     30
+  delay:       3
+  failed_when: false
+
+# TODO: move to common/wait-for-job when it is merged
+- name: "error if gitea create user job failed"
+  fail:
+    msg: "the job gitea-create-user failed to complete successfully"
+  when:
+    - (not _create_user_job.resources[0].status.succeeded | default("False") | bool) and
+      (not ignore_failure | default("False") | bool)
+
+- name: "get gitea repository list"
+  uri:
+    url:              "http://{{ tanzu_app_pipeline.git.http.dns }}/api/v1/user/repos"
+    user:             "{{ tanzu_app_pipeline.git.username }}"
+    password:         "{{ tanzu_app_pipeline.git.password }}"
+    method:           "GET"
+    status_code:      "200"
+    force_basic_auth: true
+  register:     _gitea_repo_list
+  changed_when: false
+
+- name: "create demo gitea repository"
+  uri:
+    url:              "http://{{ tanzu_app_pipeline.git.http.dns }}/api/v1/user/repos"
+    user:             "{{ tanzu_app_pipeline.git.username }}"
+    password:         "{{ tanzu_app_pipeline.git.password }}"
+    method:           "POST"
+    status_code:      "201"
+    force_basic_auth: true
+    body_format:      "json"
+    body:
+      name:    "{{ tanzu_app_pipeline.git.demo.empty_repo_name }}"
+      empty:   true
+      private: false
+  changed_when: true
+  when:
+    - ((_gitea_repo_list.json | length) == 0) or
+      ((_gitea_repo_list.json | selectattr('name', 'equalto', tanzu_app_pipeline.git.demo.empty_repo_name) | list | length) == 0)
+
+- name: "get rpk user"
+  uri:
+    url:              "http://{{ tanzu_app_pipeline.git.http.dns }}/api/v1/user"
+    user:             "{{ tanzu_app_pipeline.git.username }}"
+    password:         "{{ tanzu_app_pipeline.git.password }}"
+    method:           "GET"
+    status_code:      "200"
+    force_basic_auth: true
+  changed_when: false
+  register:     _rpk_user
+
+- name: "fail if unabled to find uid"
+  fail:
+    msg: "unable to find uid for user {{ tanzu_app_pipeline.git.username }}"
+  when:
+    - _rpk_user.json.id is undefined
+
+- name: "call api for pipeline repo migration"
+  uri:
+    url:              "http://{{ tanzu_app_pipeline.git.http.dns }}/api/v1/repos/migrate"
+    user:             "{{ tanzu_app_pipeline.git.username }}"
+    password:         "{{ tanzu_app_pipeline.git.password }}"
+    method:           "POST"
+    status_code:      "201"
+    force_basic_auth: true
+    body_format:      "json"
+    body:             "{{ tanzu_app_pipeline.git.demo.pipeline | combine({'uid': _rpk_user.json.id}) }}"
+  changed_when: true
+  when:
+    - ((_gitea_repo_list.json | length) == 0) or
+      ((_gitea_repo_list.json | selectattr('name', 'equalto', tanzu_app_pipeline.git.demo.pipeline.repo_name) | list | length) == 0)
+
+- name: "call api for app repo migration"
+  uri:
+    url:              "http://{{ tanzu_app_pipeline.git.http.dns }}/api/v1/repos/migrate"
+    user:             "{{ tanzu_app_pipeline.git.username }}"
+    password:         "{{ tanzu_app_pipeline.git.password }}"
+    method:           "POST"
+    status_code:      "201"
+    force_basic_auth: true
+    body_format:      "json"
+    body:             "{{ tanzu_app_pipeline.git.demo.app | combine({'uid': _rpk_user.json.id}) }}"
+  changed_when: true
+  when:
+    - ((_gitea_repo_list.json | length) == 0) or
+      ((_gitea_repo_list.json | selectattr('name', 'equalto', tanzu_app_pipeline.git.demo.app.repo_name) | list | length) == 0)

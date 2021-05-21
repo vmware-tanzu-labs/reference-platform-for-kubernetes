@@ -1,0 +1,95 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "generate secret name for secretbox configuration"
+  shell:       "date +secretbox-%F-%H%M-$(head -c 6 /dev/urandom | base64)"
+  delegate_to: "localhost"
+  run_once:    true
+  register:    generated_secret_name
+
+- name: "generate secret key for secretbox configuration"
+  shell:       "head -c 32 /dev/urandom | base64"
+  delegate_to: "localhost"
+  run_once:    true
+  register:    generated_secret
+
+- name: "set secret_key variable to populate secret configuration"
+  set_fact:
+    secret_name: "{{ generated_secret_name.stdout }}"
+    secret_key: "{{ generated_secret.stdout }}"
+
+- name: "output generated secret key"
+  debug:
+    msg: "{{ secret_name }} -> {{ secret_key }}"
+    verbosity: 0
+
+- name: "generate values.yaml"
+  template:
+    src: "values.yaml.j2"
+    dest: "{{ tanzu_secrets.staging_dir }}/values.yaml"
+    mode: "0440"
+  delegate_to: "localhost"
+
+- name: "copy encryption config ytt to staging dir"
+  template:
+    src: "encryption-config.yaml.j2"
+    dest: "{{ tanzu_secrets.staging_dir }}/encryption-config.yaml"
+    mode: "0440"
+  delegate_to: "localhost"
+
+- name: "collect KubeadmControlPlane object for workload cluster from management cluster"
+  k8s_info:
+    kind:         "KubeadmControlPlane"
+    api_version:  "controlplane.cluster.x-k8s.io/v1alpha3"
+    namespace:    "{{ tanzu_secrets.workload_cluster_namespace }}"
+    name:         "{{ tanzu_cluster_name }}-control-plane"
+    context:      "{{ tanzu_management_cluster_kubectl_context }}"
+  register: kacp_orig
+  delegate_to: "localhost"
+
+- name: "save KubeadmControlPlane manifest for ytt later"
+  copy:
+    content: "{{ kacp_orig.resources[0] | to_nice_yaml }}"
+    dest: "{{ tanzu_secrets.staging_dir }}/kacp-orig.yaml"
+  delegate_to: "localhost"
+
+- name: "generate new KubeadmControlPlane manifest"
+  shell:       "/usr/local/bin/ytt -f {{ tanzu_secrets.staging_dir }}/kacp-orig.yaml -f {{ tanzu_secrets.staging_dir }}/encryption-config.yaml -f {{ tanzu_secrets.staging_dir }}/values.yaml"
+  delegate_to: "localhost"
+  register:    generated_kacp_manifest
+
+- name: "save generated KubeadmControlPlane manifest"
+  copy:
+    content: "{{ generated_kacp_manifest.stdout }}"
+    dest: "{{ tanzu_secrets.staging_dir }}/kacp-gen.yaml"
+  delegate_to: "localhost"
+
+- name: "output generated KubeadmControlPlane object"
+  debug:
+    msg: "{{ lookup('file', './build/manifests/staging/aws_tanzu_cluster1/tanzu-secrets/kacp-gen.yaml') }}"
+    verbosity: 0
+
+- name: "apply new KubeadmControlPlane manifest"
+  k8s:
+    state: present
+    context: "{{ tanzu_management_cluster_kubectl_context }}"
+    namespace: "{{ tanzu_secrets.workload_cluster_namespace }}"
+    src: "{{ tanzu_secrets.staging_dir }}/kacp-gen.yaml"
+
+- name: "pause for 3 minute for control plane nodes to be recreated"
+  pause:
+    minutes: 3
+
+- name: "validate that control plane has been updated"
+  k8s_info:
+    kind:         "KubeadmControlPlane"
+    api_version:  "controlplane.cluster.x-k8s.io/v1alpha3"
+    namespace:    "{{ tanzu_secrets.workload_cluster_namespace }}"
+    name:         "{{ tanzu_cluster_name }}-control-plane"
+    context:      "{{ tanzu_management_cluster_kubectl_context }}"
+  delegate_to: "localhost"
+  register:    kacp
+  until:       (kacp.resources[0].status.ready == True) and (kacp.resources[0].spec.replicas == kacp.resources[0].status.replicas) and (kacp.resources[0].status.updatedReplicas == kacp.resources[0].status.readyReplicas)
+  retries:     240
+  delay:       5
+  failed_when: false

@@ -1,0 +1,14 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+#@ load("@ytt:overlay", "overlay")
+#@ load("@ytt:data", "data")
+
+#@overlay/match by=overlay.all,expects="1+"
+---
+metadata:
+  #@overlay/match missing_ok=True
+  annotations:
+    #@overlay/match missing_ok=True
+    kapp.k14s.io/change-group.component: #@ "extensions.tanzu.vmware.com/" + data.values.component_values.component
+    #! process dependendies and place them here ...
+    #! kapp.k14s.io/change-rule.component: "upsert after upserting extensions.tanzu.vmware.com/dependency-name"

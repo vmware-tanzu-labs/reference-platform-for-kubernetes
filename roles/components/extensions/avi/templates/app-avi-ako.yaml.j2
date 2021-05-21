@@ -1,0 +1,256 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+# helm repo add ako https://avinetworks.github.io/avi-helm-charts/charts/stable/ako
+# generated with helm template ako/ako
+# Source: ako/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ako-sa
+  namespace: {{ avi.namespace }}
+---
+# Source: ako/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: avi-secret
+  namespace: {{ avi.namespace }}
+type: Opaque
+data:
+  username: {{ avi.controller.username | b64encode }}
+  password: {{ avi.controller.password | b64encode }}
+---
+# Source: ako/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: avi-k8s-config
+  namespace: {{ avi.namespace }}
+data:
+  controllerIP: "{{ _avi_cluster_vip }}"
+  controllerVersion: "{{ _avi_controller_version }}"
+  cniPlugin: {{ _avi_cluster_cni }}
+  shardVSSize: "LARGE"
+  passthroughShardSize: "SMALL"
+  fullSyncFrequency: "1800"
+  cloudName: "{{ avi.controller.workload_name }}-cloud"
+  clusterName: "{{ inventory_hostname }}"
+  defaultDomain: ""
+  disableStaticRouteSync: "false"
+  defaultIngController: "false"
+  subnetIP: "{{ tanzu_load_balancer_subnet.split('/')[0] }}"
+  subnetPrefix: "{{ tanzu_load_balancer_subnet.split('/')[-1] }}"
+  networkName: "{{ avi_service_engine_networks[0].portgroup }}"
+  l7ShardingScheme: "hostname"
+  logLevel: "INFO"
+  deleteConfig: "false"
+  serviceType: "ClusterIP"
+  serviceEngineGroupName: "{{ avi.service_engine.group }}"
+  nodeNetworkList: '[{"cidrs":["{{ _avi_k8s_cluster_cidr }}"],"networkName":"{{ avi_vcenter_management_portgroup }}"}]'
+  apiServerPort: "8080"
+---
+# Source: ako/templates/clusterrole.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: ako-cr
+rules:
+  - apiGroups: [""]
+    resources: ["*"]
+    verbs: ['get', 'watch', 'list']
+  - apiGroups: ["extensions", "networking.k8s.io"]
+    resources: ["ingresses", "ingresses/status"]
+    verbs: ["get","watch","list","patch", "update"]
+  - apiGroups: [""]
+    resources: ["services/status"]
+    verbs: ["get","watch","list","patch", "update"]
+  - apiGroups: ["crd.projectcalico.org"]
+    resources: ["blockaffinities"]
+    verbs: ["get", "watch", "list"]
+  - apiGroups: ["network.openshift.io"]
+    resources: ["hostsubnets"]
+    verbs: ["get", "watch", "list"]
+  - apiGroups: ["route.openshift.io"]
+    resources: ["routes", "routes/status"]
+    verbs: ["get", "watch", "list", "patch", "update"]
+  - apiGroups: ["ako.vmware.com"]
+    resources: ["hostrules", "hostrules/status", "httprules", "httprules/status"]
+    verbs: ["get","watch","list","patch", "update"]
+---
+# Source: ako/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ako-crb
+  labels:
+    chart: ako-1.2.2
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ako-cr
+subjects:
+- kind: ServiceAccount
+  name: ako-sa
+  namespace: {{ avi.namespace }}
+---
+# Source: ako/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ako
+  namespace: {{ avi.namespace }}
+  labels:
+    helm.sh/chart: ako-1.2.2
+    app.kubernetes.io/name: ako
+    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/version: "1.2.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  serviceName: ako
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ako
+      app.kubernetes.io/instance: RELEASE-NAME
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ako
+        app.kubernetes.io/instance: RELEASE-NAME
+    spec:
+      serviceAccountName: ako-sa
+      securityContext: {}
+      containers:
+        - name: ako
+          securityContext: {}
+          image: "avinetworks/ako:1.2.2"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 65534
+          env:
+          - name: CTRL_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: avi-secret
+                key: username
+          - name: CTRL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: avi-secret
+                key: password
+          - name: CTRL_IPADDRESS
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: controllerIP
+          - name: CTRL_VERSION
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: controllerVersion
+          - name: CNI_PLUGIN
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: cniPlugin
+          - name: SHARD_VS_SIZE
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: shardVSSize
+          - name: PASSTHROUGH_SHARD_SIZE
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: passthroughShardSize
+          - name: FULL_SYNC_INTERVAL
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: fullSyncFrequency
+          - name: CLOUD_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: cloudName
+          - name: CLUSTER_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: clusterName
+          - name: DEFAULT_DOMAIN
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: defaultDomain
+          - name: DISABLE_STATIC_ROUTE_SYNC
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: disableStaticRouteSync
+          - name: SUBNET_IP
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: subnetIP
+          - name: SUBNET_PREFIX
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: subnetPrefix
+          - name: DEFAULT_ING_CONTROLLER
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: defaultIngController
+          - name: NETWORK_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: networkName
+          - name: SEG_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: serviceEngineGroupName
+          - name: NODE_NETWORK_LIST
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: nodeNetworkList
+          - name: SERVICE_TYPE
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: serviceType
+          - name: LOG_FILE_PATH
+            value: /log
+          - name: LOG_FILE_NAME
+            value: avi.log
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: L7_SHARD_SCHEME
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: l7ShardingScheme
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 250m
+              memory: 300Mi
+            requests:
+              cpu: 100m
+              memory: 200Mi
+          livenessProbe:
+            httpGet:
+              path: /api/status
+              port:  8080
+            initialDelaySeconds: 5
+            periodSeconds: 10

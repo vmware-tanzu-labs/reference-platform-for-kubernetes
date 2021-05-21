@@ -1,0 +1,16 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: "postgres.pivotal.io/v1"
+kind: "PostgresInstance"
+metadata:
+  name: rpk-postgres-small
+  namespace: {{ tanzu_sql.namespace }}
+spec:
+  memory: "800Mi"
+  cpu: "1"
+  storageClassName: {{ tanzu_sql.demo.storage_class }}
+  storageSize: 1G
+  pgConfig:
+    dbname: rpk-postgres-demo
+    username: rpk

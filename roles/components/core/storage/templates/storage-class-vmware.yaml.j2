@@ -1,0 +1,20 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+{% for storage_class in _vmware_storage_classes %}
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: "{{ storage_class.name }}"
+{% if not (_cluster_has_default_class | default(false)) %}
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "{{ storage_class.default | default(tanzu_storage.storage_class_defaults.default) | string | lower }}"
+{% endif %}
+allowVolumeExpansion: {{ storage_class.expandable | default(tanzu_storage.storage_class_defaults.expandable) }}
+provisioner: "{{ tanzu_storage.vmware.provisioner }}"
+reclaimPolicy: "{{ storage_class.reclaim_policy | default(tanzu_storage.storage_class_defaults.reclaim_policy) }}"
+parameters:
+  storagepolicyname: "{{ storage_class.name }}"
+  fstype: "{{ storage_class.file_system | default(tanzu_storage.storage_class_defaults.file_system) }}"
+mountOptions: {{ storage_class.mount_options | default(tanzu_storage.storage_class_defaults.mount_options) }}
+{% endfor %}

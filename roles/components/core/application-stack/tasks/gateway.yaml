@@ -1,0 +1,53 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "get the ingress ip"
+  import_role:
+    name: "common/ingress-ip"
+
+- name: "ensure dns resolvability for the app stack"
+  import_role:
+    name: "common/etc-hosts"
+  vars:
+    ip:   "{{ ingress_ip }}"
+    fqdn: "{{ tanzu_app_stack.gateway.dns }}"
+
+- name: "ensure application stack (gateway) rbac exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "application stack (gateway) rbac"
+    manifest_template:    "app/gateway/gateway-rbac.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}"
+
+- name: "ensure application stack (gateway) config map exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "application stack (gateway) config map"
+    manifest_template:    "app/gateway/gateway-configmap.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}"
+
+- name: "ensure application stack (gateway) deployment exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "application stack (gateway) deployment"
+    manifest_template:    "app/gateway/gateway-deployment.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}"
+
+- name: "ensure application stack (gateway) ingress exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "application stack (gateway) ingress"
+    manifest_template:    "app/gateway/gateway-ingress.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}"
+
+- name: "ensure application stack (gateway) hpa exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "application stack (gateway) hpa"
+    manifest_template:    "app/gateway/gateway-hpa.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}"

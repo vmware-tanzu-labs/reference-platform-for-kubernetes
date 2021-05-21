@@ -1,0 +1,31 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "wait for dns"
+  include_role:
+    name: "common/wait-for-dns"
+  vars:
+    hostname: "{{ item }}"
+  with_items:
+    - "{{ tanzu_monitoring.grafana.dns }}"
+    - "{{ tanzu_monitoring.prometheus.dns }}"
+    - "{{ tanzu_monitoring.alertmanager.dns }}"
+
+- name: "ensure the dashboards are available"
+  uri:
+    url: "https://{{ item }}"
+    validate_certs: false
+  with_items:
+    - "{{ tanzu_monitoring.grafana.dns }}"
+    - "{{ tanzu_monitoring.prometheus.dns }}"
+    - "{{ tanzu_monitoring.alertmanager.dns }}"
+
+- name: "print the grafana dashboard access information"
+  debug:
+    msg:
+      - "User: {{ tanzu_monitoring.grafana.admin_username }}"
+      - "User: {{ tanzu_monitoring.grafana.admin_password }}"
+      - "You can access the Grafana Dashboard at URL https://{{ tanzu_monitoring.grafana.dns }}"
+      - "You can access the Prometheus Dashboard at URL https://{{ tanzu_monitoring.prometheus.dns }}"
+      - "You can access the Alert Manager Dashboard at URL https://{{ tanzu_monitoring.alertmanager.dns }}"
+    verbosity: 0

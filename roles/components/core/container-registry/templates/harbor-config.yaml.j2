@@ -1,0 +1,441 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# POSTGRES
+#
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "{{ tanzu_container_registry.postgres.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+type: Opaque
+data:
+  POSTGRES_PASSWORD: "{{ tanzu_container_registry.postgres.password | string | b64encode }}"
+
+---
+#
+# CORE
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ tanzu_container_registry.core.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+data:
+  app.conf: |+
+    appname = Harbor
+    runmode = dev
+    enablegzip = true
+
+    [dev]
+    httpport = 8080
+  DATABASE_TYPE: "postgresql"
+  POSTGRESQL_HOST: "{{ tanzu_container_registry.postgres.resource_name }}"
+  POSTGRESQL_PORT: "5432"
+  POSTGRESQL_USERNAME: "{{ tanzu_container_registry.postgres.username }}"
+  POSTGRESQL_DATABASE: "registry"
+  POSTGRESQL_SSLMODE: "disable"
+  POSTGRESQL_MAX_IDLE_CONNS: "10"
+  POSTGRESQL_MAX_OPEN_CONNS: "50"
+  EXT_ENDPOINT: "https://{{ tanzu_container_registry.core.dns }}"
+  CORE_URL: "https://{{ tanzu_container_registry.core.resource_name }}:443"
+  JOBSERVICE_URL: "https://{{ tanzu_container_registry.jobservice.resource_name }}"
+  REGISTRY_URL: "https://{{ tanzu_container_registry.registry.resource_name }}:5443"
+  TOKEN_SERVICE_URL: "https://{{ tanzu_container_registry.core.resource_name }}:443/service/token"
+  WITH_NOTARY: "true"
+  NOTARY_URL: "http://{{ tanzu_container_registry.notary.server.resource_name }}:4443"
+  CFG_EXPIRATION: "5"
+  ADMIRAL_URL: "NA"
+  WITH_CLAIR: "true"
+  CLAIR_DB_HOST: "{{ tanzu_container_registry.postgres.resource_name }}"
+  CLAIR_DB_PORT: "5432"
+  CLAIR_DB_USERNAME: "{{ tanzu_container_registry.postgres.username }}"
+  CLAIR_DB: "postgres"
+  CLAIR_DB_SSLMODE: "disable"
+  CLAIR_URL: "http://{{ tanzu_container_registry.clair.resource_name }}:6060"
+  CLAIR_ADAPTER_URL: "https://{{ tanzu_container_registry.clair.resource_name }}:8443"
+  WITH_TRIVY: "true"
+  TRIVY_ADAPTER_URL: "https://{{ tanzu_container_registry.trivy.resource_name }}:8443"
+  REGISTRY_STORAGE_PROVIDER_NAME: "filesystem"
+  WITH_CHARTMUSEUM: "false"
+  CHART_REPOSITORY_URL: "https://{{ tanzu_container_registry.chartmuseum.resource_name }}"
+  LOG_LEVEL: "info"
+  CONFIG_PATH: "/etc/core/app.conf"
+  SYNC_REGISTRY: "false"
+  CHART_CACHE_DRIVER: "redis"
+  _REDIS_URL: "{{ tanzu_container_registry.redis.resource_name }}:6379,100,"
+  _REDIS_URL_REG: "redis://{{ tanzu_container_registry.redis.resource_name }}:6379/2"
+  PORTAL_URL: "https://{{ tanzu_container_registry.portal.resource_name }}"
+  REGISTRY_CONTROLLER_URL: "https://{{ tanzu_container_registry.registry.resource_name }}:8443"
+  REGISTRY_CREDENTIAL_USERNAME: "harbor_registry_user"
+  HTTP_PROXY: ""
+  HTTPS_PROXY: ""
+  NO_PROXY: "{{ tanzu_container_registry.core.resource_name }},{{ tanzu_container_registry.jobservice.resource_name }},{{ tanzu_container_registry.postgres.resource_name }},{{ tanzu_container_registry.chartmuseum.resource_name }},{{ tanzu_container_registry.clair.resource_name }},{{ tanzu_container_registry.notary.server.resource_name }},{{ tanzu_container_registry.notary.signer.resource_name }},{{ tanzu_container_registry.registry.resource_name }},{{ tanzu_container_registry.portal.resource_name }},{{ tanzu_container_registry.trivy.resource_name }}127.0.0.1,localhost,.local,.internal"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "{{ tanzu_container_registry.core.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+type: Opaque
+data:
+  secretKey: "bm90LWEtc2VjdXJlLWtleQ=="
+  secret: "NGRQYUhJVzZsUGhiMm11Mw=="
+  HARBOR_ADMIN_PASSWORD: "{{ tanzu_container_registry.admin_password | b64encode }}"
+  POSTGRESQL_PASSWORD: "{{ tanzu_container_registry.postgres.password | b64encode }}"
+  REGISTRY_CREDENTIAL_PASSWORD: "aGFyYm9yX3JlZ2lzdHJ5X3Bhc3N3b3Jk"
+  CLAIR_DB_PASSWORD: "{{ tanzu_container_registry.postgres.password | b64encode }}"
+  CSRF_KEY: "LXhzcmYta2V5LW11c3QtYmUtMzItY2hhcmFjdGVycy0="
+---
+#
+# CHART MUSEUM
+#
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "{{ tanzu_container_registry.chartmuseum.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+type: Opaque
+data:
+  CACHE_REDIS_PASSWORD: ""
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ tanzu_container_registry.chartmuseum.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+data:
+  PORT: "9999"
+  CACHE: "redis"
+  CACHE_REDIS_ADDR: "{{ tanzu_container_registry.redis.resource_name }}:6379"
+  CACHE_REDIS_DB: "3"
+  BASIC_AUTH_USER: "chart_controller"
+  DEPTH: "1"
+  DEBUG: "false"
+  LOG_JSON: "true"
+  DISABLE_METRICS: "false"
+  DISABLE_API: "false"
+  DISABLE_STATEFILES: "false"
+  ALLOW_OVERWRITE: "true"
+  AUTH_ANONYMOUS_GET: "false"
+  CONTEXT_PATH: ""
+  INDEX_LIMIT: "0"
+  MAX_STORAGE_OBJECTS: "0"
+  MAX_UPLOAD_SIZE: "20971520"
+  CHART_POST_FORM_FIELD_NAME: "chart"
+  PROV_POST_FORM_FIELD_NAME: "prov"
+  STORAGE: "local"
+  STORAGE_LOCAL_ROOTDIR: "/chart_storage"
+
+---
+#
+# CLAIR
+#
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "{{ tanzu_container_registry.clair.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+type: Opaque
+stringData:
+  redis: "redis://{{ tanzu_container_registry.redis.resource_name }}:6379/4"
+  database: "postgres://{{ tanzu_container_registry.postgres.username }}:{{ tanzu_container_registry.postgres.password }}@{{ tanzu_container_registry.postgres.resource_name }}:5432/postgres?sslmode=disable"
+  config.yaml: |
+    clair:
+      database:
+        type: pgsql
+        options:
+          source: "postgres://{{ tanzu_container_registry.postgres.username }}:{{ tanzu_container_registry.postgres.password }}@{{ tanzu_container_registry.postgres.resource_name }}:5432/postgres?sslmode=disable"
+          # Number of elements kept in the cache
+          # Values unlikely to change (e.g. namespaces) are cached in order to save prevent needless roundtrips to the database.
+          cachesize: 16384
+      api:
+        # API server port
+        port: 6060
+        healthport: 6061
+        # Deadline before an API request will respond with a 503
+        timeout: 300s
+      updater:
+        interval: 12h
+
+---
+#
+# JOB SERVICE
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ tanzu_container_registry.jobservice.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+data:
+  config.yml: |+
+    #Server listening port
+    protocol: "https"
+    port: 8443
+    https_config:
+      cert: "/etc/harbor/ssl/jobservice/tls.crt"
+      key: "/etc/harbor/ssl/jobservice/tls.key"
+    worker_pool:
+      workers: 10
+      backend: "redis"
+      redis_pool:
+        redis_url: "redis://{{ tanzu_container_registry.redis.resource_name }}:6379/1"
+        namespace: "harbor_job_service_namespace"
+    job_loggers:
+      - name: "FILE"
+        level: INFO
+        settings: # Customized settings of logger
+          base_dir: "/var/log/jobs"
+        sweeper:
+          duration: 14 #days
+          settings: # Customized settings of sweeper
+            work_dir: "/var/log/jobs"
+    #Loggers for the job service
+    loggers:
+      - name: "STD_OUTPUT"
+        level: INFO
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ tanzu_container_registry.jobservice.resource_name }}-env"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+data:
+  CORE_URL: "https://{{ tanzu_container_registry.core.resource_name }}:443"
+  TOKEN_SERVICE_URL: "https://{{ tanzu_container_registry.core.resource_name }}:443/service/token"
+  REGISTRY_URL: "https://{{ tanzu_container_registry.registry.resource_name }}:5443"
+  REGISTRY_CONTROLLER_URL: "https://{{ tanzu_container_registry.registry.resource_name }}:8443"
+  REGISTRY_CREDENTIAL_USERNAME: "harbor_registry_user"
+  HTTP_PROXY: ""
+  HTTPS_PROXY: ""
+  NO_PROXY: "{{ tanzu_container_registry.core.resource_name }},{{ tanzu_container_registry.jobservice.resource_name }},{{ tanzu_container_registry.postgres.resource_name }},{{ tanzu_container_registry.chartmuseum.resource_name }},{{ tanzu_container_registry.clair.resource_name }},{{ tanzu_container_registry.notary.server.resource_name }},{{ tanzu_container_registry.notary.signer.resource_name }},{{ tanzu_container_registry.registry.resource_name }},{{ tanzu_container_registry.portal.resource_name }}, {{ tanzu_container_registry.trivy.resource_name }},127.0.0.1,localhost,.local,.internal"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "{{ tanzu_container_registry.jobservice.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+type: Opaque
+data:
+  JOBSERVICE_SECRET: "d3dncGI2bUJIblVoVUxYRw=="
+  REGISTRY_CREDENTIAL_PASSWORD: "aGFyYm9yX3JlZ2lzdHJ5X3Bhc3N3b3Jk"
+
+---
+#
+# NOTARY
+#
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "{{ tanzu_container_registry.notary.server.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+    component: notary
+type: Opaque
+stringData:
+  signer.json: |
+    {
+      "server": {
+        "grpc_addr": ":7899",
+        "tls_cert_file": "/etc/ssl/notary/tls.crt",
+        "tls_key_file": "/etc/ssl/notary/tls.key"
+      },
+      "logging": {
+        "level": "info"
+      },
+      "storage": {
+        "backend": "postgres",
+        "db_url": "postgres://{{ tanzu_container_registry.postgres.username }}:{{ tanzu_container_registry.postgres.password }}@{{ tanzu_container_registry.postgres.resource_name }}:5432/notarysigner?sslmode=disable",
+        "default_alias": "defaultalias"
+      }
+    }
+  server.json: |
+    {
+      "server": {
+        "http_addr": ":4443"
+      },
+      "trust_service": {
+        "type": "remote",
+        "hostname": "{{ tanzu_container_registry.notary.signer.resource_name }}",
+        "port": "7899",
+        "tls_ca_file": "/etc/ssl/notary/ca.crt",
+        "key_algorithm": "ecdsa"
+      },
+      "logging": {
+        "level": "info"
+      },
+      "storage": {
+        "backend": "postgres",
+        "db_url": "postgres://{{ tanzu_container_registry.postgres.username }}:{{ tanzu_container_registry.postgres.password }}@{{ tanzu_container_registry.postgres.resource_name }}:5432/notaryserver?sslmode=disable"
+      },
+      "auth": {
+        "type": "token",
+        "options": {
+          "realm": "https://{{ tanzu_container_registry.core.dns }}/service/token",
+          "service": "harbor-notary",
+          "issuer": "harbor-token-issuer",
+          "rootcertbundle": "/root.crt"
+        }
+      }
+    }
+
+---
+#
+# REGISTRY
+#
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "{{ tanzu_container_registry.registry.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+type: Opaque
+data:
+  REGISTRY_HTPASSWD: "aGFyYm9yX3JlZ2lzdHJ5X3VzZXI6JDJ5JDEwJDlMNFRjMERKYkZGTUI2UmRTQ3Vuck9wVEhkd2hpZDRrdEJKbUxEMDBiWWdxa2tHT3ZsbDNt"
+  REGISTRY_HTTP_SECRET: "MXlDNklEeWhjYkphdlFmZQ=="
+  REGISTRY_REDIS_PASSWORD: ""
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ tanzu_container_registry.registry.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+data:
+  config.yml: |+
+    version: 0.1
+    log:
+      level: info
+      fields:
+        service: registry
+    storage:
+      filesystem:
+        rootdirectory: /storage
+      cache:
+        layerinfo: redis
+      maintenance:
+        uploadpurging:
+          enabled: false
+      delete:
+        enabled: true
+      redirect:
+        disable: false
+    redis:
+      addr: "{{ tanzu_container_registry.redis.resource_name }}:6379"
+      db: 2
+    http:
+      addr: :5443
+      relativeurls: false
+      tls:
+        certificate: /etc/harbor/ssl/registry/tls.crt
+        key: /etc/harbor/ssl/registry/tls.key
+        minimumtls: tls1.2
+      # set via environment variable
+      # secret: placeholder
+      debug:
+        addr: localhost:5001
+    auth:
+      htpasswd:
+        realm: harbor-registry-basic-realm
+        path: /etc/registry/passwd
+    validation:
+      disabled: true
+  ctl-config.yml: |+
+    ---
+    protocol: "https"
+    port: 8443
+    https_config:
+      cert: "/etc/harbor/ssl/registry/tls.crt"
+      key: "/etc/harbor/ssl/registry/tls.key"
+    log_level: info
+
+---
+#
+# TRIVY
+#
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "{{ tanzu_container_registry.trivy.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+type: Opaque
+stringData:
+  redisURL: "redis://{{ tanzu_container_registry.redis.resource_name }}:6379/5"
+data:
+  gitHubToken: ""
+
+---
+#
+# PORTAL
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ tanzu_container_registry.portal.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+data:
+  nginx.conf: |
+    worker_processes auto;
+    pid /tmp/nginx.pid;
+    events {
+        worker_connections  1024;
+    }
+    http {
+        client_body_temp_path /tmp/client_body_temp;
+        proxy_temp_path /tmp/proxy_temp;
+        fastcgi_temp_path /tmp/fastcgi_temp;
+        uwsgi_temp_path /tmp/uwsgi_temp;
+        scgi_temp_path /tmp/scgi_temp;
+        server {
+            listen 8443 ssl;
+            # SSL
+            ssl_certificate /etc/harbor/ssl/portal/tls.crt;
+            ssl_certificate_key /etc/harbor/ssl/portal/tls.key;
+
+            # Recommendations from https://raymii.org/s/tutorials/Strong_SSL_Security_On_nginx.html
+            ssl_protocols TLSv1.2;
+            ssl_ciphers '!aNULL:kECDH+AESGCM:ECDH+AESGCM:RSA+AESGCM:kECDH+AES:ECDH+AES:RSA+AES:';
+            ssl_prefer_server_ciphers on;
+            ssl_session_cache shared:SSL:10m;
+            server_name  localhost;
+            root   /usr/share/nginx/html;
+            index  index.html index.htm;
+            include /etc/nginx/mime.types;
+            gzip on;
+            gzip_min_length 1000;
+            gzip_proxied expired no-cache no-store private auth;
+            gzip_types text/plain text/css application/json application/javascript application/x-javascript text/xml application/xml application/xml+rss text/javascript;
+            location / {
+                try_files $uri $uri/ /index.html;
+            }
+            location = /index.html {
+                add_header Cache-Control "no-store, no-cache, must-revalidate";
+            }
+        }
+    }

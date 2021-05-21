@@ -1,0 +1,37 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure the namespaces are removed"
+  include_role:
+    name: "common/namespace/clean"
+  vars:
+    namespace: "{{ item }}"
+  with_items:
+    - "{{ tanzu_app_stack.department.namespace }}"
+    - "{{ tanzu_app_stack.employee.namespace }}"
+    - "{{ tanzu_app_stack.gateway.namespace }}"
+    - "{{ tanzu_app_stack.organization.namespace }}"
+    - "{{ tanzu_app_stack.mongodb.namespace }}"
+    - "{{ tanzu_app_stack.monitoring.namespace }}"
+
+- name: "ensure the cluster-wide rbac resources are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "{{ item.kind }}"
+    name:    "{{ item.name }}"
+  with_items:
+    - name: "{{ tanzu_app_stack.resource_name }}"
+      kind: "ClusterRole"
+    - name: "{{ tanzu_app_stack.monitoring.resource_name }}"
+      kind: "ClusterRole"
+    - name: "{{ tanzu_app_stack.department.resource_name }}"
+      kind: "ClusterRoleBinding"
+    - name: "{{ tanzu_app_stack.employee.resource_name }}"
+      kind: "ClusterRoleBinding"
+    - name: "{{ tanzu_app_stack.gateway.resource_name }}"
+      kind: "ClusterRoleBinding"
+    - name: "{{ tanzu_app_stack.mongodb.resource_name }}"
+      kind: "ClusterRoleBinding"
+    - name: "{{ tanzu_app_stack.organization.resource_name }}"
+      kind: "ClusterRoleBinding"

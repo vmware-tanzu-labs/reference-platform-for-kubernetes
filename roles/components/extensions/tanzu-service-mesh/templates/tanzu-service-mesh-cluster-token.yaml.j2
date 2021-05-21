@@ -1,0 +1,13 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cluster-token
+  namespace: {{ tanzu_service_mesh.namespaces.tsm }}
+  labels:
+    app.kubernetes.io/name: tanzu-service-mesh
+data:
+  token: {{ _tsm_cluster_token | b64encode }}
+type: Opaque

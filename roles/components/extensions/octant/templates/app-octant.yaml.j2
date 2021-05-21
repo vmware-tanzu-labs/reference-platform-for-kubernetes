@@ -1,0 +1,88 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: octant
+  namespace: "{{ tanzu_dashboard.namespace }}"
+  labels:
+    app.kubernetes.io/name: octant
+    rpk-component: dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: octant
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: octant
+    spec:
+      serviceAccountName: {{ tanzu_dashboard.service_account }}
+      containers:
+        - name: octant
+          image: "{{ tanzu_dashboard.image }}:{{ tanzu_dashboard.image_tag }}"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+          env:
+            - name: OCTANT_HTTP_PORT
+              value: "8000"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8000
+          volumeMounts:
+            - name: tmp-mount
+              mountPath: /tmp
+          resources: {{ tanzu_dashboard.resources }}
+      volumes:
+        - name: tmp-mount
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: octant-service
+  namespace: "{{ tanzu_dashboard.namespace }}"
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: {{ tanzu_dashboard.dns }}
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 8000
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: octant
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: octant-ingress
+  namespace: "{{ tanzu_dashboard.namespace }}"
+  annotations:
+    kubernetes.io/ingress.class: contour
+    external-dns.alpha.kubernetes.io/target: "{{ tanzu_ingress.dns }}"
+spec:
+  rules:
+    - host: {{ tanzu_dashboard.dns }}
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: octant-service
+              servicePort: 80

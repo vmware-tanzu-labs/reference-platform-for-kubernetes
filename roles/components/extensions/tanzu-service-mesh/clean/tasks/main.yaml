@@ -1,0 +1,290 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_service_mesh.staging_dir }}"
+
+- when:
+    - not tanzu_service_mesh.use_tmc
+  block:
+    - name: "obtain vmware cloud services portal access token"
+      uri:
+        url:             "https://console.cloud.vmware.com/csp/gateway/am/api/auth/api-tokens/authorize"
+        headers:
+          authority:     "console.cloud.vmware.com"
+          pragma:        "no-cache"
+          cache-control: "no-cache"
+          accept:        "application/json, text/plain, */*"
+        body_format:     "raw"
+        body:            "refresh_token={{ tanzu_service_mesh_api_token }}"
+        method:          "POST"
+        return_content:  true
+        status_code:     200
+      # don't acidentally log our api_token
+      no_log:   true
+      register: _csp_access_request
+
+    - debug:
+        var:      _csp_access_request
+        verbosity: 2
+
+    - name: "set vmware cloud services portal access token"
+      set_fact:
+        _csp_access_token: "{{ _csp_access_request.json.access_token }}"
+
+    - debug:
+        var:      "csp_access_token"
+        verbosity: 2
+
+    - name: "ensure tanzu service mesh application is removed from cluster {{ tanzu_cluster_name }}"
+      uri:
+        url:              "{{ tanzu_service_mesh_url }}/tsm/v1alpha1/clusters/{{ tanzu_cluster_name | lower | regex_replace('@','') | regex_replace('#','') | regex_replace('_','') }}/apps/tsm"
+        headers:
+          csp-auth-token: "{{ _csp_access_token }}"
+        body_format:      "raw"
+        method:           "DELETE"
+        return_content:   true
+        status_code:      200
+      # don't acidentally log our access_token
+      no_log:        true
+      register:      _tsm_remove_app
+      # in case user manually removed from TSM UI (404)
+      ignore_errors: true
+
+    - debug:
+        var:       _tsm_remove_app
+        verbosity: 2
+
+    - name: "check if tanzu service mesh application is removed"
+      uri:
+        url:              "{{ tanzu_service_mesh_url }}/tsm/v1alpha1/clusters/{{ tanzu_cluster_name | lower | regex_replace('@','') | regex_replace('#','') | regex_replace('_','') }}/apps"
+        headers:
+          csp-auth-token: "{{ _csp_access_token }}"
+        body_format:      "raw"
+        method:           "GET"
+        return_content:   true
+        status_code:
+          - 200
+          - 404
+      # don't acidentally log our access_token
+      no_log: true
+      register:      _tsm_app_removed
+      until:         "_tsm_app_removed | json_query('json[?id==`tsm`].state') | join('') == 'NotInstalled'"
+      delay:         20
+      retries:       90
+      # in case user manually removed from TSM UI (404)
+      ignore_errors: true
+
+    - debug:
+        var:       _tsm_app_removed
+        verbosity: 2
+
+    - name: "ensure cluster {{ tanzu_cluster_name }} is removed from tanzu service mesh"
+      uri:
+        url:              "{{ tanzu_service_mesh_url }}/tsm/v1alpha1/clusters/{{ tanzu_cluster_name | lower | regex_replace('@','') | regex_replace('#','') | regex_replace('_','') }}"
+        headers:
+          csp-auth-token: "{{ _csp_access_token }}"
+        body_format:      "raw"
+        method:           "DELETE"
+        return_content:   true
+        status_code:
+          - 202
+          - 404
+      # don't acidentally log our access_token
+      no_log:        true
+      register:      _tsm_delete_cluster
+      # in case user manually removed from TSM UI
+      ignore_errors: true
+
+    - debug:
+        var:       _tsm_delete_cluster
+        verbosity: 2
+
+    - name: "check if cluster {{ tanzu_cluster_name }} has been removed from tanzu service mesh"
+      uri:
+        url:              "{{ tanzu_service_mesh_url }}/tsm/v1alpha1/clusters/{{ tanzu_cluster_name | lower | regex_replace('@','') | regex_replace('#','') | regex_replace('_','') }}"
+        headers:
+          csp-auth-token: "{{ _csp_access_token }}"
+        body_format:      "raw"
+        method:           "GET"
+        status_code:
+          - 404
+          - 200
+      until:         _tsm_cluster_removed.status == 404
+      register:      _tsm_cluster_removed
+      retries:       60
+      delay:         10
+      # don't acidentally log our access_token
+      no_log:        true
+      # in case user manually removed from TSM UI
+      ignore_errors: true
+
+    - debug:
+        var:       _tsm_cluster_removed
+        verbosity: 2
+
+    - name: "ensure all tanzu custom resource definitions have been removed"
+      k8s:
+        state:   "absent"
+        kind:    "CustomResourceDefinition"
+        name:    "{{ item }}"
+        context: "{{ tanzu_kubectl_context }}"
+      register: _resource_status
+      until:    not _resource_status.failed
+      retries:  30
+      delay:    1
+      with_items:
+        - "tsmclusters.tsm.vmware.com"
+        - "aspclusters.allspark.vmware.com"
+        - "clusters.client.cluster.tsm.tanzu.vmware.com"
+
+    - name: "ensure the cluster-wide rbac resources are removed"
+      k8s:
+        state:   "absent"
+        context: "{{ tanzu_kubectl_context }}"
+        kind:    "{{ item.kind }}"
+        name:    "{{ item.name }}"
+      with_items:
+        - name: "asp-cluster-manager"
+          kind: "ClusterRole"
+        - name: "operator-cluster-admin-rb"
+          kind: "ClusterRoleBinding"
+        - name: "asp-cluster-manager-admin-rb"
+          kind: "ClusterRoleBinding"
+        - name: "asp-cluster-manager-cluster-admin"
+          kind: "ClusterRoleBinding"
+
+    - name: "ensure the namespaces {{ tanzu_service_mesh.namespaces.tsm }} and {{ tanzu_service_mesh.namespaces.istio }} are removed"
+      include_role:
+        name: "common/namespace/clean"
+      vars:
+        namespace: "{{ item }}"
+      with_items:
+        - "{{ tanzu_service_mesh.namespaces.tsm }}"
+        - "{{ tanzu_service_mesh.namespaces.istio }}"
+
+    # NOTE: this is EXTREMELY important, as it will cause your cluster to have issues
+    # re-installing if not all crd's removed properly
+    - name: "ensure all istio custom resource definitions have been removed"
+      k8s:
+        state:   "absent"
+        kind:    "CustomResourceDefinition"
+        name:    "{{ item }}"
+        context: "{{ tanzu_kubectl_context }}"
+      register: _resource_status
+      until:    not _resource_status.failed
+      retries:  30
+      delay:    1
+      with_items:
+        - "adapters.config.istio.io"
+        - "attributemanifests.config.istio.io"
+        - "authorizationpolicies.security.istio.io"
+        - "clusterrbacconfigs.rbac.istio.io"
+        - "destinationrules.networking.istio.io"
+        - "envoyfilters.networking.istio.io"
+        - "gateways.networking.istio.io"
+        - "handlers.config.istio.io"
+        - "httpapispecbindings.config.istio.io"
+        - "httpapispecs.config.istio.io"
+        - "instances.config.istio.io"
+        - "meshpolicies.authentication.istio.io"
+        - "policies.authentication.istio.io"
+        - "quotaspecbindings.config.istio.io"
+        - "quotaspecs.config.istio.io"
+        - "rbacconfigs.rbac.istio.io"
+        - "rules.config.istio.io"
+        - "serviceentries.networking.istio.io"
+        - "servicerolebindings.rbac.istio.io"
+        - "serviceroles.rbac.istio.io"
+        - "sidecars.networking.istio.io"
+        - "templates.config.istio.io"
+        - "virtualservices.networking.istio.io"
+
+#
+# TSM COMPONENTS: USING TMC
+#   NOTE: the following will delete TSM integration by disabling it via supported TMC integrations
+#
+# AUTH
+#   # see https://code.vmware.com/apis/897/tanzu-mission-control
+#
+
+- name: "get tmc authentication token"
+  uri:
+    url:         "{{ tanzu_service_mesh.tmc_access_token_url }}?refresh_token={{ tanzu_mission_control_api_token }}"
+    method:      "POST"
+    status_code: "200"
+  register: _tmc_access_token
+  # don't acidentally log our access_token
+  no_log: true
+  when: tanzu_service_mesh.use_tmc
+
+- name: "set the tmc access token"
+  set_fact:
+    _tmc_access_token: "{{ _tmc_access_token.json.access_token }}"
+  # don't acidentally log our access_token
+  no_log: true
+  when: tanzu_service_mesh.use_tmc
+
+- name: "get tmc integrations status"
+  uri:
+    url:         "{{ tanzu_service_mesh.tmc_org_url }}/{{ tanzu_service_mesh.tmc_api_version }}/clusters/{{ tanzu_cluster_name }}/integrations"
+    method:      "GET"
+    status_code: "200"
+    headers:
+      Authorization: "Bearer {{ _tmc_access_token }}"
+    body_format: "json"
+  register: _tmc_integration_current_status
+  when: tanzu_service_mesh.use_tmc
+
+- when:
+    - tanzu_service_mesh.use_tmc
+    - (_tmc_integration_current_status.json | list | length) != 0
+    - (_tmc_integration_current_status.json.integrations | map(attribute='fullName') | selectattr('clusterName', 'equalto', tanzu_cluster_name) | selectattr('name', 'equalto', 'tanzu-service-mesh' ) | list | length) !=0
+  block:
+    - name: "filter tanzu service mesh integration status for cluster"
+      set_fact:
+        _tanzu_service_mesh_integration_status: "{{ _tmc_integration_current_status.json.integrations | map(attribute='fullName') | selectattr('clusterName', 'equalto', tanzu_cluster_name) | selectattr('name', 'equalto', 'tanzu-service-mesh' ) | list }}"
+
+    - name: "set facts required for disabling tanzu service mesh"
+      set_fact:
+        _tanzu_service_mesh_management_cluster_name: "full_name.managementClusterName={{ _tanzu_service_mesh_integration_status[0].managementClusterName }}"
+        _tanzu_service_mesh_provisioner_name: "full_name.provisionerName={{ _tanzu_service_mesh_integration_status[0].provisionerName }}"
+
+    - name: "disable tanzu service mesh for cluster in tmc"
+      uri:
+        url:         "{{ tanzu_service_mesh.tmc_org_url }}/{{ tanzu_service_mesh.tmc_api_version }}/clusters/{{ tanzu_cluster_name }}/integrations/tanzu-service-mesh?{{ _tanzu_service_mesh_management_cluster_name }}&{{ _tanzu_service_mesh_provisioner_name}}"
+        method:      "DELETE"
+        status_code: "200"
+        headers:
+          Authorization: "Bearer {{ _tmc_access_token }}"
+        body_format: "json"
+      register: _tanzu_service_mesh_deletion_status
+
+    # NOTE: this cleanup is generally done by the api delete above so we don't explicitly delete it
+    - name: "wait until the {{ tanzu_service_mesh.namespaces.istio }} namespace is removed"
+      k8s_info:
+        kind:    "Namespace"
+        context: "{{ tanzu_kubectl_context }}"
+        name:    "{{ tanzu_service_mesh.namespaces.istio }}"
+      register: _namespace_status
+      until:
+        - _namespace_status.resources is defined
+        - (_namespace_status.resources | length) == 0
+      retries: 100
+      delay:   2
+
+    # NOTE: this cleanup is generally done by the api delete above so we don't explicitly delete it
+    - name: "wait until the {{ tanzu_service_mesh.namespaces.tsm }} namespace is removed"
+      k8s_info:
+        kind:    "Namespace"
+        context: "{{ tanzu_kubectl_context }}"
+        name:    "{{ tanzu_service_mesh.namespaces.tsm }}"
+      register: _namespace_status
+      until:
+        - _namespace_status.resources is defined
+        - (_namespace_status.resources | length) == 0
+      retries: 100
+      delay:   2

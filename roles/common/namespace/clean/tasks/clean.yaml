@@ -1,0 +1,75 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "get the namespace-operator pod"
+  k8s_info:
+    kind:      "Pod"
+    namespace: "{{ tanzu_workload_tenancy.namespace }}"
+    context:   "{{ tanzu_kubectl_context }}"
+    label_selectors:
+      - "app.kubernetes.io/name = {{ tanzu_workload_tenancy.namespace_operator.app_name }}"
+  register: _namespace_operator_status
+  when: _namespace_operator_status is not defined
+
+- name: "get the tanzu namespace custom resource definition"
+  k8s_info:
+    kind:        "CustomResourceDefinition"
+    context:     "{{ tanzu_kubectl_context }}"
+    api_version: "apiextensions.k8s.io/v1"
+    name:        "tanzunamespaces.tenancy.platform.cnr.vmware.com"
+  register: _namespace_crd_status
+  when: _namespace_crd_status is not defined
+
+- when:
+    - (_namespace_operator_status.resources | default([]) | length) > 0
+    - (_namespace_crd_status.resources | default([]) | length) > 0
+  block:
+    - name: "ensure the tanzu namespace resource is removed"
+      k8s:
+        state:       "absent"
+        context:     "{{ tanzu_kubectl_context }}"
+        kind:        "TanzuNamespace"
+        name:        "{{ namespace }}"
+        api_version: "tenancy.platform.cnr.vmware.com/v1alpha1"
+      register: _tns_status
+      until:    not _tns_status.failed
+      retries:  50
+      delay:    2
+
+- when:
+    - (_namespace_operator_status.resources | default([]) | length) == 0
+    - (_namespace_crd_status.resources | default([]) | length) == 0
+  block:
+    - name: "ensure the namespace no longer exists"
+      k8s:
+        state:   "absent"
+        context: "{{ tanzu_kubectl_context }}"
+        kind:    "Namespace"
+        name:    "{{ namespace }}"
+      register: _ns_status
+      until:    not _ns_status.failed
+      retries:  50
+      delay:    2
+
+- name: "ensure the namespace no longer exists"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "Namespace"
+    name:    "{{ namespace }}"
+  register: _ns_status
+  until:    not _ns_status.failed
+  retries:  50
+  delay:    2
+
+- name: "wait until the {{ namespace }} namespace is removed"
+  k8s_info:
+    kind:    "Namespace"
+    context: "{{ tanzu_kubectl_context }}"
+    name:    "{{ namespace }}"
+  register: _namespace_status
+  until:
+    - _namespace_status.resources is defined
+    - (_namespace_status.resources | length) == 0
+  retries: 100
+  delay:   2

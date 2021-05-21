@@ -1,0 +1,70 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "check if cluster {{ tanzu_cluster_name }} has tanzu service mesh application installed"
+  when: _tsm_connected | bool
+  block:
+    - name: "check if cluster {{ tanzu_cluster_name }} has tanzu service mesh application installed"
+      uri:
+        url:              "{{ tanzu_service_mesh_url }}/tsm/v1alpha1/clusters/{{ tanzu_cluster_name | lower | regex_replace('@','') | regex_replace('#','') | regex_replace('_','') }}/apps"
+        headers:
+          csp-auth-token: "{{ _csp_access_token }}"
+        body_format:      "raw"
+        method:           "GET"
+        return_content:   true
+        status_code:      200
+      # don't acidentally log our access_token
+      no_log:   true
+      register: _tsm_app
+      # following 2 lines for code reuse
+      delay:    "{{ tsm_check_delay | default('10') }}"
+      retries:  "{{ tsm_check_retry | default('3') }}"
+
+    - name: "set tanzu service mesh application installation state"
+      set_fact:
+        _tsm_app_state: "{{ _tsm_app | json_query('json[?id==`tsm`].state') | join('') }}"
+
+- name: "ensure cluster {{ tanzu_cluster_name }} has tanzu service mesh installed"
+  when:
+    - _tsm_connected | bool
+    - _tsm_app_state == 'NotInstalled'
+  block:
+    - name: "ensure cluster {{ tanzu_cluster_name }} has tanzu service mesh installed"
+      uri:
+        url: "{{ tanzu_service_mesh_url }}/tsm/v1alpha1/clusters/{{ tanzu_cluster_name | lower | regex_replace('@','') | regex_replace('#','') | regex_replace('_','') }}/apps"
+        headers:
+          csp-auth-token: "{{ _csp_access_token }}"
+        body_format:      "json"
+        body:
+          name:    "Tanzu Service Mesh"
+          version: "Default"
+        method:           "POST"
+        return_content:   true
+        status_code:      200
+      # don't acidentally log our access_token
+      no_log:    true
+      register:  _tsm_app_install
+      # following 2 lines for code reuse
+      delay:     "{{ tsm_check_delay | default('10') }}"
+      retries:   "{{ tsm_check_retry | default('3') }}"
+
+    - name: "check if tanzu service mesh application installed"
+      uri:
+        url:              "{{ tanzu_service_mesh_url }}/tsm/v1alpha1/clusters/{{ tanzu_cluster_name | lower | regex_replace('@','') | regex_replace('#','') | regex_replace('_','') }}/apps"
+        headers:
+          csp-auth-token: "{{ _csp_access_token }}"
+        body_format:      "raw"
+        method:           "GET"
+        return_content:   true
+        status_code:      200
+      # don't acidentally log our access_token
+      no_log:   true
+      register: _tsm_app_installed
+      until:    "_tsm_app_installed | json_query('json[?id==`tsm`].state') | join('') == 'Healthy'"
+      # following 2 lines for code reuse
+      delay:    "{{ tsm_check_delay | default('10') }}"
+      retries:  "{{ tsm_check_retry | default('60') }}"
+
+    - name: "set tanzu service mesh application installation state"
+      set_fact:
+        _tsm_app_state: "{{ _tsm_app_installed | json_query('json[?id==`tsm`].state') | join('') }}"

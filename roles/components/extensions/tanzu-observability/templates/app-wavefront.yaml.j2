@@ -1,0 +1,380 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/name : wavefront
+    app.kubernetes.io.instance: "wavefront"
+    app.kubernetes.io/component: collector
+  name: wavefront-collector
+  namespace: {{ tanzu_observability.namespace }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    app.kubernetes.io/name : wavefront
+    app.kubernetes.io.instance: "wavefront"
+    app.kubernetes.io/component: collector
+  name: wavefront
+  namespace: {{ tanzu_observability.namespace }}
+type: Opaque
+stringData:
+  api-token: "{{ tanzu_observability_api_token }}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name : wavefront
+    app.kubernetes.io.instance: "wavefront"
+    app.kubernetes.io/component: collector
+  name: wavefront-collector-config
+  namespace: {{ tanzu_observability.namespace }}
+data:
+  config.yaml: |
+    clusterName: {{ tanzu_cluster_name }}
+    enableDiscovery: true
+    enableEvents: false
+    defaultCollectionInterval: 60s
+    flushInterval: 10s
+    sinkExportDataTimeout: 20s
+
+    sinks:
+    - proxyAddress: wavefront-proxy:2878
+      filters:
+        tagExclude:
+        - label?controller?revision*
+        - label?pod?template*
+        - annotation_kubectl_kubernetes_io_last_applied_configuration
+
+    sources:
+      kubernetes_source:
+        url: https://kubernetes.default.svc
+        kubeletPort: 10250
+        kubeletHttps: true
+        useServiceAccount: true
+        insecure: true
+        prefix: kubernetes.
+        filters:
+          metricBlacklist:
+          - 'kubernetes.sys_container.*'
+          - 'kubernetes.node.ephemeral_storage.*'
+
+      internal_stats_source:
+        prefix: kubernetes.
+      kubernetes_state_source:
+        prefix: kubernetes.
+
+      telegraf_sources:
+      - plugins: []
+
+    discovery:
+
+      plugins:
+
+      # auto-discover kube DNS
+      - name: kube-dns-discovery
+        type: prometheus
+        selectors:
+          images:
+          - '*kube-dns/sidecar*'
+          labels:
+            k8s-app:
+            - kube-dns
+        port: 10054
+        path: /metrics
+        scheme: http
+        prefix: kube.dns.
+        filters:
+          metricWhitelist:
+          - 'kube.dns.http.request.duration.microseconds'
+          - 'kube.dns.http.request.size.bytes'
+          - 'kube.dns.http.requests.total.counter'
+          - 'kube.dns.http.response.size.bytes'
+          - 'kube.dns.kubedns.dnsmasq.*'
+          - 'kube.dns.process.*'
+
+      # auto-discover coredns
+      - name: coredns-discovery
+        type: prometheus
+        selectors:
+          images:
+          - '*coredns:*'
+          labels:
+            k8s-app:
+            - kube-dns
+        port: 9153
+        path: /metrics
+        scheme: http
+        prefix: kube.coredns.
+        filters:
+          metricWhitelist:
+          - 'kube.coredns.coredns.cache.*'
+          - 'kube.coredns.coredns.dns.request.count.total.counter'
+          - 'kube.coredns.coredns.dns.request.duration.seconds'
+          - 'kube.coredns.coredns.dns.request.size.bytes'
+          - 'kube.coredns.coredns.dns.request.type.count.total.counter'
+          - 'kube.coredns.coredns.dns.response.rcode.count.total.counter'
+          - 'kube.coredns.coredns.dns.response.size.bytes'
+          - 'kube.coredns.process.*'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name : wavefront
+    app.kubernetes.io.instance: "wavefront"
+    app.kubernetes.io/component: collector
+    kubernetes.io/bootstrapping: rbac-defaults
+  annotations:
+    rbac.authorization.kubernetes.io/autoupdate: "true"
+  name: wavefront-collector
+rules:
+- apiGroups: ['policy']
+  resources: ['podsecuritypolicies']
+  verbs:     ['use']
+  resourceNames: ['wavefront-collector']
+- apiGroups:
+  - ""
+  resources:
+  - events
+  - namespaces
+  - nodes
+  - nodes/stats
+  - pods
+  - replicationcontrollers
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - update
+  - create
+  - list
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  - deployments
+  - statefulsets
+  - replicasets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  - cronjobs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - autoscaling
+  resources:
+  - horizontalpodautoscalers
+  verbs:
+  - get
+  - list
+  - watch
+- nonResourceURLs: ["/metrics"]
+  verbs:
+  - get
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  labels:
+    app.kubernetes.io/name : wavefront
+    app.kubernetes.io.instance: "wavefront"
+    app.kubernetes.io/component: collector
+  name: wavefront-collector
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: wavefront-collector
+subjects:
+- kind: ServiceAccount
+  name: wavefront-collector
+  namespace: {{ tanzu_observability.namespace }}
+---
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: wavefront-collector
+spec:
+  privileged: false
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  runAsUser:
+    rule: MustRunAsNonRoot
+  fsGroup:
+    rule: RunAsAny
+  volumes:
+  - '*'
+  allowedHostPaths:
+    - pathPrefix: "/proc"
+      readOnly: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name : wavefront
+    app.kubernetes.io.instance: "wavefront"
+    app.kubernetes.io/component: proxy
+  name: wavefront-proxy
+  namespace: {{ tanzu_observability.namespace }}
+spec:
+  ports:
+  - name: wavefront
+    port: 2878
+    protocol: TCP
+  selector:
+    app.kubernetes.io/name : wavefront
+    app.kubernetes.io/component: proxy
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app.kubernetes.io/name : wavefront
+    app.kubernetes.io.instance: "wavefront"
+    app.kubernetes.io/component: collector
+  name: wavefront-collector
+  namespace: {{ tanzu_observability.namespace }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name : wavefront
+      app.kubernetes.io/component: collector
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name : wavefront
+        app.kubernetes.io/component: collector
+    spec:
+      tolerations:
+      - effect: NoSchedule
+        key: node.alpha.kubernetes.io/role
+        operator: Exists
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+        operator: Exists
+      serviceAccountName: wavefront-collector
+      containers:
+      - name: wavefront-collector
+        image: {{ tanzu_observability.collector.image }}:{{ tanzu_observability.collector.image_tag }}
+        imagePullPolicy: IfNotPresent
+        command:
+        - /wavefront-collector
+        - --daemon=true
+        - --config-file=/etc/collector/config.yaml
+        env:
+        - name: HOST_PROC
+          value: /host/proc
+        - name: POD_NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        - name: POD_NAMESPACE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        ports:
+        - containerPort: 8088
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 200m
+            memory: 64Mi
+        securityContext:
+          privileged: false
+          runAsUser: 101
+          fsGroup: 101
+        volumeMounts:
+        - name: procfs
+          mountPath: /host/proc
+          readOnly: true
+        - name: config
+          mountPath: /etc/collector/
+          readOnly: true
+      volumes:
+      - name: procfs
+        hostPath:
+          path: /proc
+      - name: config
+        configMap:
+          name: wavefront-collector-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name : wavefront
+    app.kubernetes.io.instance: "wavefront"
+    app.kubernetes.io/component: proxy
+  name: wavefront-proxy
+  namespace: {{ tanzu_observability.namespace }}
+spec:
+  replicas: {{ tanzu_observability.proxy.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name : wavefront
+      app.kubernetes.io/component: proxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name : wavefront
+        app.kubernetes.io/component: proxy
+    spec:
+      containers:
+      - name: wavefront-proxy
+        image: {{ tanzu_observability.proxy.image }}:{{ tanzu_observability.proxy.image_tag }}
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: WAVEFRONT_URL
+          value: https://{{ tanzu_observability_org_name }}.wavefront.com/api
+        - name: WAVEFRONT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: wavefront
+              key: api-token
+        - name: WAVEFRONT_PROXY_ARGS
+          value:
+        ports:
+        - containerPort: 2878
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 400m
+            memory: 2Gi
+          requests:
+            cpu: 100m
+            memory: 512Mi
+        securityContext:
+          privileged: false
+          runAsUser: 101
+          fsGroup: 101
+        volumeMounts:
+      volumes:

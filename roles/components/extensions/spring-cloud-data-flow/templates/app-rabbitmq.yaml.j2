@@ -1,0 +1,355 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: rabbitmq
+  namespace:  {{ tanzu_spring_cloud_data_flow.namespace }}
+  labels:
+    app.kubernetes.io/name: "spring-cloud-data-flow-rabbitmq"
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data-flow-rabbitmq-secret"
+type: Opaque
+stringData:
+  rabbitmq-password: "CHANGEME"
+data:
+  rabbitmq-erlang-cookie: "WXhMZlhqRWtCTTZVb3REbWcyOHJpSHdxUG9qMG1VWnM="
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-config
+  namespace:  {{ tanzu_spring_cloud_data_flow.namespace }}
+  labels:
+    app.kubernetes.io/name: "spring-cloud-data-flow-rabbitmq"
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data-flow-rabbitmq-config"
+data:
+  enabled_plugins: |-
+    [rabbitmq_management, rabbitmq_peer_discovery_k8s, rabbitmq_auth_backend_ldap].
+  rabbitmq.conf: |-
+    ##username and password
+    default_user=user
+    default_pass=CHANGEME
+    ## Clustering
+    cluster_formation.peer_discovery_backend  = rabbit_peer_discovery_k8s
+    cluster_formation.k8s.host = kubernetes.default.svc.cluster.local
+    cluster_formation.node_cleanup.interval = 10
+    cluster_formation.node_cleanup.only_log_warning = true
+    cluster_partition_handling = autoheal
+    # queue master locator
+    queue_master_locator=min-masters
+    # enable guest user
+    loopback_users.guest = false
+    #disk_free_limit.absolute = 50MB
+    #management.load_definitions = /app/load_definition.json
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-healthchecks
+  namespace: {{ tanzu_spring_cloud_data_flow.namespace }}
+  labels:
+    app.kubernetes.io/name: "spring-cloud-data-flow-rabbitmq"
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data-flow-rabbitmq-config-healthchecks"
+data:
+  rabbitmq-health-check: |-
+    #!/bin/sh
+    START_FLAG=/opt/bitnami/rabbitmq/var/lib/rabbitmq/.start
+    if [ -f ${START_FLAG} ]; then
+        rabbitmqctl node_health_check
+        RESULT=$?
+        if [ $RESULT -ne 0 ]; then
+          rabbitmqctl status
+          exit $?
+        fi
+        rm -f ${START_FLAG}
+        exit ${RESULT}
+    fi
+    rabbitmq-api-check $1 $2
+  rabbitmq-api-check: |-
+    #!/bin/sh
+    set -e
+    URL=$1
+    EXPECTED=$2
+    ACTUAL=$(curl --silent --show-error --fail "${URL}")
+    echo "${ACTUAL}"
+    test "${EXPECTED}" = "${ACTUAL}"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rabbitmq-service-account
+  namespace: {{ tanzu_spring_cloud_data_flow.namespace }}
+  labels:
+    app.kubernetes.io/name: "spring-cloud-data-flow-rabbitmq"
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data-flow-rabbitmq-service-account"
+secrets:
+  - name: "rabbitmq"
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rabbitmq-endpoint-reader
+  namespace: {{ tanzu_spring_cloud_data_flow.namespace }}
+  labels:
+    app.kubernetes.io/name: "spring-cloud-data-flow-rabbitmq"
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data-flow-rabbitmq-role"
+rules:
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rabbitmq-endpoint-reader-role-binding
+  namespace: {{ tanzu_spring_cloud_data_flow.namespace }}
+  labels:
+    app.kubernetes.io/name: "spring-cloud-data-flow-rabbitmq"
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data-flow-rabbitmq-role-binding"
+subjects:
+  - kind: ServiceAccount
+    name: rabbitmq-service-account
+    namespace: {{ tanzu_spring_cloud_data_flow.namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rabbitmq-endpoint-reader
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rabbitmq
+  namespace:  {{ tanzu_spring_cloud_data_flow.namespace }}
+  labels:
+    app.kubernetes.io/name: "spring-cloud-data-flow-rabbitmq"
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data-flow-rabbitmq-statefulset"
+spec:
+  serviceName: rabbitmq-headless
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "spring-cloud-data-flow-rabbitmq"
+  template:
+    metadata:
+      namespace:  {{ tanzu_spring_cloud_data_flow.namespace }}
+      labels:
+        app.kubernetes.io/name: "spring-cloud-data-flow-rabbitmq"
+        rpk.heritage: "true"
+        rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    spec:
+      serviceAccountName: rabbitmq-service-account
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: rabbitmq
+          image: docker.io/bitnami/rabbitmq:3.8.3-debian-10-r79
+          imagePullPolicy: "IfNotPresent"
+          command:
+            - bash
+            - -ec
+            - |
+               mkdir -p /opt/bitnami/rabbitmq/.rabbitmq/
+               mkdir -p /opt/bitnami/rabbitmq/etc/rabbitmq/
+               touch /opt/bitnami/rabbitmq/var/lib/rabbitmq/.start
+               #persist the erlang cookie in both places for server and cli tools
+               echo $RABBITMQ_ERL_COOKIE > /opt/bitnami/rabbitmq/var/lib/rabbitmq/.erlang.cookie
+               cp /opt/bitnami/rabbitmq/var/lib/rabbitmq/.erlang.cookie /opt/bitnami/rabbitmq/.rabbitmq/
+               #change permission so only the user has access to the cookie file
+               chmod 600 /opt/bitnami/rabbitmq/.rabbitmq/.erlang.cookie /opt/bitnami/rabbitmq/var/lib/rabbitmq/.erlang.cookie
+               #copy the mounted configuration to both places
+               cp  /opt/bitnami/rabbitmq/conf/* /opt/bitnami/rabbitmq/etc/rabbitmq
+               # Apply resources limits
+               ulimit -n "${RABBITMQ_ULIMIT_NOFILES}"
+               #replace the default password that is generated
+               sed -i "/CHANGEME/cdefault_pass=${RABBITMQ_PASSWORD//\\/\\\\}" /opt/bitnami/rabbitmq/etc/rabbitmq/rabbitmq.conf
+               exec rabbitmq-server
+          volumeMounts:
+            - name: config-volume
+              mountPath: /opt/bitnami/rabbitmq/conf
+            - name: healthchecks
+              mountPath: /usr/local/sbin/rabbitmq-api-check
+              subPath: rabbitmq-api-check
+            - name: healthchecks
+              mountPath: /usr/local/sbin/rabbitmq-health-check
+              subPath: rabbitmq-health-check
+            - name: data
+              mountPath: "/opt/bitnami/rabbitmq/var/lib/rabbitmq"
+          ports:
+            - name: epmd
+              containerPort: 4369
+            - name: amqp
+              containerPort: 5672
+            - name: dist
+              containerPort: 25672
+            - name: stats
+              containerPort: 15672
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - rabbitmq-api-check "http://user:$RABBITMQ_PASSWORD@127.0.0.1:15672/api/healthchecks/node" '{"status":"ok"}'
+            initialDelaySeconds: 120
+            timeoutSeconds: 20
+            periodSeconds: 30
+            failureThreshold: 6
+            successThreshold: 1
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - rabbitmq-health-check "http://user:$RABBITMQ_PASSWORD@127.0.0.1:15672/api/healthchecks/node" '{"status":"ok"}'
+            initialDelaySeconds: 10
+            timeoutSeconds: 20
+            periodSeconds: 30
+            failureThreshold: 3
+            successThreshold: 1
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: K8S_SERVICE_NAME
+              value: "rabbitmq-headless"
+            - name: K8S_ADDRESS_TYPE
+              value: hostname
+            - name: RABBITMQ_NODENAME
+              value: "rabbit@$(MY_POD_NAME).$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE).svc.cluster.local"
+            - name: K8S_HOSTNAME_SUFFIX
+              value: ".$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE).svc.cluster.local"
+            - name: RABBITMQ_LOGS
+              value: "-"
+            - name: RABBITMQ_ULIMIT_NOFILES
+              value: "65536"
+            - name: RABBITMQ_USE_LONGNAME
+              value: "true"
+            - name: RABBITMQ_ERL_COOKIE
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq
+                  key: rabbitmq-erlang-cookie
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq
+                  key: rabbitmq-password
+      securityContext:
+        fsGroup: 1001
+        runAsUser: 1001
+      volumes:
+        - name: config-volume
+          configMap:
+            name: rabbitmq-config
+            items:
+              - key: rabbitmq.conf
+                path: rabbitmq.conf
+              - key: enabled_plugins
+                path: enabled_plugins
+        - name: healthchecks
+          configMap:
+            name: rabbitmq-healthchecks
+            items:
+              - key: rabbitmq-health-check
+                path: rabbitmq-health-check
+                mode: 111
+              - key: rabbitmq-api-check
+                path: rabbitmq-api-check
+                mode: 111
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app: rabbitmq
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  namespace:  {{ tanzu_spring_cloud_data_flow.namespace }}
+  labels:
+    app.kubernetes.io/name: "spring-cloud-data-flow-rabbitmq"
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data-flow-rabbitmq-service"
+spec:
+  type: ClusterIP
+  ports:
+    - name: epmd
+      port: 4369
+      targetPort: epmd
+    - name: amqp
+      port: 5672
+      targetPort: amqp
+    - name: dist
+      port: 25672
+      targetPort: dist
+    - name: stats
+      port: 15672
+      targetPort: stats
+  selector:
+    app.kubernetes.io/name: "spring-cloud-data-flow-rabbitmq"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-headless
+  namespace:  {{ tanzu_spring_cloud_data_flow.namespace }}
+  labels:
+    app.kubernetes.io/name: "spring-cloud-data-flow-rabbitmq"
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data-flow-rabbitmq-service-headless"
+spec:
+  clusterIP: None
+  ports:
+    - name: epmd
+      port: 4369
+      targetPort: epmd
+    - name: amqp
+      port: 5672
+      targetPort: amqp
+    - name: dist
+      port: 25672
+      targetPort: dist
+    - name: stats
+      port: 15672
+      targetPort: stats
+  selector:
+    app.kubernetes.io/name: "spring-cloud-data-flow-rabbitmq"

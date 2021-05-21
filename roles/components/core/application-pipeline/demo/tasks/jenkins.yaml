@@ -1,0 +1,78 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "wait for dns"
+  import_role:
+    name: "common/wait-for-dns"
+  vars:
+    hostname: "{{ tanzu_app_pipeline.ci.dns }}"
+
+#
+# NAMESPACES
+#
+- name: "create software integration testing namespace"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_app_pipeline.ci.demo.sit_namespace }}"
+    namespace_template_file: "tanzu-namespace-jenkins-sit.yaml.j2"
+    namespace_file:          "{{ tanzu_app_pipeline.staging_dir }}/demo/tanzu-namespace-jenkins-sit.yaml"
+
+- name: "create production namespace"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_app_pipeline.ci.demo.prod_namespace }}"
+    namespace_template_file: "tanzu-namespace-jenkins-prod.yaml.j2"
+    namespace_file:          "{{ tanzu_app_pipeline.staging_dir }}/demo/tanzu-namespace-jenkins-prod.yaml"
+
+#
+# RBAC
+#
+- name: "ensure software integration testing rbac exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "software integration testing rbac"
+    manifest_template:    "rbac-jenkins-sit.yaml.j2"
+    manifest_file:        "demo/rbac-jenkins-sit.yaml"
+    manifest_staging_dir: "{{ tanzu_app_pipeline.staging_dir }}"
+
+- name: "ensure production rbac exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "production rbac"
+    manifest_template:    "rbac-jenkins-prod.yaml.j2"
+    manifest_file:        "demo/rbac-jenkins-prod.yaml"
+    manifest_staging_dir: "{{ tanzu_app_pipeline.staging_dir }}"
+
+#
+# CONFIGURATION-AS-CODE
+#
+- name: "ensure jenkins kaniko configuration exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "jenkins kaniko configuration"
+    manifest_template:    "config-jenkins-kaniko.yaml.j2"
+    manifest_file:        "demo/config-jenkins-kaniko.yaml"
+    manifest_staging_dir: "{{ tanzu_app_pipeline.staging_dir }}"
+
+- name: "ensure jenkins nexus configuration exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "jenkins nexus configuration"
+    manifest_template:    "config-jenkins-nexus.yaml.j2"
+    manifest_file:        "demo/config-jenkins-nexus.yaml"
+    manifest_staging_dir: "{{ tanzu_app_pipeline.staging_dir }}"
+
+- name: "ensure jenkins configuration-as-code configuration exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "jenkins configuration-as-code configuration"
+    manifest_template:    "config-jenkins-cac.yaml.j2"
+    manifest_file:        "demo/config-jenkins-cac.yaml"
+    manifest_staging_dir: "{{ tanzu_app_pipeline.staging_dir }}"

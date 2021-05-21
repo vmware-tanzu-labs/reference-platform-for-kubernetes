@@ -1,0 +1,287 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: defaults.webhook.kpack.io
+  labels:
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_build_service.module }}"
+    app.kubernetes.io/name: "{{ tanzu_build_service.module }}"
+webhooks:
+- admissionReviewVersions:
+  - v1beta1
+  clientConfig:
+    service:
+      name: kpack-webhook
+      namespace: {{ tanzu_build_service.namespace_kpack }}
+  failurePolicy: Fail
+  sideEffects: None
+  name: defaults.webhook.kpack.io
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validation.webhook.kpack.io
+  labels:
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_build_service.module }}"
+    app.kubernetes.io/name: "{{ tanzu_build_service.module }}"
+webhooks:
+- admissionReviewVersions:
+  - v1beta1
+  clientConfig:
+    service:
+      name: kpack-webhook
+      namespace: {{ tanzu_build_service.namespace_kpack }}
+  failurePolicy: Fail
+  sideEffects: None
+  name: validation.webhook.kpack.io
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: build-init-image
+  namespace: {{ tanzu_build_service.namespace_kpack }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    app.kubernetes.io/name: "{{ tanzu_build_service.module }}"
+data:
+  image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-build-init:' + tanzu_build_service.registry.destination_tag }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: build-init-windows-image
+  namespace: {{ tanzu_build_service.namespace_kpack }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    app.kubernetes.io/name: "{{ tanzu_build_service.module }}"
+data:
+  image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-build-init-windows:' + tanzu_build_service.registry.destination_tag }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rebase-image
+  namespace: {{ tanzu_build_service.namespace_kpack }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    app.kubernetes.io/name: "{{ tanzu_build_service.module }}"
+data:
+  image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-rebase:' + tanzu_build_service.registry.destination_tag }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lifecycle-image
+  namespace: {{ tanzu_build_service.namespace_kpack }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    app.kubernetes.io/name: "{{ tanzu_build_service.module }}"
+data:
+  image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-lifecycle:' + tanzu_build_service.registry.destination_tag }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: completion-image
+  namespace: {{ tanzu_build_service.namespace_kpack }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    app.kubernetes.io/name: "{{ tanzu_build_service.module }}"
+data:
+  image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-completion:' + tanzu_build_service.registry.destination_tag }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: completion-windows-image
+  namespace: {{ tanzu_build_service.namespace_kpack }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    app.kubernetes.io/name: "{{ tanzu_build_service.module }}"
+data:
+  image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-completion-windows:' + tanzu_build_service.registry.destination_tag }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kpack-webhook
+  namespace: {{ tanzu_build_service.namespace_kpack }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    app.kubernetes.io/name: "{{ tanzu_build_service.module }}"
+spec:
+  ports:
+  - port: 443
+    targetPort: 8443
+  selector:
+    role: webhook
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kpack-controller
+  namespace: {{ tanzu_build_service.namespace_kpack }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_build_service.module }}"
+    app.kubernetes.io/name: kpack-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kpack-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kpack-controller
+        version: 0.2.0-rc.1
+    spec:
+      serviceAccountName: controller
+      nodeSelector:
+        kubernetes.io/os: linux
+      initContainers:
+      - env:
+        - name: CA_CERTS_DATA
+          value: |
+            {% for item in harbor_ca.split('\n') %}
+            {{ item }}
+            {% endfor %}
+
+        image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/setup-ca-certs:' + tanzu_build_service.registry.destination_tag }}
+        imagePullPolicy: IfNotPresent
+        name: setup-ca-certs
+        volumeMounts:
+        - name: ca-certs
+          mountPath: /workspace
+        workingDir: /workspace
+
+      containers:
+      - name: controller
+        image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-controller:' + tanzu_build_service.registry.destination_tag }}
+        env:
+        - name: CONFIG_LOGGING_NAME
+          value: config-logging
+        - name: CONFIG_OBSERVABILITY_NAME
+          value: config-observability
+        - name: METRICS_DOMAIN
+          value: kpack.io
+        - name: SYSTEM_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: BUILD_INIT_IMAGE
+          valueFrom:
+            configMapKeyRef:
+              name: build-init-image
+              key: image
+        - name: BUILD_INIT_WINDOWS_IMAGE
+          valueFrom:
+            configMapKeyRef:
+              name: build-init-windows-image
+              key: image
+        - name: REBASE_IMAGE
+          valueFrom:
+            configMapKeyRef:
+              name: rebase-image
+              key: image
+        - name: COMPLETION_IMAGE
+          valueFrom:
+            configMapKeyRef:
+              name: completion-image
+              key: image
+        - name: COMPLETION_WINDOWS_IMAGE
+          valueFrom:
+            configMapKeyRef:
+              name: completion-windows-image
+              key: image
+        - name: LIFECYCLE_IMAGE
+          valueFrom:
+            configMapKeyRef:
+              name: lifecycle-image
+              key: image
+        - name: CREDENTIAL_PROVIDER_SECRET_PATH
+          value: /var/kpack/credentials
+        resources:
+          requests:
+            cpu: 10m
+            memory: 50Mi
+          limits:
+            cpu: 100m
+            memory: 200Mi
+        volumeMounts:
+        - name: credentials
+          mountPath: /var/kpack/credentials
+          readOnly: true
+        - name: ca-certs
+          mountPath: /etc/ssl/certs
+          readOnly: true
+      imagePullSecrets:
+      - name: canonical-registry-secret
+      volumes:
+      - name: credentials
+        secret:
+          secretName: canonical-registry-secret
+      - name: ca-certs
+        emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kpack-webhook
+  namespace: {{ tanzu_build_service.namespace_kpack }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_build_service.module }}"
+    app.kubernetes.io/name: kpack-webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kpack-webhook
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kpack-webhook
+        role: webhook
+        version: 0.2.0-rc.1
+    spec:
+      serviceAccountName: webhook
+      nodeSelector:
+        kubernetes.io/os: linux
+      containers:
+      - name: webhook
+        image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-webhook:' + tanzu_build_service.registry.destination_tag }}
+        ports:
+        - name: https-webhook
+          containerPort: 8443
+        env:
+        - name: CONFIG_LOGGING_NAME
+          value: config-logging
+        - name: CONFIG_OBSERVABILITY_NAME
+          value: config-observability
+        - name: METRICS_DOMAIN
+          value: kpack.io
+        - name: SYSTEM_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        resources:
+          requests:
+            cpu: 10m
+            memory: 50Mi
+          limits:
+            cpu: 100m
+            memory: 200Mi
+      imagePullSecrets:
+      - name: canonical-registry-secret

@@ -1,0 +1,23 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: {{ tanzu_secrets.hashicorp_vault_injector.resource_name }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault_injector.resource_name }}
+    app.kubernetes.io/instance: hashicorp
+webhooks:
+  - name: vault.hashicorp.com
+    clientConfig:
+      service:
+        name: {{ tanzu_secrets.hashicorp_vault_injector.resource_name }}
+        namespace: {{ tanzu_secrets.namespace }}
+        path: "/mutate"
+      caBundle:
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods"]

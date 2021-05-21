@@ -1,0 +1,153 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# NAMESPACES
+#
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_logging.staging_dir }}"
+
+- name: "create namespace"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_logging.namespace }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_logging.staging_dir }}/tanzu-namespace.yaml"
+
+#
+# EPHEMERAL STORAGE RESOURCE QUOTA
+#
+- name: "ensure ephemeral storage resource quota exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "ephemeral storage resource quota"
+    manifest_template:    "resource-quota-ephemeral.yaml.j2"
+    manifest_file:        "resource-quota-ephemeral.yaml"
+    manifest_staging_dir: "{{ tanzu_logging.staging_dir }}"
+
+#
+# CONFIG
+#
+- name: "ensure elastic secret exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "elastic secret"
+    manifest_template:    "config-elastic.yaml.j2"
+    manifest_file:        "config-elastic.yaml"
+    manifest_staging_dir: "{{ tanzu_logging.staging_dir }}"
+
+#
+# OPERATOR
+#
+- name: "ensure elastic operator exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "elastic operator"
+    manifest_template:    "app-operator.yaml.j2"
+    manifest_file:        "app-operator.yaml"
+    manifest_staging_dir: "{{ tanzu_logging.staging_dir }}"
+
+#
+# ELASTICSEARCH
+#
+- name: "ensure elasticsearch pod security policies exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "elasticsearch pod security policies"
+    manifest_template:    "psp-elasticsearch.yaml.j2"
+    manifest_file:        "psp-elasticsearch.yaml"
+    manifest_staging_dir: "{{ tanzu_logging.staging_dir }}"
+
+- name: "ensure elasticsearch exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "elasticsearch"
+    manifest_template:    "app-elasticsearch.yaml.j2"
+    manifest_file:        "app-elasticsearch.yaml"
+    manifest_staging_dir: "{{ tanzu_logging.staging_dir }}"
+
+#
+# FLUENT-BIT
+#
+- name: "ensure fluent-bit pod security policies exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "fluent-bit pod security policies"
+    manifest_template:    "psp-fluent-bit.yaml.j2"
+    manifest_file:        "psp-fluent-bit.yaml"
+    manifest_staging_dir: "{{ tanzu_logging.staging_dir }}"
+
+- name: "ensure fluent-bit exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "fluent-bit"
+    manifest_template:    "app-fluent-bit.yaml.j2"
+    manifest_file:        "app-fluent-bit.yaml"
+    manifest_staging_dir: "{{ tanzu_logging.staging_dir }}"
+
+#
+# SSL
+#
+- name: "add tls certificate for logging"
+  import_role:
+    name: "common/tls-certificate"
+  vars:
+    fqdn:         "{{ tanzu_logging.dns }}"
+    namespace:    "{{ tanzu_logging.namespace }}"
+    secret:       "{{ tanzu_logging.tls.secret }}"
+    tls_provider: "{{ tanzu_logging.tls.provider }}"
+    dns:
+      - "{{ tanzu_logging.dns }}"
+    ip: []
+
+#
+# KIBANA
+#
+- name: "ensure kibana exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "kibana"
+    manifest_template:    "app-kibana.yaml.j2"
+    manifest_file:        "app-kibana.yaml"
+    manifest_staging_dir: "{{ tanzu_logging.staging_dir }}"
+
+#
+# STACK AVAILABILITY
+#   NOTE: we wait here because kibana take an uber long time to be available.  don't
+#         continue until we are sure kibana came up ok.
+#
+- name: "wait until the logging stack is ready"
+  k8s_info:
+    kind:      "Kibana"
+    namespace: "{{ tanzu_logging.namespace }}"
+    context:   "{{ tanzu_kubectl_context }}"
+    label_selectors:
+      - app.kubernetes.io/name = kibana
+  register: logging_app
+  until:
+    - logging_app.resources[0].status.health is defined
+    - (logging_app.resources[0].status.health | lower) == 'green'
+  retries: 240
+  delay:   10
+
+#
+# DNS
+#
+- name: "ensure dns resolvability for kibana"
+  import_role:
+    name: "common/etc-hosts"
+  vars:
+    ip:   "{{ ingress_ip }}"
+    fqdn: "{{ tanzu_logging.dns }}"

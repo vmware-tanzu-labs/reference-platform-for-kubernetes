@@ -1,0 +1,71 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "determine the cluster cni"
+  import_role:
+    name: "common/cluster-cni"
+
+- name: "set the calico cni for avi"
+  set_fact:
+    _avi_cluster_cni: "calico"
+  when: _cluster_cni == 'calico'
+
+- name: "set the antrea cni for avi"
+  set_fact:
+    _avi_cluster_cni: ""
+  when: _cluster_cni == 'antrea'
+
+- name: "set avi controller 1 management ip"
+  set_fact:
+    _avi_controller_1_mgmt_ip: "{{ avi.controller.networks[0].ip }}"
+
+- name: "set the avi cluster vip for non-ha mode"
+  set_fact:
+    _avi_cluster_vip: "{{ _avi_controller_1_mgmt_ip }}"
+  when: not avi.controller.ha_mode | bool
+
+- name: "set the avi cluster vip for ha mode"
+  set_fact:
+    _avi_cluster_vip: "{{ avi.controller.vip }}"
+  when: avi.controller.ha_mode | bool
+
+- name: "ensure portal is active and determine controller version"
+  uri:
+    url:            "https://{{ _avi_controller_1_mgmt_ip }}/api/initial-data"
+    validate_certs: false
+    status_code:    200
+  register: _ver_results
+  until:    _ver_results.status == 200
+  retries:  300
+  delay:    10
+
+- name: "set the controller version"
+  set_fact:
+    _avi_controller_version: "{{ _ver_results.json.version.Version.split('(')[0] }}"
+
+- name: "retrieve the kubernetes cluster cidr"
+  shell: "kubectl cluster-info dump --context {{ tanzu_kubectl_context }} | grep -m1  service-cluster-ip-range |cut -f2 -d \"=\" |sed 's/..$//'"
+  changed_when: false
+  register: "_cluster_cidr"
+  tags:
+    - skip_ansible_lint
+
+- name: "set the kubernetes cluster ip range"
+  set_fact:
+    _avi_k8s_cluster_cidr: "{{ _cluster_cidr.stdout }}"
+
+- name: "ensure avi custom resource definitions exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "avi custom resource definitions"
+    manifest_template:    "crds-avi-ako.yaml.j2"
+    manifest_staging_dir: "{{ avi.staging_dir }}"
+
+- name: "ensure avi kubernetes operator exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "avi kubernetes operator"
+    manifest_template:    "app-avi-ako.yaml.j2"
+    manifest_staging_dir: "{{ avi.staging_dir }}"

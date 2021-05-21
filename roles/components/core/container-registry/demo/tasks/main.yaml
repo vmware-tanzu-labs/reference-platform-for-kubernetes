@@ -1,0 +1,126 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# DEMO PROJECT
+#
+- name: "wait for dns"
+  import_role:
+    name: "common/wait-for-dns"
+  vars:
+    hostname: "{{ tanzu_container_registry.core.dns }}"
+
+- name: "get harbor project info"
+  uri:
+    url:              "https://{{ tanzu_container_registry.core.dns }}/api/v2.0/projects"
+    user:             "{{ tanzu_container_registry.admin_username }}"
+    password:         "{{ tanzu_container_registry.admin_password }}"
+    method:           "GET"
+    force_basic_auth: true
+    status_code:      "200"
+    validate_certs:   false
+  register: harbor_project_info
+
+- name: "inspect harbor project info"
+  debug:
+    var:       harbor_project_info
+    verbosity: 0
+
+- block:
+    - name: "ensure the project is created"
+      uri:
+        url:              "https://{{ tanzu_container_registry.core.dns }}/api/v2.0/projects"
+        user:             "{{ tanzu_container_registry.admin_username }}"
+        password:         "{{ tanzu_container_registry.admin_password }}"
+        method:           "POST"
+        force_basic_auth: true
+        status_code:      "201"
+        validate_certs:   false
+        body_format:      "json"
+        body:
+          project_name: "{{ tanzu_container_registry.demo_project.name }}"
+          metadata:
+            public: "{{ tanzu_container_registry.demo_project.public | string | lower }}"
+      register: harbor_project_create_info
+
+    - name: "inspect harbor project create info"
+      debug:
+        var:       harbor_project_create_info
+        verbosity: 0
+
+    - name: "store the harbor project id"
+      set_fact:
+        harbor_project_id: "{{ harbor_project_create_info.location.split('/')[-1] }}"
+  when:
+    - (harbor_project_info.json | selectattr("name", "search", tanzu_container_registry.demo_project.name) | list | length) == 0
+
+- name: "store the harbor project id"
+  set_fact:
+    harbor_project_id: "{{ harbor_project[0].project_id }}"
+  vars:
+    harbor_project: "{{ harbor_project_info.json | selectattr('name', 'search', tanzu_container_registry.demo_project.name) | list }}"
+  when:
+    - (harbor_project_info.json | selectattr("name", "search", tanzu_container_registry.demo_project.name) | list | length) != 0
+
+- name: "get harbor robot account info for project"
+  uri:
+    url:              "https://{{ tanzu_container_registry.core.dns }}/api/v2.0/projects/{{ harbor_project_id }}/robots"
+    user:             "{{ tanzu_container_registry.admin_username }}"
+    password:         "{{ tanzu_container_registry.admin_password }}"
+    method:           "GET"
+    force_basic_auth: true
+    status_code:      "200"
+    validate_certs:   false
+  register: harbor_robot_account_info
+
+- name: "inspect harbor robot account info"
+  debug:
+    var:       harbor_robot_account_info
+    verbosity: 0
+
+#
+# DEMO ROBOT ACCOUNT
+#
+- block:
+    - name: "ensure the robot account is created"
+      uri:
+        url:              "https://{{ tanzu_container_registry.core.dns }}/api/v2.0/projects/{{ harbor_project_id }}/robots"
+        user:             "{{ tanzu_container_registry.admin_username }}"
+        password:         "{{ tanzu_container_registry.admin_password }}"
+        method:           "POST"
+        force_basic_auth: true
+        status_code:      "201"
+        validate_certs:   false
+        body_format:      "json"
+        body:
+          name:        "{{ tanzu_container_registry.demo_robot_account.name }}"
+          expires_at:  -1
+          description: "robot account"
+          access:
+            - action:   "pull"
+              resource: "/project/{{ harbor_project_id }}/repository"
+            - action:   "push"
+              resource: "/project/{{ harbor_project_id }}/repository"
+      register: harbor_robot_account_create_info
+
+    - name: "inspect harbor robot account create info"
+      debug:
+        var:       harbor_robot_account_create_info
+        verbosity: 0
+  when:
+    - (harbor_robot_account_info.json | selectattr("name", "search", tanzu_container_registry.demo_robot_account.name) | list | length) == 0
+
+- name: "you may login to the container registry with the following information"
+  debug:
+    msg:
+      - "User: {{ tanzu_container_registry.admin_username }}"
+      - "Password: {{ tanzu_container_registry.admin_password }}"
+      - "Demo Project Name: {{ tanzu_container_registry.demo_project.name }}"
+      - "Robot Account Name: robot${{ tanzu_container_registry.demo_robot_account.name }}"
+      - "Robot Account Token: {{ harbor_robot_account_create_info.json.token | default('') }}"
+      - "You can access the Registry Portal at URL https://{{ tanzu_container_registry.core.dns }}"
+      - "You may need to manually trust the certificates for this to work"
+      - "You can push to the demo repo with:"
+      - "  docker login -u robot${{ tanzu_container_registry.demo_robot_account.name }} -p <TOKEN_FROM_ABOVE>"
+      - "  docker push {{ tanzu_container_registry.core.dns }}/image:image_tag"
+    verbosity: 0

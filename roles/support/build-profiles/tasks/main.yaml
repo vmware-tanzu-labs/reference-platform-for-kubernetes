@@ -1,0 +1,32 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "collect component profiles"
+  set_fact:
+    _rpk_components: "{{ (lookup('file', 'profiles/components.yaml') | from_yaml)['rpk_components'] }}"
+
+- name: "debug the _rpk_components"
+  debug:
+    var:       _rpk_components
+    verbosity: 0
+
+- name: "set component profile list"
+  set_fact:
+    _component_profiles: "{{ _rpk_components | json_query('[*].profiles') | flatten | unique }}"
+
+- name: "debug the _component_profiles"
+  debug:
+    var:       _component_profiles
+    verbosity: 0
+
+- name: "build profiles"
+  template:
+    src:  "profile.yaml.j2"
+    dest: "profiles/{{ profile }}.yaml"
+    mode: "0700"
+  with_items: "{{ _component_profiles }}"
+  loop_control:
+    loop_var: "profile"
+  tags:
+    # we want to report changes here
+    - skip_ansible_lint

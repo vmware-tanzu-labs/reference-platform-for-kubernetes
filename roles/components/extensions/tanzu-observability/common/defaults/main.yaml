@@ -1,0 +1,26 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_observability:
+  # common vars
+  namespace:            "tanzu-observability"
+  staging_dir:          "{{ rpk_staging_dir }}/tanzu-observability"
+  tmc_access_token_url: "https://console.cloud.vmware.com/csp/gateway/am/api/auth/api-tokens/authorize"
+  tmc_org_url:          "https://{{ tanzu_mission_control_org_name }}.tmc.cloud.vmware.com"
+  tmc_api_version:      "v1alpha1"
+  use_tmc:              false
+
+  # collector vars
+  collector:
+    image:     "wavefronthq/wavefront-kubernetes-collector"
+    image_tag: "1.2.3"
+
+  # proxy vars
+  proxy:
+    image:     "wavefronthq/proxy"
+    image_tag: "9.2"
+    replicas:  1
+
+  # use namespace operator or not
+  workload_tenancy:
+    enabled: false

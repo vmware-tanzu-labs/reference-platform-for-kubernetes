@@ -1,0 +1,70 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- when:
+    - not _namespace_operator_enabled | default(false)
+    - tanzu_workload_tenancy is defined
+  block:
+    - name: "get the namespace-operator pod"
+      k8s_info:
+        kind:      "Pod"
+        namespace: "{{ tanzu_workload_tenancy.namespace }}"
+        context:   "{{ tanzu_kubectl_context }}"
+        label_selectors:
+          - "app.kubernetes.io/name = {{ tanzu_workload_tenancy.namespace_operator.app_name }}"
+      register: namespace_operator_status
+
+    - name: "get the tanzu namespace custom resource definition"
+      k8s_info:
+        kind:        "CustomResourceDefinition"
+        context:     "{{ tanzu_kubectl_context }}"
+        api_version: "apiextensions.k8s.io/v1"
+        name:        "tanzunamespaces.tenancy.platform.cnr.vmware.com"
+      register: crd_status
+
+    - name: "set variable if namespace operator is installed"
+      set_fact:
+        _namespace_operator_enabled: true
+      when:
+        - (namespace_operator_status.resources | length) > 0
+        - (crd_status.resources | length) > 0
+
+- when: _namespace_operator_enabled | default(false)
+  block:
+    - name: "write tanzu namespace resource definition file for namespace {{ namespace }}"
+      template:
+        src:  "{{ namespace_template_file }}"
+        dest: "{{ namespace_file }}"
+        mode: "0440"
+      changed_when: false
+
+    - name: "ensure the {{ namespace }} namespace exists"
+      k8s:
+        state:   "present"
+        context: "{{ tanzu_kubectl_context }}"
+        src:     "{{ namespace_file }}"
+
+- name: "ensure the {{ namespace }} namespace exists"
+  k8s:
+    state:   "present"
+    context: "{{ tanzu_kubectl_context }}"
+    definition:
+      apiVersion: "v1"
+      kind:       "Namespace"
+      metadata:
+        name: "{{ namespace }}"
+        labels:
+          name: "{{ namespace }}"
+  when: not _namespace_operator_enabled | default(false)
+
+- name: "wait until the {{ namespace }} namespace is ready"
+  k8s_info:
+    kind:    "Namespace"
+    context: "{{ tanzu_kubectl_context }}"
+    name:    "{{ namespace }}"
+  register: namespace_status
+  until:
+    - namespace_status.resources is defined
+    - (namespace_status.resources | length) == 1
+  retries: 100
+  delay:   2

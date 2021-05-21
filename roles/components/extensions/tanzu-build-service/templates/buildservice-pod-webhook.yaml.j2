@@ -1,0 +1,173 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ca-cert
+  namespace: {{ tanzu_build_service.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-configmap"
+data:
+  ca.crt: {{ harbor_ca | b64encode }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: http-proxy
+  namespace: {{ tanzu_build_service.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-configmap"
+data:
+  value: ""
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: https-proxy
+  namespace: {{ tanzu_build_service.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-configmap"
+data:
+  value: ""
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: no-proxy
+  namespace: {{ tanzu_build_service.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-configmap"
+data:
+  value: ""
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name:  setup-ca-certs-image
+  namespace:  {{ tanzu_build_service.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-configmap"
+data:
+  image: {{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/setup-ca-certs:' + tanzu_build_service.registry.destination_tag }}
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: defaults.webhook.cert-injection.tanzu.vmware.com
+webhooks:
+- name: defaults.webhook.cert-injection.tanzu.vmware.com
+  clientConfig:
+    service:
+      name: cert-injection-webhook
+      namespace: build-service
+  rules:
+  - operations: ["CREATE", "UPDATE"]
+    apiGroups: [""]
+    apiVersions: ["v1"]
+    resources: ["pods"]
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cert-injection-webhook-tls
+  namespace: {{ tanzu_build_service.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-secret"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cert-injection-webhook
+  namespace: {{ tanzu_build_service.namespace }}
+  labels:
+    app: cert-injection-webhook
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-webhook-deployment"
+    app.kubernetes.io/name: cert-injection-webhook-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cert-injection-webhook-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cert-injection-webhook-server
+    spec:
+      serviceAccountName: cert-injection-webhook-sa
+      containers:
+      - name: server
+        image: {{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/pod-webhook:' + tanzu_build_service.registry.destination_tag }}
+        imagePullPolicy: Always
+        args:
+        - --
+        - pod-webhook
+        - -label=kpack.io/build
+        volumeMounts:
+        - name: webhook-ca-cert
+          mountPath: /run/config_maps/ca_cert
+          readOnly: true
+        ports:
+        - containerPort: 8443
+          name: webhook-port
+        env:
+        - name: HTTP_PROXY
+          valueFrom:
+            configMapKeyRef:
+              name: http-proxy
+              key: value
+        - name: HTTPS_PROXY
+          valueFrom:
+            configMapKeyRef:
+              name: https-proxy
+              key: value
+        - name: NO_PROXY
+          valueFrom:
+            configMapKeyRef:
+              name: no-proxy
+              key: value
+        - name: SETUP_CA_CERTS_IMAGE
+          valueFrom:
+            configMapKeyRef:
+              name: setup-ca-certs-image
+              key: image
+        - name: SYSTEM_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+      volumes:
+      - name: webhook-ca-cert
+        configMap:
+          name: ca-cert
+      imagePullSecrets:
+      - name: canonical-registry-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cert-injection-webhook
+  namespace: {{ tanzu_build_service.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-webhook-deployment"
+spec:
+  selector:
+    app.kubernetes.io/name: cert-injection-webhook-server
+  ports:
+  - port: 443
+    targetPort: webhook-port
+

@@ -1,0 +1,100 @@
+{% include 'sections/common/super_quick_start.md'%}
+
+
+## Detailed Quick Start
+
+This guide will take you through all of the necessary steps to prepare for and to deploy RPK.
+
+{% include 'sections/common/inventory.md' %}
+
+
+### 2. Set Variables
+
+{% include 'sections/common/common_vars.md' %}
+
+
+#### 2b. VMware Variables
+
+TKG clusters which are hosted on VMware should modify cluster variables (represented in the
+inventory as `vmware_tanzu_cluster1`) specific to VMware.
+
+Common variables, specific to the VMware provider type, that will need modified are as follows:
+
+TKG clusters which are hosted on VMware should modify cluster variables (represented in the
+inventory as `vmware_tanzu_cluster1`) specific to VMware.
+
+Common variables, specific to the VMware provider type, that will need modified are as follows:
+
+| Variable Name                | Variable Type       | Required                                       | Default Value | Description |
+| ---------------------------- | ------------------- | ---------------------------------------------- | ------------- | --- |
+| tanzu_storage_classes_vmware | list of dicts       | true                                           | (none)        | See docs at [Storage README](../roles/components/core/storage/README.md) and raw vars at `../roles/components/core/storage/defaults/main.yaml` for examples. |
+| tanzu_cluster_is_v7wk8s      | boolean             | false                                          | false         | Cluster is vSphere 7 w/ Kubernetes |
+| tanzu_load_balancer_nsx      | boolean             | false                                          | false         | Cluster has NSX for ServiceType of LoadBalancer |
+| tanzu_load_balancer_start_ip | string (ip address) | Only when `tanzu_load_balancer_nsx` is `false` | (none)        | First IP in a range of unused IP addresses which are routable from the TKG nodes (only required if `tanzu_load_balancer_nsx` is true) |
+| tanzu_load_balancer_end_ip   | string (ip address) | Only when `tanzu_load_balancer_nsx` is `false` | (none)        | Last IP in a range of unused IP addresses which are routable from the TKG nodes (only required if `tanzu_load_balancer_nsx` is true) |
+| vcenter_server               | string              | true                                           | (none)        | The hostname of the vCenter server to connect to.  Used for mapping tags to datastores required for `tanzu_storage_classes_vmware`. |
+| vcenter_username             | string              | true                                           | (none)        | The username of the admin user of vCenter server.  Used for mapping tags to datastores required for `tanzu_storage_classes_vmware`. |
+| vcenter_password             | string              | true                                           | (none)        | The password of the admin user of vCenter server to connect to.  Used for mapping tags to datastores required for `tanzu_storage_classes_vmware`. |
+
+#### 2c. vSphere 7 With Kubernetes Only
+
+If your cluster is a vSphere 7 with Kubernetes cluster, the following steps need to be performed prior to running RPK:
+
+  - Install the vSphere plugin for `kubectl`.  See https://docs.vmware.com/en/VMware-vSphere/7.0/vmware-vsphere-with-tanzu/GUID-0F6E45C4-3CB1-4562-9370-686668519FCA.html.
+
+  - `kubectl vsphere login --server="your_vcenter_server" --insecure-skip-tls-verify -u "your_vcenter_username" --tanzu-kubernetes-cluster-name "tkg_cluster_name_in_vcenter" --tanzu-kubernetes-cluster-namespace "tkg_namespace_in_vcenter"`
+
+  - `kubectl create clusterrolebinding psp:authenticated --clusterrole=psp:vmware-system-privileged --group=system:authenticated`
+
+  - You **MUST** have a default storage class set for your Tanzu Kubernetes Cluster.  RPK cannot provision a default storage class
+in a vSphere 7 w/ Kubernetes cluster due to the way that the Supervisor Cluster controls the storage classes at this time.  This appears to be a
+roadmap item, but until then you **MUST** have a default storage class set in the v7wk8s clusters in which you are provisioning RPK into.  To do so,
+you can edit the `TanzuKubernetesCluster` object for the cluster in which you intend to deploy RPK into and make the following edit to
+`TanzuKubernetesCluster.spec.storage.defaultClass` (following steps 1-2 above to login to the supervisor cluster first):
+
+Run:
+
+1. `kubectl config use-context my-workload`
+
+1. `kubectl edit tanzukubernetescluster my-cluster`
+
+```yaml
+spec:
+  distribution:
+    fullVersion: v1.18.5+vmware.1-tkg.1.c40d30d
+    version: v1.18
+  settings:
+    network:
+      cni:
+        name: antrea
+      pods:
+        cidrBlocks:
+        - 192.168.0.0/16
+      serviceDomain: cluster.local
+      services:
+        cidrBlocks:
+        - 10.96.0.0/12
+#
+# ensure the below option exists for your TanzuKubernetesCluster
+#   the defaultClass option specifies an existing storage class in which you intend to make the default for your workload cluster in
+#   which you are deploying RPK into
+#
+    storage:
+      defaultClass: platinum
+```
+
+#### 2d. Additional/Optional Variables (Expert)
+
+{% include 'sections/common/additional_vars.md' %}
+
+
+### 3. Build RPK Container Image
+
+{% include 'sections/common/build.md' %}
+
+
+### 4. Deploy RPK to Your TKG Cluster
+
+At this point, you should have completed all the necessary prerequisite work to deploy RPK to your workload cluster.  You are now ready to Deploy RPK.
+
+{% include 'sections/common/deploy.md' %}

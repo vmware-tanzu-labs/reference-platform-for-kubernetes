@@ -1,0 +1,20 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: demo-default-resources
+    app.kubernetes.io/name: demo-default-resources
+  name: demo-default-resources
+  namespace: {{ tanzu_workload_tenancy.demo_namespace }}
+spec:
+  containers:
+    - image: projects.registry.vmware.com/rpk/nginx:1.19.5-debian-10-r8
+      name: demo-default-resources
+      resources: {}
+      securityContext:
+        runAsUser: 101
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always

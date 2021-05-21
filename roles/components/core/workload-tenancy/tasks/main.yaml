@@ -1,0 +1,85 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# NAMESPACES
+#   NOTE: this should be the only time in RPK in which namespaces are created the traditional way.  for
+#         subsequent modules, they should use the tanzuNamespace CRD which is created in this module.
+#
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_workload_tenancy.staging_dir }}"
+
+- name: "ensure namespace exists"
+  k8s:
+    state:   "present"
+    context: "{{ tanzu_kubectl_context }}"
+    wait:    true
+    definition:
+      apiVersion: "v1"
+      kind:       "Namespace"
+      metadata:
+        name: "{{ tanzu_workload_tenancy.namespace }}"
+        labels:
+          name: "{{ tanzu_workload_tenancy.namespace }}"
+
+#
+# NAMESPACE RESOURCE CONSTRAINTS
+#
+- name: "write resource constraints file"
+  template:
+    src:  "default-resource-constraints.yaml.j2"
+    dest: "{{ tanzu_workload_tenancy.staging_dir }}/default-resource-constraints.yaml"
+    mode: "0400"
+  changed_when: false
+
+- name: "ensure resource constraints exist"
+  k8s:
+    state:     "present"
+    context:   "{{ tanzu_kubectl_context }}"
+    src:       "{{ tanzu_workload_tenancy.staging_dir }}/default-resource-constraints.yaml"
+    namespace: "{{ item }}"
+  with_items:
+    - "default"
+    - "{{ tanzu_workload_tenancy.namespace }}"
+
+#
+# NAMESPACE OPERATOR
+#
+- name: "ensure namespace-operator crds exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "namespace-operator crds"
+    manifest_template:    "crds-namespace-operator.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_workload_tenancy.staging_dir }}"
+
+- name: "ensure namespace-operator rbac exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "namespace-operator rbac"
+    manifest_template:    "rbac-namespace-operator.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_workload_tenancy.staging_dir }}"
+
+- name: "ensure namespace-operator application exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "namespace-operator application"
+    manifest_template:    "app-namespace-operator.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_workload_tenancy.staging_dir }}"
+
+#
+# AUTO-SCALING
+#
+# TODO: app-stack specific
+#
+
+#
+# POD DISRUPTION BUDGET
+#
+# TODO: app-stack specific
+#

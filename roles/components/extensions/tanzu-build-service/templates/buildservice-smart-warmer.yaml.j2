@@ -1,0 +1,170 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sleeper-image
+  namespace:  {{ tanzu_build_service.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+data:
+  image: {{ tanzu_container_registry.core.dns +'/'+ tanzu_build_service.registry.project.project_name + '/sleeper:' + tanzu_build_service.registry.destination_tag }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: warmer-controller
+  namespace:  {{ tanzu_build_service.namespace }}
+  labels:
+    app: warmer
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    app.kubernetes.io/name: warmer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: warmer
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: warmer
+    spec:
+      serviceAccountName: warmer-service-account
+      nodeSelector:
+        kubernetes.io/os: linux
+      imagePullSecrets:
+      - name: canonical-registry-secret
+      containers:
+      - name: server
+        image:  {{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/smart-warmer:' + tanzu_build_service.registry.destination_tag }}
+        imagePullPolicy: Always
+        env:
+        - name: SLEEPER_IMAGE
+          valueFrom:
+            configMapKeyRef:
+              name: sleeper-image
+              key: image
+        - name: IMAGE_PULL_SECRET
+          value: canonical-registry-secret
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: build-pod-image-fetcher
+  namespace:  {{ tanzu_build_service.namespace }}
+  labels:
+    app: build-pod-image-fetcher
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    app.kubernetes.io/name: build-pod-image-fetcher
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: build-pod-image-fetcher
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: build-pod-image-fetcher
+    spec:
+      imagePullSecrets:
+      - name: canonical-registry-secret
+      nodeSelector:
+        kubernetes.io/os: linux
+      initContainers:
+      - name: sleeper
+        image: {{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/sleeper:' + tanzu_build_service.registry.destination_tag }}
+        args:
+        - --
+        - sleeper
+        - -mode
+        - copy
+        - -to
+        - /drop/sleeper
+        volumeMounts:
+        - name: sleeper
+          mountPath: /drop/
+        resources:
+          limits:
+            memory: 20M
+            cpu: 1m
+      containers:
+      - name: completion
+        image: {{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/kpack-completion:' + tanzu_build_service.registry.destination_tag }}
+        command:
+        - /drop/sleeper
+        args:
+        - -mode
+        - sleep
+        volumeMounts:
+        - name: sleeper
+          mountPath: /drop/
+        resources:
+          limits:
+            memory: 20M
+            cpu: 1m
+        imagePullPolicy: Always
+      - name: rebase
+        image: {{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/kpack-rebase:' + tanzu_build_service.registry.destination_tag }}
+        command:
+        - /drop/sleeper
+        args:
+        - -mode
+        - sleep
+        volumeMounts:
+        - name: sleeper
+          mountPath: /drop/
+        resources:
+          limits:
+            memory: 20M
+            cpu: 1m
+        imagePullPolicy: Always
+      - name: build-init
+        image: {{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/kpack-build-init:' + tanzu_build_service.registry.destination_tag }}
+        command:
+        - /drop/sleeper
+        args:
+        - -mode
+        - sleep
+        volumeMounts:
+        - name: sleeper
+          mountPath: /drop/
+        resources:
+          limits:
+            memory: 20M
+            cpu: 1m
+        imagePullPolicy: Always
+      - name: setup-ca-certs
+        image: {{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/setup-ca-certs:' + tanzu_build_service.registry.destination_tag }}
+        command:
+        - /drop/sleeper
+        args:
+        - -mode
+        - sleep
+        volumeMounts:
+        - name: sleeper
+          mountPath: /drop/
+        resources:
+          limits:
+            memory: 20M
+            cpu: 1m
+        imagePullPolicy: Always
+      - name: stackify
+        image: {{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/stackify:' + tanzu_build_service.registry.destination_tag }}
+        command:
+        - /drop/sleeper
+        args:
+        - -mode
+        - sleep
+        volumeMounts:
+        - name: sleeper
+          mountPath: /drop/
+        resources:
+          limits:
+            memory: 20M
+            cpu: 1m
+        imagePullPolicy: Always
+      volumes:
+      - name: sleeper
+        emptyDir: {}

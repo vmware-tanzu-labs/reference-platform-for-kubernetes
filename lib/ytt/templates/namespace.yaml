@@ -1,0 +1,38 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#@ load("@ytt:data", "data")
+#@ component_values = data.values.component_values
+
+#
+# create namespace
+#
+
+#@ if data.values.discovered_values._use_tanzu_namespace:
+---
+# see https://github.com/vmware-tanzu-labs/namespace-operator
+apiVersion: tenancy.platform.cnr.vmware.com/v1alpha1
+kind: TanzuNamespace
+metadata:
+  name: #@ component_values.namespace
+spec:
+  tanzuNamespaceName: #@ component_values.namespace
+  tanzuLimitRangeDefaultCpuLimit: #@ component_values.default_resources.limits.cpu
+  tanzuLimitRangeDefaultMemoryLimit: #@ component_values.default_resources.limits.memory
+  tanzuLimitRangeDefaultCpuRequest: #@ component_values.default_resources.requests.cpu
+  tanzuLimitRangeDefaultMemoryRequest: #@ component_values.default_resources.requests.memory
+  tanzuLimitRangeMaxCpuLimit: #@ component_values.default_maximums.cpu
+  tanzuLimitRangeMaxMemoryLimit: #@ component_values.default_maximums.memory
+  tanzuResourceQuotaCpuRequests: #@ component_values.default_quota.requests.cpu
+  tanzuResourceQuotaMemoryRequests: #@ component_values.default_quota.requests.memory
+  tanzuResourceQuotaCpuLimits: #@ component_values.default_quota.limits.cpu
+  tanzuResourceQuotaMemoryLimits: #@ component_values.default_quota.limits.memory
+#@ else:
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    name: #@ component_values.namespace
+  name: #@ component_values.namespace
+#@ end

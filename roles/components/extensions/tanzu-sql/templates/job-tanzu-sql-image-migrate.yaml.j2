@@ -1,0 +1,72 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: job-registry-auth-config
+  namespace: {{ tanzu_sql.namespace }}
+  labels:
+    "app.kubernetes.io/name": 'tbs-skopeo'
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_sql.module }}"
+    rpk.resource: "job-registry-auth-config"
+data:
+  config.json: |-
+    {
+        "auths": {
+            "{{ tanzu_sql.registry.source_url }}": {
+                "auth": "{{ (tanzu_sql_username + ':' + tanzu_sql_password) | b64encode }}"
+            },
+            "{{ tanzu_container_registry.core.dns }}": {
+                "auth": "{{ (tanzu_container_registry.admin_username + ':' + tanzu_container_registry.admin_password) | b64encode }}"
+            }
+        },
+        "HttpHeaders": {
+            "User-Agent": "Docker-Client/18.09.7 (linux)"
+        }
+    }
+  migrate.sh: |-
+   #/bin/bash
+
+   {% for image in tanzu_sql.registry.sql_images %}
+     skopeo copy --authfile /workspace/mnt/config.json --dest-authfile /workspace/mnt/config.json --dest-tls-verify=false docker://{{ tanzu_sql.registry.source_url }}/pivotal-postgres-for-kubernetes/{{ image.name }}:{{ image.tag}} docker://{{ tanzu_container_registry.core.dns }}/{{tanzu_sql.registry.project.project_name}}/{{ image.name }}:{{ tanzu_sql.registry.destination_tag }}
+   {% endfor %}
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rpk-tanzu-sql-image-migrate-job
+  namespace: {{ tanzu_sql.namespace }}
+  labels:
+    app.kubernetes.io/name: tanzu-sql-image-migrate-job
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_sql.module }}"
+    rpk.resource: "job-image-migrate"
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tanzu-sql-image-migrate-job
+    spec:
+      restartPolicy: Never
+      containers:
+        - image: robinfoe/alp-skopeo:1.0
+          name: migrate-repo
+          command: ["/bin/bash", './mnt/migrate.sh',]
+          resources:
+            limits:
+              cpu: 250m
+              memory: 32Mi
+            requests:
+              cpu: 250m
+              memory: 32Mi
+          volumeMounts:
+            - name: job-registry-auth-config
+              mountPath: /workspace/mnt
+      volumes:
+        - name: job-registry-auth-config
+          configMap:
+            name: job-registry-auth-config

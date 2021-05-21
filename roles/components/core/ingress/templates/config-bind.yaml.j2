@@ -1,0 +1,48 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bind-configs
+  namespace: {{ tanzu_ingress.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_ingress.external_dns.resource_name }}
+data:
+  named.conf.options: |
+    options {
+            directory "/var/cache/bind";
+            allow-recursion {
+                    any;
+            };
+            allow-query-cache {
+                    any;
+            };
+            allow-query {
+                    any;
+            };
+            allow-transfer {
+                    127.0.0.1;
+            };
+            allow-update {
+                    127.0.0.1;
+            };
+    };
+
+  named.conf.local: |
+    zone "{{ tanzu_ingress_domain }}." {
+            type primary;
+            file "/var/lib/bind/{{ tanzu_ingress_domain }}.db";
+    };
+
+  {{ tanzu_ingress_domain }}.db: |
+    $TTL 60 ; 1 minute
+    @                   IN SOA  {{ tanzu_ingress_domain }}. root.{{ tanzu_ingress_domain }}. (
+                                16         ; serial
+                                60         ; refresh (1 minute)
+                                60         ; retry (1 minute)
+                                60         ; expire (1 minute)
+                                60         ; minimum (1 minute)
+                                )
+                        NS      ns.{{ tanzu_ingress_domain }}.
+    ns.{{ tanzu_ingress_domain }}.     A       127.0.0.1

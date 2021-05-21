@@ -1,0 +1,227 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ tanzu_secrets.hashicorp_vault.config_job.vars_secret }}
+  namespace: {{ tanzu_secrets.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.config_job.vars_secret }}
+    app.kubernetes.io/instance: hashicorp
+data:
+  hashicorp_vault_namespace:      {{ tanzu_secrets.namespace | b64encode }}
+  hashicorp_vault_resource_name:  {{ tanzu_secrets.hashicorp_vault.resource_name | b64encode }}
+  hashicorp_vault_policy_name:    {{ tanzu_secrets.hashicorp_vault.policy_name | b64encode }}
+  hashicorp_vault_role_name:      {{ tanzu_secrets.hashicorp_vault.role_name | b64encode }}
+  hashicorp_vault_engine_name:    {{ tanzu_secrets.hashicorp_vault.engine_name | b64encode }}
+  hashicorp_vault_engine_backend: {{ tanzu_secrets.hashicorp_vault.engine_backend | b64encode }}
+  kubernetes_tcp_address:         {{ _kubernetes_tcp_address | b64encode }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ tanzu_secrets.hashicorp_vault.config_job.playbook_config_map }}
+  namespace: {{ tanzu_secrets.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.config_job.playbook_config_map }}
+    app.kubernetes.io/instance: hashicorp
+data:
+  site.yaml: |
+{% raw %}
+    ---
+    - hosts:        "localhost"
+      connection:   "local"
+      gather_facts: false
+      vars:
+        hashicorp_vault_namespace:      "{{ lookup('env', 'hashicorp_vault_namespace') }}"
+        hashicorp_vault_resource_name:  "{{ lookup('env', 'hashicorp_vault_resource_name') }}"
+        hashicorp_vault_internal_url:   "http://{{ hashicorp_vault_resource_name }}:8200"
+        hashicorp_vault_policy_name:    "{{ lookup('env', 'hashicorp_vault_policy_name') }}"
+        hashicorp_vault_role_name:      "{{ lookup('env', 'hashicorp_vault_role_name') }}"
+        hashicorp_vault_engine_name:    "{{ lookup('env', 'hashicorp_vault_engine_name') }}"
+        hashicorp_vault_engine_backend: "{{ lookup('env', 'hashicorp_vault_engine_backend') }}"
+        hashicorp_vault_root_token:     "{{ lookup('env', 'hashicorp_vault_root_token') }}"
+        hashicorp_vault_unseal_keys:    "{{ lookup('env', 'hashicorp_vault_unseal_keys') }}"
+        kubernetes_tcp_address:         "{{ lookup('env', 'kubernetes_tcp_address') }}"
+        secure_logging:                 false
+      tasks:
+        - name: "get the hashicorp vault root token and unseal keys"
+          community.kubernetes.k8s_exec:
+            namespace: "{{ hashicorp_vault_namespace }}"
+            pod:       "{{ hashicorp_vault_resource_name }}-0"
+            command:   "cat /vault/data/keys.txt"
+          register: _hashicorp_vault_secrets
+          when:
+            - (hashicorp_vault_root_token is undefined)  or
+              (hashicorp_vault_unseal_keys is undefined) or
+              (hashicorp_vault_root_token == "")         or
+              (hashicorp_vault_unseal_keys == "")
+          no_log: "{{ secure_logging | bool }}"
+
+        - name: "set the hashicorp vault root token and unseal key facts"
+          set_fact:
+            hashicorp_vault_root_token:  "{{ (_hashicorp_vault_secrets.stdout_lines | select('match', '^Initial Root Token') | list | last).split(':') | last | trim }}"
+            hashicorp_vault_unseal_keys: "{{ (_hashicorp_vault_secrets.stdout_lines | select('match', '^Unseal Key') | list) }}"
+          no_log: "{{ secure_logging | bool }}"
+
+        # https://www.vaultproject.io/api-docs/libraries
+        # https://pypi.org/project/ansible-modules-hashivault/
+        # https://terryhowe.github.io/ansible-modules-hashivault/modules/list_of_hashivault_modules.html
+        - name: "ensure hashicorp vault kubernetes authentication engine is enabled"
+          hashivault_auth_method:
+            authtype:    "token"
+            token:       "{{ hashicorp_vault_root_token }}"
+            method_type: "kubernetes"
+            mount_point: "kubernetes"
+            url:         "{{ hashicorp_vault_internal_url }}"
+            state:       "enabled"
+          no_log: "{{ secure_logging | bool }}"
+
+        - name: "get hashicorp vault service account"
+          k8s_info:
+            api_version: "v1"
+            kind:        "ServiceAccount"
+            name:        "{{ hashicorp_vault_resource_name }}"
+            namespace:   "{{ hashicorp_vault_namespace }}"
+          register: _hashicorp_vault_service_account
+          no_log:   "{{ secure_logging | bool }}"
+
+        - name: "fail if we cannot find the service account"
+          fail:
+            msg: "unable to find service account: {{ hashicorp_vault_resource_name }} in namespace: {{ hashicorp_vault_namespace }}"
+          when: (_hashicorp_vault_service_account.resources | length) < 1
+
+        - name: "get hashicorp vault service account secret"
+          k8s_info:
+            api_version: "v1"
+            kind:        "Secret"
+            namespace:   "{{ hashicorp_vault_namespace }}"
+            name:        "{{ _hashicorp_vault_service_account.resources[0].secrets[0].name }}"
+          register: _hashicorp_vault_service_account_secret
+          no_log:   "{{ secure_logging | bool }}"
+
+        - name: "fail if we cannot find the service account secret"
+          fail:
+            msg: "unable to find service account secret: {{ _hashicorp_vault_service_account.resources[0].secrets[0].name }} from service account: {{ hashicorp_vault_resource_name }} in namespace: {{ hashicorp_vault_namespace }}"
+          when: (_hashicorp_vault_service_account_secret.resources | length) < 1
+
+        - name: "get the ca certificate and jwt token from the service account secret"
+          set_fact:
+            _hashicorp_vault_jwt:     "{{ _hashicorp_vault_service_account_secret.resources[0].data.token | b64decode }}"
+            _hashicorp_vault_ca_cert: "{{ _hashicorp_vault_service_account_secret.resources[0].data['ca.crt'] | b64decode }}"
+          no_log: "{{ secure_logging | bool }}"
+
+        - name: "ensure kubernetes authentication engine is configured"
+          hashivault_write:
+            authtype:    "token"
+            token:       "{{ hashicorp_vault_root_token }}"
+            url:         "{{ hashicorp_vault_internal_url }}"
+            mount_point: "auth"
+            secret:      "kubernetes/config"
+            data:
+              token_reviewer_jwt: "{{ _hashicorp_vault_jwt }}"
+              kubernetes_host:    "https://{{ kubernetes_tcp_address }}:443"
+              kubernetes_ca_cert: "{{ _hashicorp_vault_ca_cert }}"
+          no_log: "{{ secure_logging | bool }}"
+
+        # enable secrect engine: https://www.vaultproject.io/docs/secrets/kv/kv-v2
+        - name: "enable hashicorp vault key value v2 engine"
+          hashivault_secret_engine:
+            authtype: "token"
+            token:    "{{ hashicorp_vault_root_token }}"
+            url:      "{{ hashicorp_vault_internal_url }}"
+            name:     "{{ hashicorp_vault_engine_name }}"
+            backend:  "{{ hashicorp_vault_engine_backend }}"
+          no_log: "{{ secure_logging | bool }}"
+
+        # this is read-only access to everything under the tanzu secret engine (kv-v2)
+        - name: "ensure hashicorp vault policy is created"
+          hashivault_policy:
+            authtype: "token"
+            token:    "{{ hashicorp_vault_root_token }}"
+            url:      "{{ hashicorp_vault_internal_url }}"
+            name:     "{{ hashicorp_vault_policy_name }}"
+            rules: |
+              path "{{ hashicorp_vault_engine_name }}/*" {
+                capabilities = ["read"]
+              }
+            state: "present"
+          no_log: "{{ secure_logging | bool }}"
+
+        - name: "ensure hashicorp vault policy binding kubernetes authentication role is created"
+          hashivault_write:
+            authtype:    "token"
+            token:       "{{ hashicorp_vault_root_token }}"
+            url:         "{{ hashicorp_vault_internal_url }}"
+            secret:      "kubernetes/role/{{ hashicorp_vault_role_name }}"
+            mount_point: "auth"
+            data:
+              bound_service_account_names:      "{{ hashicorp_vault_resource_name }}"
+              bound_service_account_namespaces: "{{ hashicorp_vault_namespace }}"
+              policies:                         "{{ hashicorp_vault_policy_name }}"
+              ttl:                              "24h"
+          no_log: "{{ secure_logging | bool }}"
+
+        #
+        # NOTE: normally we won't want to store the root token as a secret in production
+        #
+        - name: "set hashicorp vault root token and unseal keys secret"
+          k8s:
+            state: "present"
+            definition:
+              apiVersion: "v1"
+              kind:       "Secret"
+              type:       "Opaque"
+              metadata:
+                name:      "{{ hashicorp_vault_resource_name }}"
+                namespace: "{{ hashicorp_vault_namespace }}"
+              data:
+                hashicorp_vault_root_token:  "{{ hashicorp_vault_root_token | b64encode }}"
+                hashicorp_vault_unseal_keys: "{{ hashicorp_vault_unseal_keys | b64encode }}"
+          no_log: "{{ secure_logging | bool }}"
+{% endraw %}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ tanzu_secrets.hashicorp_vault.config_job.name }}
+  namespace: {{ tanzu_secrets.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.config_job.name }}
+spec:
+  activeDeadlineSeconds: 600
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.config_job.name }}
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+        runAsNonRoot: true
+      serviceAccountName: {{ tanzu_secrets.hashicorp_vault.config_job.name }}
+      containers:
+        - image: projects.registry.vmware.com/rpk/rpk-job-runner:v1.0.11
+          name: rpk-job-runner
+          envFrom:
+            - secretRef:
+                name: {{ tanzu_secrets.hashicorp_vault.config_job.vars_secret }}
+          volumeMounts:
+            - mountPath: /ansible/site.yaml
+              name: {{ tanzu_secrets.hashicorp_vault.config_job.playbook_config_map }}
+              readOnly: true
+              subPath: site.yaml
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "64Mi"
+            limits:
+              cpu: "1000m"
+              memory: "128Mi"
+      volumes:
+        - name: {{ tanzu_secrets.hashicorp_vault.config_job.playbook_config_map }}
+          configMap:
+            name: {{ tanzu_secrets.hashicorp_vault.config_job.playbook_config_map }}

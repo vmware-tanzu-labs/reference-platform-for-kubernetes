@@ -1,0 +1,62 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: "{{ tanzu_app_stack.department.namespace }}-monitor"
+  namespace: "{{ tanzu_app_stack.department.namespace }}"
+  labels:
+    prometheus: "{{ tanzu_app_stack.monitoring.resource_name }}"
+    app.kubernetes.io/name: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "{{ tanzu_app_stack.department.resource_name }}"
+  namespaceSelector:
+    matchNames:
+      - "{{ tanzu_app_stack.department.namespace }}"
+  endpoints:
+    - port: "web"
+      path: "{{ tanzu_app_stack.monitoring.metrics_path }}"
+      interval: 60s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: "{{ tanzu_app_stack.employee.namespace }}-monitor"
+  namespace: "{{ tanzu_app_stack.employee.namespace }}"
+  labels:
+    prometheus: "{{ tanzu_app_stack.monitoring.resource_name }}"
+    app.kubernetes.io/name: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "{{ tanzu_app_stack.employee.resource_name }}"
+  namespaceSelector:
+    matchNames:
+      - "{{ tanzu_app_stack.employee.namespace }}"
+  endpoints:
+    - port: "web"
+      path: "{{ tanzu_app_stack.monitoring.metrics_path }}"
+      interval: 60s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: "{{ tanzu_app_stack.organization.namespace }}-monitor"
+  namespace: "{{ tanzu_app_stack.organization.namespace }}"
+  labels:
+    prometheus: "{{ tanzu_app_stack.monitoring.resource_name }}"
+    app.kubernetes.io/name: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "{{ tanzu_app_stack.organization.resource_name }}"
+  namespaceSelector:
+    matchNames:
+      - "{{ tanzu_app_stack.organization.namespace }}"
+  endpoints:
+    - port: "web"
+      path: "{{ tanzu_app_stack.monitoring.metrics_path }}"
+      interval: 60s

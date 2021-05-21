@@ -1,0 +1,25 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# NAMESPACES
+#
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ avi.staging_dir }}"
+
+- name: "create namespace"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ avi.namespace }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ avi.staging_dir }}/tanzu-namespace.yaml"
+
+#
+# INSTALL AKO
+#
+- name: "install avi kubernetes operator"
+  import_tasks: "install-ako.yaml"

@@ -1,0 +1,18 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure sonatype nexus exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "sonatype nexus"
+    manifest_template:    "app-sonatype-nexus.yaml.j2"
+    manifest_file:        "app-sonatype-nexus.yaml"
+    manifest_staging_dir: "{{ tanzu_app_pipeline.staging_dir }}"
+
+- name: "ensure dns resolvability for sonatype nexus"
+  import_role:
+    name: "common/etc-hosts"
+  vars:
+    ip:   "{{ ingress_ip }}"
+    fqdn: "{{ tanzu_app_pipeline.artifact_repo.dns }}"

@@ -1,0 +1,31 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_security.staging_dir }}/certificates"
+
+- name: "add certificate for host <{{ fqdn }}>"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "certificate for {{ fqdn }}"
+    manifest_template:    "certificate.yaml.j2"
+    manifest_file:        "certificate-{{ fqdn }}.yaml"
+    manifest_staging_dir: "{{ tanzu_security.staging_dir }}/certificates"
+
+- name: "wait for certificate for host <{{ fqdn }}> to be ready"
+  k8s_info:
+    version:     "cert-manager.io/v1alpha2"
+    kind:        "Certificate"
+    namespace:   "{{ namespace }}"
+    name:        "{{ fqdn | replace('.', '-') }}"
+    context:     "{{ tanzu_kubectl_context }}"
+  register:    _cert
+  until:       _cert.resources[0].status.conditions[0].status | default("False") | bool
+  retries:     "{{ retries | default('30') }}"
+  delay:       "{{ delay | default('1') }}"
+  failed_when: false
+  when:        wait | default('True') | bool

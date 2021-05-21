@@ -1,0 +1,140 @@
+# Spring Cloud Gateway
+
+Provide API gateway capability in current kubernetes cluster.
+
+## Architecture
+
+RPK's architecture can be found [here](../../../docs/ARCHITECTURE.md)
+
+
+## Resource Sizing Requirements
+
+The following sizing requirements must be met for this role to operate properly.  Sizing includes additional [dependencies](#dependencies).
+
+| vCPU | Memory | Storage |
+| --- | --- | --- |
+| 2500m | 3Gi | N/A - no persistent storage required |
+
+## Variables
+
+### Default Variables
+
+The following variables are defaulted in the `common/vars/main.yaml` file and require no additional user input.
+
+| Variable Name                                     | Description                                                               | Default Value                      | Variable Type | Required |
+|---------------------------------------------------|---------------------------------------------------------------------------|------------------------------------|---------------|----------|
+| tanzu_spring_cloud_gateway.namespace              | Namespace for build-service components                                    | build-service ( do not change )    | string        | yes      |
+| tanzu_spring_cloud_gateway.staging_dir            | Local directory to write the staging manfiests to                         | "/tmp/staging/tanzu-build-service" | string        | yes      |
+| tanzu_spring_cloud_gateway.namespace_kpack        | Namespace for kpack components                                            | kpack ( do not change )            | string        | yes      |
+| tanzu_spring_cloud_gateway.registry.project.project_name | Harbor Registry name to use                                        | build-service                      | string        | yes      |
+| tanzu_spring_cloud_gateway.registry.source_url    | Source Tanzu Build Service Registry URL ( do not change )                 | registry.pivotal.io (to be defined)                | string        | yes      |
+| tanzu_spring_cloud_gateway.workload_tenancy.enabled      | Whether to use the `workload-tenancy` module to provide custom namespaces | false                       | boolean       | yes      |
+| tanzu_spring_cloud_gateway.demo.dns               | Ingress route to demo url                                                 | -                                  | string       | yes       |
+
+```
+Spring cloud gateway is in active beta development, thus the image is not yet available at pivotal.net ( registry.pivotal.io ). As for interim workaround spring cloud gateway beta images are hosted at docker hub ( Refer to tanzu_spring_cloud_gateway.registry.source_url )
+```
+
+
+
+
+### Additional Variables
+
+The following variables must be set for proper operation of the role.  Variables are generally set in the variables file
+at `build/inventory.yaml` of the root of this project.
+
+| Variable Name                       	| Description                                                                                   	| Default Value 	| Variable Type 	| Required 	|
+|-------------------------------------	|-----------------------------------------------------------------------------------------------	|---------------	|---------------	|----------	|
+| tanzu_kubectl_context               	| Name of context to use for connection to Kubernetes                                           	| -             	| string        	| yes      	|
+| tanzu_network_api_token              	| API token for network.pivotal.io                                                              	| -             	| string        	| yes      	|
+
+
+#### Retrieve api token from network.pivotal.io
+
+- Navigate to https://network.pivotal.io/ and proceed to login.
+![tanzu-network-login](../../../docs/images/tanzu-network-01.png)
+
+- Navigate to edit profile.
+![tanzu-network-login](../../../docs/images/tanzu-network-02.png)
+
+- Scroll down to retrieve the token from "Legacy API token" field.
+![tanzu-network-login](../../../docs/images/tanzu-network-03.png)
+
+
+## Dependencies
+
+Also see `.dependencies.yaml` to view role dependencies which are run when running the role
+independently.
+
+* security
+* ingress
+* container-registry
+
+
+## Deploying
+
+**NOTE:** roles from `.dependencies.yaml` are also deployed.
+
+In order to deploy the role from a versioned image:
+
+```bash
+ROLE=extensions/spring-cloud-gateway make deploy.role
+```
+
+If you've made changes to the role and need to verify your changes:
+
+```bash
+ROLE=extensions/spring-cloud-gateway make deploy.test.role
+```
+
+
+## Demonstrating
+
+Once the role has run successfully, you should be able to demonstrate the role.
+
+Brief description of what the demonstration does here.
+
+In order to demonstrate the role:
+
+```bash
+ROLE=extensions/spring-cloud-gateway make demo.role
+```
+
+Sample output:
+
+```bash
+kubectl get springcloudgateway
+NAME           AGE
+test-gateway   19m
+
+
+kubectl get deployments.apps | grep test
+## test-gateway generated by spring cloud gateway CR ( refer to demo/templates/test-gateway.yaml)
+NAME             READY   UP-TO-DATE   AVAILABLE   AGE
+test-gateway     2/2     2            2           20m
+
+
+
+```
+
+Accessing the service:
+
+```bash
+
+curl http://<tanzu_spring_cloud_gateway.demo.dns>/test/<any github id>
+
+```
+
+
+## Cleaning
+
+To remove the role, from the root of the repo:
+
+**NOTE:** only this role is removed and not the role dependencies.
+
+```bash
+ROLE=extensions/spring-cloud-gateway make clean.role
+```
+
+## Author(s)
+[Robin Foe](mailto:rfoe@vmware.com)

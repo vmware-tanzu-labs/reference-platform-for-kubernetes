@@ -1,0 +1,42 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure application stack (department) rbac exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "application stack (department) rbac"
+    manifest_template:    "app/department/department-rbac.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}"
+
+- name: "ensure application stack (department) config map exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "application stack (department) config map"
+    manifest_template:    "app/department/department-configmap.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}"
+
+- name: "ensure application stack (department) secret exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "application stack (department) secret"
+    manifest_template:    "app/department/department-secret.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}"
+
+- name: "ensure application stack (department) deployment exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "application stack (department) deployment"
+    manifest_template:    "app/department/department-deployment.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}"
+
+- name: "ensure application stack (department) hpa exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "application stack (department) hpa"
+    manifest_template:    "app/department/department-hpa.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}"

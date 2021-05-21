@@ -1,0 +1,63 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: "{{ tanzu_ingress.demo.resource_name }}"
+  name: "{{ tanzu_ingress.demo.resource_name }}"
+  namespace: "{{ tanzu_ingress.demo.namespace }}"
+spec:
+  replicas: {{ tanzu_ingress.demo.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "{{ tanzu_ingress.demo.resource_name }}"
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "{{ tanzu_ingress.demo.resource_name }}"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+      containers:
+        - image: "{{ tanzu_ingress.demo.image }}:{{ tanzu_ingress.demo.image_tag }}"
+          name: "{{ tanzu_ingress.demo.resource_name }}"
+          resources: {{ tanzu_ingress.demo.resources | default(tanzu_ingress.default_resources) }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: "{{ tanzu_ingress.demo.resource_name }}"
+  name: "{{ tanzu_ingress.demo.resource_name }}"
+  namespace: "{{ tanzu_ingress.demo.namespace }}"
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app.kubernetes.io/name: "{{ tanzu_ingress.demo.resource_name }}"
+  sessionAffinity: None
+  type: ClusterIP
+---
+kind: Ingress
+apiVersion: extensions/v1beta1
+metadata:
+  labels:
+    app.kubernetes.io/name: "{{ tanzu_ingress.demo.resource_name }}"
+  name: "{{ tanzu_ingress.demo.resource_name }}"
+  namespace: "{{ tanzu_ingress.demo.namespace }}"
+  annotations:
+    external-dns.alpha.kubernetes.io/target: "{{ tanzu_ingress.dns }}"
+spec:
+  rules:
+    - host: "{{ tanzu_ingress.demo.dns }}"
+      http:
+        paths:
+        - path: /
+          backend:
+            serviceName: "{{ tanzu_ingress.demo.resource_name }}"
+            servicePort: 80

@@ -1,0 +1,37 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# STORAGE CLASS
+#
+- name: "ensure vmware storage config job exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "vmware storage config job"
+    manifest_template:    "storage-config-vmware.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_storage.staging_dir }}"
+    name:                 "{{ tanzu_storage.vmware.config_job.name }}"
+  when:
+    - not (tanzu_cluster_is_v7wk8s | default(False))
+
+- name: "ensure {{ tanzu_storage.vmware.config_job.name }} job succeeded"
+  import_role:
+    name: "common/wait-for-job"
+  vars:
+    name:      "{{ tanzu_storage.vmware.config_job.name }}"
+    namespace: "{{ tanzu_storage.namespace }}"
+    retries:   50
+    delay:     5
+  when:
+    - not (tanzu_cluster_is_v7wk8s | default(False))
+
+- name: "ensure vmware storage classes exist (standard tkg)"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "vmware storage classes"
+    manifest_template:    "storage-class-vmware.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_storage.staging_dir }}"
+  when:
+    - not (tanzu_cluster_is_v7wk8s | default(False))

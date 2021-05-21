@@ -1,0 +1,193 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ tanzu_app_pipeline.code_analyzer.resource_name }}-postgresql
+  namespace: {{ tanzu_app_pipeline.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_app_pipeline.code_analyzer.resource_name }}-postgresql
+    release: "sonarqube"
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_app_pipeline.module }}"
+    rpk.resource: "pipeline-sonarqube-secret"
+type: Opaque
+data:
+  postgresql-password: "{{ tanzu_app_pipeline.code_analyzer.database.password }}"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ tanzu_app_pipeline.code_analyzer.resource_name }}-postgresql
+  namespace: {{ tanzu_app_pipeline.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_app_pipeline.code_analyzer.resource_name }}-postgresql
+    release: "sonarqube"
+    role: master
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_app_pipeline.module }}"
+    rpk.resource: "pipeline-sonarqube-statefulset"
+spec:
+  serviceName: {{ tanzu_app_pipeline.code_analyzer.resource_name }}-postgresql-headless
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ tanzu_app_pipeline.code_analyzer.resource_name }}-postgresql
+      release: "sonarqube"
+      role: master
+  template:
+    metadata:
+      name: sonarqube-postgresql
+      labels:
+        app.kubernetes.io/name: {{ tanzu_app_pipeline.code_analyzer.resource_name }}-postgresql
+        release: "sonarqube"
+        role: master
+    spec:
+      serviceAccountName: {{ tanzu_app_pipeline.code_analyzer.resource_name }}
+      securityContext:
+        fsGroup: 1001
+      initContainers:
+        - name: init-chmod-data
+          image: "{{ tanzu_app_pipeline.code_analyzer.database.init_image }}:{{ tanzu_app_pipeline.code_analyzer.database.init_image_tag }}"
+          imagePullPolicy: "Always"
+          resources: {{ tanzu_app_pipeline.default_resources }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /bitnami/postgresql/data
+              chmod 700 /bitnami/postgresql/data
+              find /bitnami/postgresql -mindepth 0 -maxdepth 1 -not -name ".snapshot" -not -name "lost+found" | \
+                xargs chown -R 1001:1001
+              chmod -R 777 /dev/shm
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: data
+              mountPath: /bitnami/postgresql
+              subPath:
+            - name: dshm
+              mountPath: /dev/shm
+      containers:
+        - name: sonarqube-postgresql
+          image: "{{ tanzu_app_pipeline.code_analyzer.database.image }}:{{ tanzu_app_pipeline.code_analyzer.database.image_tag }}"
+          imagePullPolicy: "IfNotPresent"
+          resources: {{ tanzu_app_pipeline.code_analyzer.database.resources }}
+          securityContext:
+            runAsUser: 1001
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: POSTGRESQL_PORT_NUMBER
+              value: "5432"
+            - name: POSTGRESQL_VOLUME_DIR
+              value: "/bitnami/postgresql"
+            - name: PGDATA
+              value: "/bitnami/postgresql/data"
+            - name: POSTGRES_USER
+              value: "sonarUser"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ tanzu_app_pipeline.code_analyzer.resource_name }}-postgresql
+                  key: postgresql-password
+            - name: POSTGRES_DB
+              value: "sonarDB"
+            - name: POSTGRESQL_ENABLE_LDAP
+              value: "no"
+          ports:
+            - name: tcp-postgresql
+              containerPort: 5432
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U "sonarUser" -d "sonarDB" -h 127.0.0.1 -p 5432
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - -e
+                - |
+                  exec pg_isready -U "sonarUser" -d "sonarDB" -h 127.0.0.1 -p 5432
+                  [ -f /opt/bitnami/postgresql/tmp/.initialized ] || [ -f /bitnami/postgresql/.initialized ]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            - name: data
+              mountPath: /bitnami/postgresql
+              subPath:
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ tanzu_app_pipeline.code_analyzer.resource_name }}-postgresql-headless
+  namespace: {{ tanzu_app_pipeline.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_app_pipeline.code_analyzer.resource_name }}-postgresql
+    release: "sonarqube"
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_app_pipeline.module }}"
+    rpk.resource: "pipeline-sonarqube-svc"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+  selector:
+    app.kubernetes.io/name: {{ tanzu_app_pipeline.code_analyzer.resource_name }}-postgresql
+    release: "sonarqube"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ tanzu_app_pipeline.code_analyzer.resource_name }}-postgresql
+  namespace: {{ tanzu_app_pipeline.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_app_pipeline.code_analyzer.resource_name }}-postgresql
+    release: "sonarqube"
+    role: master
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_app_pipeline.module }}"
+    rpk.resource: "pipeline-sonarqube-svc"
+spec:
+  type: ClusterIP
+  ports:
+    - name: tcp-postgresql
+      port: 5432
+      targetPort: tcp-postgresql
+  selector:
+    app.kubernetes.io/name: {{ tanzu_app_pipeline.code_analyzer.resource_name }}-postgresql
+    release: "sonarqube"
+    role: master

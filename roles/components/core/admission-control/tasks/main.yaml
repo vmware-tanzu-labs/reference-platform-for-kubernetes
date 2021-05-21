@@ -1,0 +1,167 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# NAMESPACES
+#
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_admission_control.staging_dir }}"
+
+- name: "create namespace"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_admission_control.namespace }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_admission_control.staging_dir }}/tanzu-namespace.yaml"
+
+#
+# GATEKEEPER
+#
+- name: "ensure gatekeeper custom resource definitions exist"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "gatekeeper custom resource definitions"
+    manifest_template:    "gatekeeper-crds.yaml.j2"
+    manifest_file:        "gatekeeper-crds.yaml"
+    manifest_staging_dir: "{{ tanzu_admission_control.staging_dir }}"
+
+- name: "ensure gatekeeper rbac exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "gatekeeper rbac"
+    manifest_template:    "gatekeeper-rbac.yaml.j2"
+    manifest_file:        "gatekeeper-rbac.yaml"
+    manifest_staging_dir: "{{ tanzu_admission_control.staging_dir }}"
+
+- name: "add tls certificate for gatekeeper"
+  import_role:
+    name: "common/tls-certificate"
+  vars:
+    fqdn:           "gatekeeper-webhook-service"
+    namespace:      "{{ tanzu_admission_control.namespace }}"
+    secret:         "gatekeeper-webhook-server-cert"
+    tls_provider:   "self"
+    dns:
+      - "gatekeeper-webhook-service"
+      - "gatekeeper-webhook-service.{{ tanzu_admission_control.namespace }}"
+      - "gatekeeper-webhook-service.{{ tanzu_admission_control.namespace }}.svc"
+      - "gatekeeper-webhook-service.{{ tanzu_admission_control.namespace }}.svc.cluster.local"
+    ip:
+      - "127.0.0.1"
+
+- name: "ensure gatekeeper app exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "gatekeeper app"
+    manifest_template:    "gatekeeper-app.yaml.j2"
+    manifest_file:        "gatekeeper-app.yaml"
+    manifest_staging_dir: "{{ tanzu_admission_control.staging_dir }}"
+
+- name: "ensure gatekeeper validating webhook config exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "gatekeeper validating webhook config"
+    manifest_template:    "gatekeeper-webhook.yaml.j2"
+    manifest_file:        "gatekeeper-webhook.yaml"
+    manifest_staging_dir: "{{ tanzu_admission_control.staging_dir }}"
+
+#
+# OPA POLICIES
+#
+- name: "ensure opa policy required templates exist"
+  include_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "{{ item.manifest_description }}"
+    manifest_template:    "{{ item.manifest_template }}"
+    manifest_file:        "{{ item.manifest_file }}"
+    manifest_staging_dir: "{{ tanzu_admission_control.staging_dir }}"
+  with_items:
+    - manifest_description: "opa policy required user templates"
+      manifest_template:    "opa-policy-template-users.yaml.j2"
+      manifest_file:        "opa-policy-template-users.yaml"
+    - manifest_description: "opa policy required labels templates"
+      manifest_template:    "opa-policy-template-labels.yaml.j2"
+      manifest_file:        "opa-policy-template-labels.yaml"
+    - manifest_description: "opa policy required container limits templates"
+      manifest_template:    "opa-policy-template-limits.yaml.j2"
+      manifest_file:        "opa-policy-template-limits.yaml"
+    - manifest_description: "opa policy required container ratio templates"
+      manifest_template:    "opa-policy-template-ratio.yaml.j2"
+      manifest_file:        "opa-policy-template-ratio.yaml"
+
+- name: "ensure opa policy required constraints exist"
+  include_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "{{ item.manifest_description }}"
+    manifest_template:    "{{ item.manifest_template }}"
+    manifest_file:        "{{ item.manifest_file }}"
+    manifest_staging_dir: "{{ tanzu_admission_control.staging_dir }}"
+  with_items:
+    - manifest_description: "opa policy required user constraint"
+      manifest_template:    "opa-policy-constraint-users.yaml.j2"
+      manifest_file:        "opa-policy-constraint-users.yaml"
+    - manifest_description: "opa policy required labels constraint"
+      manifest_template:    "opa-policy-constraint-labels.yaml.j2"
+      manifest_file:        "opa-policy-constraint-labels.yaml"
+    - manifest_description: "opa policy required container limits constraint"
+      manifest_template:    "opa-policy-constraint-limits.yaml.j2"
+      manifest_file:        "opa-policy-constraint-limits.yaml"
+    - manifest_description: "opa policy required container ratio constraint"
+      manifest_template:    "opa-policy-constraint-ratio.yaml.j2"
+      manifest_file:        "opa-policy-constraint-ratio.yaml"
+
+#
+# MUTATING WEBHOOK CONTROLLER
+#
+- name: "add tls certificate for mutator"
+  import_role:
+    name: "common/tls-certificate"
+  vars:
+    fqdn:           "sac"
+    namespace:      "{{ tanzu_admission_control.namespace }}"
+    secret:         "sac-cert"
+    tls_provider:   "self"
+    dns:
+      - "sac"
+      - "sac.{{ tanzu_admission_control.namespace }}"
+      - "sac.{{ tanzu_admission_control.namespace }}.svc"
+      - "sac.{{ tanzu_admission_control.namespace }}.svc.cluster.local"
+    ip:
+      - "127.0.0.1"
+
+- name: "get ca certificate for mutator"
+  k8s_info:
+    kind:      "Secret"
+    namespace: "{{ tanzu_admission_control.namespace }}"
+    name:      "sac-cert"
+    context:   "{{ tanzu_kubectl_context }}"
+  register: _sac_cert
+
+- name: "ensure mutator exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "mutator"
+    manifest_template:    "mutator-app.yaml.j2"
+    manifest_file:        "mutator-app.yaml"
+    manifest_staging_dir: "{{ tanzu_admission_control.staging_dir }}"
+
+# TODO: this always reports as changed when running multiple times, even with the same manifest file
+- name: "ensure mutator mutating webhook config exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "mutator mutating webhook config"
+    manifest_template:    "mutator-webhook.yaml.j2"
+    manifest_file:        "mutator-webhook.yaml"
+    manifest_staging_dir: "{{ tanzu_admission_control.staging_dir }}"

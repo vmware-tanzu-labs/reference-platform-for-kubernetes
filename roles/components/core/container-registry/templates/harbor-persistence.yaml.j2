@@ -1,0 +1,221 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# REDIS
+#
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: "{{ tanzu_container_registry.redis.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+    component: redis
+spec:
+  replicas: {{ tanzu_container_registry.redis.replicas }}
+  serviceName: "{{ tanzu_container_registry.redis.resource_name }}"
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "harbor"
+      component: redis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "harbor"
+        component: redis
+    spec:
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: redis
+          image: {{ tanzu_container_registry.redis.image }}:{{ tanzu_container_registry.base_image_tag }}
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 300
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 1
+            periodSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/redis
+              subPath:
+          resources: {{ tanzu_container_registry.redis.resources | default(tanzu_container_registry.default_resources) }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app.kubernetes.io/name: "harbor"
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "{{ tanzu_container_registry.redis.size }}"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ tanzu_container_registry.redis.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+spec:
+  ports:
+    - port: 6379
+  selector:
+    app.kubernetes.io/name: "harbor"
+    component: redis
+
+---
+#
+# POSTGRES
+#
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: "{{ tanzu_container_registry.postgres.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+    component: database
+spec:
+  replicas: {{ tanzu_container_registry.postgres.replicas }}
+  serviceName: "{{ tanzu_container_registry.postgres.resource_name }}"
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "harbor"
+      component: database
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "harbor"
+        component: database
+    spec:
+      initContainers:
+        - name: "change-permission-of-directory"
+          securityContext:
+            runAsUser: 0
+          image: {{ tanzu_container_registry.postgres.image }}:{{ tanzu_container_registry.base_image_tag }}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh"]
+          args: ["-c", "chown -R postgres:postgres /var/lib/postgresql/data"]
+          volumeMounts:
+            - name: database-data
+              mountPath: /var/lib/postgresql/data
+              subPath:
+        - name: "remove-lost-found"
+          image: {{ tanzu_container_registry.postgres.image }}:{{ tanzu_container_registry.base_image_tag }}
+          imagePullPolicy: IfNotPresent
+          command: ["rm", "-Rf", "/var/lib/postgresql/data/lost+found"]
+          volumeMounts:
+            - name: database-data
+              mountPath: /var/lib/postgresql/data
+              subPath:
+      containers:
+        - name: database
+          image: {{ tanzu_container_registry.postgres.image }}:{{ tanzu_container_registry.base_image_tag }}
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            exec:
+              command:
+                - /docker-healthcheck.sh
+            initialDelaySeconds: 300
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - /docker-healthcheck.sh
+            initialDelaySeconds: 1
+            periodSeconds: 10
+          env:
+            - name: POSTGRES_USER
+              value: "{{ tanzu_container_registry.postgres.username }}"
+          envFrom:
+            - secretRef:
+                name: "{{ tanzu_container_registry.postgres.resource_name }}"
+          volumeMounts:
+            - name: database-data
+              mountPath: /var/lib/postgresql/data
+              subPath:
+              resources:
+          resources: {{ tanzu_container_registry.postgres.resources | default(tanzu_container_registry.default_resources) }}
+  volumeClaimTemplates:
+    - metadata:
+        name: "database-data"
+        labels:
+          app.kubernetes.io/name: "harbor"
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "{{ tanzu_container_registry.postgres.size }}"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ tanzu_container_registry.postgres.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+spec:
+  ports:
+    - port: 5432
+  selector:
+    app.kubernetes.io/name: "harbor"
+    component: database
+
+---
+#
+# VOLUME CLAIMS
+#
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: "{{ tanzu_container_registry.jobservice.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+    component: jobservice
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "{{ tanzu_container_registry.jobservice.size }}"
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: "{{ tanzu_container_registry.chartmuseum.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+    component: chartmuseum
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "{{ tanzu_container_registry.chartmuseum.size }}"
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: "{{ tanzu_container_registry.registry.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+    component: registry
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "{{ tanzu_container_registry.registry.size }}"

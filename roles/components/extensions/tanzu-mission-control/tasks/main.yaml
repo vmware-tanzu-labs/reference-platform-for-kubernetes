@@ -1,0 +1,167 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# GET OBJECTS
+#   NOTE: see if we first need to integrate or if this cluster is already registered with TMC
+#
+- name: "get the tanzu mission control namespace"
+  k8s_info:
+    kind:    "Namespace"
+    context: "{{ tanzu_kubectl_context }}"
+    name:    "{{ tanzu_mission_control.namespace }}"
+  register: _tmc_namespace_status
+
+- name: "get the tanzu mission control cluster agent extension custom resource definition"
+  k8s_info:
+    kind:        "CustomResourceDefinition"
+    context:     "{{ tanzu_kubectl_context }}"
+    name:        "extensions.clusters.tmc.cloud.vmware.com"
+  register: _tmc_extension_crd_status
+
+- name: "get the tanzu mission control agent extension"
+  k8s_info:
+    kind:        "Extension"
+    context:     "{{ tanzu_kubectl_context }}"
+    name:        "sync-agent"
+    namespace:   "{{ tanzu_mission_control.namespace }}"
+    api_version: "clusters.tmc.cloud.vmware.com/v1alpha1"
+  register: _tmc_extension_status
+
+#
+# BEGIN BLOCK
+#   NOTE: only deploy if any of the following are true
+#           - tmc namespace missing
+#           - tmc extension crd missing
+#           - tmc extension resource missing
+#
+- when:
+    - ((_tmc_namespace_status.resources | length == 0) or
+      (_tmc_extension_crd_status.resources | length == 0) or
+      (_tmc_extension_status.resources | length == 0 ))
+  block:
+
+#
+# NAMESPACE
+#
+#
+# NOTE: we do not use the tanzuNamespace CRD here, as this namespace is created automatically
+#       by TMC.  we also want to ensure it has the proper labels to be free of global network policy.
+#
+    - name: "setup tanzu mission control namespace"
+      import_role:
+        name: "common/tmc-namespace-labels"
+
+#
+# STAGING DIR
+#
+    - name: "ensure manifest staging directory exists"
+      import_role:
+        name: "common/staging-directory"
+      vars:
+        staging_dir: "{{ tanzu_mission_control.staging_dir }}"
+
+#
+# AUTH
+#   # see https://code.vmware.com/apis/897/tanzu-mission-control
+#
+    - name: "get authentication token"
+      uri:
+        url:         "{{ tanzu_mission_control.access_token_url }}?refresh_token={{ tanzu_mission_control_api_token }}"
+        method:      "POST"
+        status_code: "200"
+      register: _tmc_access_token
+
+    - name: "set the access token"
+      set_fact:
+        _tmc_access_token: "{{ _tmc_access_token.json.access_token }}"
+
+#
+# CLUSTER GROUPS
+#   see https://code.vmware.com/apis/897/tanzu-mission-control#/ClusterGroupResourceService
+#
+    - name: "get a list of clusters groups currently in the org"
+      uri:
+        url:         "{{ tanzu_mission_control.org_url }}/{{ tanzu_mission_control.api_version }}/clustergroups"
+        method:      "GET"
+        status_code: "200"
+        headers:
+          Authorization: "Bearer {{ _tmc_access_token }}"
+      register: _tmc_cluster_groups
+
+    - name: "create a cluster group in the org"
+      uri:
+        url:         "{{ tanzu_mission_control.org_url }}/{{ tanzu_mission_control.api_version }}/clustergroups"
+        method:      "POST"
+        status_code: "200"
+        headers:
+          Authorization: "Bearer {{ _tmc_access_token }}"
+        body_format: "json"
+        body:
+          clusterGroup:
+            full_name:
+              name: "{{ tanzu_mission_control_cluster_group }}"
+            meta:
+              description: "{{ tanzu_mission_control_cluster_group }} - created by rpk"
+      when:
+        - (_tmc_cluster_groups.json.clusterGroups | map(attribute='fullName') | selectattr('name', 'equalto', tanzu_mission_control_cluster_group) | list | length) == 0
+
+#
+# CLUSTERS
+#   see https://code.vmware.com/apis/897/tanzu-mission-control#/ClusterResourceService
+#
+    - name: "get a list of clusters currently in the org"
+      uri:
+        url:         "{{ tanzu_mission_control.org_url }}/{{ tanzu_mission_control.api_version }}/clusters"
+        method:      "GET"
+        status_code: "200"
+        headers:
+          Authorization: "Bearer {{ _tmc_access_token }}"
+      register: _tmc_clusters
+
+    - name: "create a cluster in the org"
+      uri:
+        url:         "{{ tanzu_mission_control.org_url }}/{{ tanzu_mission_control.api_version }}/clusters"
+        method:      "POST"
+        status_code: "200"
+        headers:
+          Authorization: "Bearer {{ _tmc_access_token }}"
+        body_format: "json"
+        body:
+          cluster:
+            full_name:
+              name: "{{ tanzu_cluster_name }}"
+              managementClusterName: "attached"
+              provisionerName: "attached"
+            meta:
+              description: "{{ tanzu_cluster_name }} - created by rpk"
+              labels:
+                owner: "{{ tanzu_mission_control.owner_label }}"
+            spec:
+              clusterGroupName: "{{ tanzu_mission_control_cluster_group }}"
+      register: _tmc_cluster_create_status
+      when:
+        - (_tmc_clusters.json.clusters | map(attribute='fullName') | selectattr('name', 'equalto', tanzu_cluster_name) | list | length) == 0
+
+#
+# ATTACH CLUSTER
+#
+    - when:
+        - (_tmc_clusters.json.clusters | map(attribute='fullName') | selectattr('name', 'equalto', tanzu_cluster_name) | list | length) == 0
+      block:
+        - name: "download the manifest file"
+          get_url:
+            dest: "{{ tanzu_mission_control.staging_dir }}/tmc.yaml"
+            url:  "{{ _tmc_cluster_create_status.json.cluster.status.installerLink }}"
+
+        - name: "ensure cluster is attached to tmc"
+          k8s:
+            state:        "present"
+            context:      "{{ tanzu_kubectl_context }}"
+            src:          "{{ tanzu_mission_control.staging_dir }}/tmc.yaml"
+            wait:         true
+            wait_timeout: "600"
+
+#
+# END BLOCK
+#

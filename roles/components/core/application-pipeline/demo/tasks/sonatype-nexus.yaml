@@ -1,0 +1,90 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "wait for dns"
+  import_role:
+    name: "common/wait-for-dns"
+  vars:
+    hostname: "{{ tanzu_app_pipeline.artifact_repo.dns }}"
+
+- name: "get nexus scripts"
+  uri:
+    url:              "http://{{ tanzu_app_pipeline.artifact_repo.dns }}/service/rest/v1/script"
+    user:             "{{ tanzu_app_pipeline.artifact_repo.username }}"
+    password:         "{{ tanzu_app_pipeline.artifact_repo.password }}"
+    method:           "GET"
+    force_basic_auth: true
+    status_code:      "200"
+  register:     _nexus_scripts
+  changed_when: false
+
+- name: "declare allow_anonymous script"
+  uri:
+    url:              "http://{{ tanzu_app_pipeline.artifact_repo.dns }}/service/rest/v1/script"
+    user:             "{{ tanzu_app_pipeline.artifact_repo.username }}"
+    password:         "{{ tanzu_app_pipeline.artifact_repo.password }}"
+    body_format:      "json"
+    method:           "POST"
+    force_basic_auth: true
+    status_code:      "204"
+    body:
+      name:    "allow_anonymous"
+      type:    "groovy"
+      content: "{{ lookup('file', role_path + '/files/nexus/allow_anonymous.groovy') }}"
+  changed_when: true
+  register:     _nexus_allow_anon_script
+  when:
+    - ((_nexus_scripts.json | length) == 0) or
+      ((_nexus_scripts.json | selectattr('name', 'equalto', 'allow_anonymous') | list | length) == 0)
+
+- name: "declare create_hosted_repo script"
+  uri:
+    url:              "http://{{ tanzu_app_pipeline.artifact_repo.dns }}/service/rest/v1/script"
+    user:             "{{ tanzu_app_pipeline.artifact_repo.username }}"
+    password:         "{{ tanzu_app_pipeline.artifact_repo.password }}"
+    body_format:      "json"
+    method:           "POST"
+    force_basic_auth: true
+    status_code:      "204"
+    body:
+      name:    "create_hosted_repositories"
+      type:    "groovy"
+      content: "{{ lookup('file', role_path + '/files/nexus/create_hosted_repositories.groovy') }}"
+  changed_when: true
+  register:     _nexus_create_repo_script
+  when:
+    - ((_nexus_scripts.json | length) == 0) or
+      ((_nexus_scripts.json | selectattr('name', 'equalto', 'create_hosted_repositories') | list | length) == 0)
+
+- name: "executing allow_anonymous groovy script"
+  uri:
+    url:              "http://{{ tanzu_app_pipeline.artifact_repo.dns }}/service/rest/v1/script/allow_anonymous/run"
+    user:             "{{ tanzu_app_pipeline.artifact_repo.username }}"
+    password:         "{{ tanzu_app_pipeline.artifact_repo.password }}"
+    method:           "POST"
+    status_code:      "200"
+    force_basic_auth: true
+    body_format:      "json"
+    body:
+      allow_anonymous: true
+  changed_when: true
+  when: _nexus_allow_anon_script.changed
+
+- name: "executing create_hosted_repositories groovy script"
+  uri:
+    url:              "http://{{ tanzu_app_pipeline.artifact_repo.dns }}/service/rest/v1/script/create_hosted_repositories/run"
+    user:             "{{ tanzu_app_pipeline.artifact_repo.username }}"
+    password:         "{{ tanzu_app_pipeline.artifact_repo.password }}"
+    method:           "POST"
+    status_code:      "200"
+    force_basic_auth: true
+    body_format:      "json"
+    body:
+      name:                      "rpk-snapshot"
+      blob_store:                "default"
+      strict_content_validation: false
+      version_policy:            "mixed"
+      layout_policy:             "permissive"
+      write_policy:              "allow"
+  changed_when: true
+  when: _nexus_create_repo_script.changed

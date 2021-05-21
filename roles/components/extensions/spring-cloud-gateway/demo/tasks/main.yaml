@@ -1,0 +1,18 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "deploy test gateway"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "test-gateway crd"
+    manifest_template:    "test-gateway.yaml.j2"
+    manifest_file:        "test-gateway.yaml"
+    manifest_staging_dir: "{{ tanzu_spring_cloud_gateway.staging_dir }}"
+
+- name: "ensure dns resolvability spring cloud gateway demo"
+  import_role:
+    name: "common/etc-hosts"
+  vars:
+    ip:   "{{ ingress_ip }}"
+    fqdn: "{{ tanzu_spring_cloud_gateway.demo.dns }}"

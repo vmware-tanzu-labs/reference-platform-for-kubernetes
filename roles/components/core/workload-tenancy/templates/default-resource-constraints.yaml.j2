@@ -1,0 +1,30 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: tanzu-default-limit-range
+spec:
+  limits:
+    - default:
+        cpu: "50m"
+        memory: "64Mi"
+      defaultRequest:
+        cpu: "50m"
+        memory: "64Mi"
+      max:
+        cpu: "1"
+        memory: "1Gi"
+      type: Container
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: tanzu-default-resource-quota
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 4Gi
+    limits.cpu: "4"
+    limits.memory: 4Gi

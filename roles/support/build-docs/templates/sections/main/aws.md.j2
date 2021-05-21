@@ -1,0 +1,46 @@
+{% include 'sections/common/super_quick_start.md'%}
+
+
+## Detailed Quick Start
+
+This guide will take you through all of the necessary steps to prepare for and to deploy RPK.
+
+{% include 'sections/common/inventory.md' %}
+
+
+### 2. Set Variables
+
+{% include 'sections/common/common_vars.md' %}
+
+
+#### 2b. AWS Variables
+
+TKG clusters which are hosted on AWS should modify cluster variables (represented in the
+inventory as `aws_tanzu_cluster1`) specific to AWS.
+
+Common variables, specific to the AWS provider type, that will need modified are as follows:
+
+| Variable Name | Variable Type | Required | Default Value | Description |
+| --- | --- | --- | --- | --- |
+| tanzu_storage_classes_aws | list of dicts | true (AWS only) | `[]` | See documentation at [Storage README](../../roles/components/core/storage/README.md) for examples. |
+
+#### 2c. Additional/Optional Variables (Expert)
+
+{% include 'sections/common/additional_vars.md' %}
+
+
+### 3. Tanzu Mission Control Provisioned Cluster Additional Instructions
+
+{% include 'sections/common/tmc_clusters.md' %}
+
+
+### 4. Build RPK Container Image
+
+{% include 'sections/common/build.md' %}
+
+
+### 5. Deploy RPK to Your TKG Cluster
+
+At this point, you should have completed all the necessary prerequisite work to deploy RPK to your workload cluster.  You are now ready to Deploy RPK.
+
+{% include 'sections/common/deploy.md' %}

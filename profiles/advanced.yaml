@@ -1,0 +1,26 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+rpk_components:
+  - name:    "networking"
+    enabled: true
+  - name:    "container-registry"
+    enabled: true
+  - name:    "tanzu-mission-control"
+    enabled: true
+  - name:    "avi"
+    enabled: false
+  - name:    "spring-cloud-gateway"
+    enabled: true
+  - name:    "spring-cloud-data-flow"
+    enabled: true
+  - name:    "tanzu-application-catalog"
+    enabled: true
+  - name:    "tanzu-build-service"
+    enabled: true
+  - name:    "tanzu-observability"
+    enabled: true
+  - name:    "tanzu-service-mesh"
+    enabled: false
+  - name:    "tanzu-sql"
+    enabled: true

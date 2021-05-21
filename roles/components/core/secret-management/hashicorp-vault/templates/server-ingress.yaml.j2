@@ -1,0 +1,29 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: hashicorp-vault
+  namespace: {{ tanzu_secrets.namespace }}
+  annotations:
+    external-dns.alpha.kubernetes.io/target: "{{ tanzu_ingress.dns }}"
+spec:
+  rules:
+    - host: {{ tanzu_secrets.dns }}
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: hashicorp-vault
+              servicePort: 8200
+#
+# HTTPS
+#
+#    - host: {{ tanzu_secrets.dns }}
+#      http:
+#        paths:
+#          - path: /
+#            backend:
+#              serviceName: hashicorp-vault
+#              servicePort: 8201

@@ -1,0 +1,35 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_networking:
+  namespace:   "tanzu-networking"
+  staging_dir: "{{ rpk_staging_dir }}/tanzu-networking"
+  ipip_mode:   "CrossSubnet"
+  antrea_tunnel_protocol: "geneve"
+  antrea_crd_policy: ClusterNetworkPolicy
+  allowed_namespaces:
+    - "kube-system"
+    - "tanzu-admission"
+    - "tanzu-dashboard"
+    - "tanzu-storage"
+    - "tanzu-ingress"
+    - "tanzu-identity"
+    - "tanzu-networking"
+    - "tanzu-monitoring"
+    - "tanzu-mesh"
+    - "tanzu-logging"
+    - "tanzu-security"
+    - "tanzu-secrets"
+    - "tanzu-container-registry"
+    - "tanzu-app-stack-department"
+    - "tanzu-app-stack-employee"
+    - "tanzu-app-stack-gateway"
+    - "tanzu-app-stack-mongodb"
+    - "tanzu-app-stack-monitoring"
+    - "tanzu-app-stack-organization"
+    - "local-path-provisioner"
+    - "local-path-storage"
+    - "tanzu-service-mesh"
+    - "vmware-system-tsm"
+    - "istio-system"
+    - "avi-system"

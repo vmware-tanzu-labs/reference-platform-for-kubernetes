@@ -1,0 +1,174 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_service_mesh.staging_dir }}"
+
+- when:
+    - not tanzu_service_mesh.use_tmc
+  block:
+    - name: "ensure namespaces exist"
+      when: "tanzu_service_mesh.workload_tenancy.enabled | bool"
+      block:
+        # NOTE: standard namespaces get installed via tanzu-service-mesh-operator-deployment.yaml.j2
+        - name: "create tanzu service mesh namespace"
+          import_role:
+            name: "common/namespace"
+          vars:
+            namespace:               "{{ tanzu_service_mesh.namespaces.tsm }}"
+            namespace_template_file: "tanzu-namespace-tsm.yaml.j2"
+            namespace_file:          "{{ tanzu_service_mesh.staging_dir }}/tanzu-namespace-tsm.yaml"
+
+        - name: "create istio namespace"
+          import_role:
+            name: "common/namespace"
+          vars:
+            namespace:               "{{ tanzu_service_mesh.namespaces.istio }}"
+            namespace_template_file: "tanzu-namespace-istio.yaml.j2"
+            namespace_file:          "{{ tanzu_service_mesh.staging_dir }}/tanzu-namespace-istio.yaml"
+
+    - name: "obtain vmware cloud services portal access token"
+      uri:
+        url:             "https://console.cloud.vmware.com/csp/gateway/am/api/auth/api-tokens/authorize"
+        headers:
+          authority:     "console.cloud.vmware.com"
+          pragma:        "no-cache"
+          cache-control: "no-cache"
+          accept:        "application/json, text/plain, */*"
+        body_format:     "raw"
+        body:            "refresh_token={{ tanzu_service_mesh_api_token }}"
+        method:          "POST"
+        return_content:  true
+        status_code:     200
+      # don't acidentally log our api_token
+      no_log:   true
+      register: _csp_access_request
+
+    - name: "set vmware cloud services portal access token"
+      set_fact:
+        _csp_access_token: "{{ _csp_access_request.json.access_token }}"
+
+    - name: "check cluster {{ tanzu_cluster_name }} connection to tanzu service mesh"
+      import_tasks: "check_onboard.yaml"
+      vars:
+        tsm_first_check: true
+      when: "not tanzu_service_mesh.use_tmc | bool"
+
+    - name: "ensure tanzu service mesh"
+      when:
+        - not tanzu_service_mesh.use_tmc | bool
+        - not _tsm_connected | bool
+      block:
+        - name: "generate tanzu service mesh cluster token"
+          uri:
+            url:              "{{ tanzu_service_mesh_url }}/tsm/v1alpha1/clusters/{{ tanzu_cluster_name | lower | regex_replace('@','') | regex_replace('#','') | regex_replace('_','') }}/token"
+            headers:
+              csp-auth-token: "{{ _csp_access_token }}"
+            body_format:      "raw"
+            method:           "PUT"
+            return_content:   true
+            status_code:      200
+          # don't acidentally log our access_token
+          no_log:   true
+          register: _tsm_gen_token_result
+          when:     _tsm_cluster_connection.json.status.state is undefined
+
+        - name: "set tanzu_service_mesh_cluster_token"
+          set_fact:
+            _tsm_cluster_token: "{{ _tsm_gen_token_result.json.token }}"
+
+        - name: "ensure tanzu service mesh components exist"
+          import_role:
+            name: "common/manifest-file"
+          vars:
+            manifest_description: "tanzu service mesh components"
+            manifest_template:    "tanzu-service-mesh-operator-deployment.yaml.j2"
+            manifest_file:        "tanzu-service-mesh-operator-deployment.yaml"
+            manifest_staging_dir: "{{ tanzu_service_mesh.staging_dir }}"
+
+        - name: "ensure tanzu service mesh cluster token exists"
+          import_role:
+            name: "common/manifest-file"
+          vars:
+            manifest_description: "tanzu service mesh cluster token"
+            manifest_template:    "tanzu-service-mesh-cluster-token.yaml.j2"
+            manifest_file:        "tanzu-service-mesh-cluster-token.yaml"
+            manifest_staging_dir: "{{ tanzu_service_mesh.staging_dir }}"
+
+        # rechecking for connectivity
+        - name: "check for connection and installation of tanzu service mesh"
+          import_tasks: "check_onboard.yaml"
+          vars:
+            tsm_check_delay: "10"
+            tsm_check_retry: "60"
+            tsm_first_check: false
+
+    # check and perform tsm app install
+    - name: "check if cluster {{ tanzu_cluster_name }} has tanzu service mesh application installed"
+      import_tasks: "check_tsm_install.yaml"
+      vars:
+        tsm_check_delay: "20"
+      when: _tsm_connected | bool
+
+#
+# TSM COMPONENTS: USING TMC
+#   NOTE: the following will enable TSM integration by enabling it via supported TMC integrations
+#
+# AUTH
+#   # see https://code.vmware.com/apis/897/tanzu-mission-control
+#
+
+- name: "get tmc authentication token"
+  uri:
+    url:         "{{ tanzu_service_mesh.tmc_access_token_url }}?refresh_token={{ tanzu_mission_control_api_token }}"
+    method:      "POST"
+    status_code: "200"
+  register: _tmc_access_token
+  # don't acidentally log our access_token
+  no_log: true
+  when: tanzu_service_mesh.use_tmc
+
+- name: "set the tmc access token"
+  set_fact:
+    _tmc_access_token: "{{ _tmc_access_token.json.access_token }}"
+  # don't acidentally log our access_token
+  no_log: true
+  when: tanzu_service_mesh.use_tmc
+
+- name: "get tmc integrations status"
+  uri:
+    url:         "{{ tanzu_service_mesh.tmc_org_url }}/{{ tanzu_service_mesh.tmc_api_version }}/clusters/{{ tanzu_cluster_name }}/integrations"
+    method:      "GET"
+    status_code: "200"
+    headers:
+      Authorization: "Bearer {{ _tmc_access_token }}"
+    body_format: "json"
+  register: _tmc_integration_current_status
+  when: tanzu_service_mesh.use_tmc
+
+- when:
+    - tanzu_service_mesh.use_tmc
+    - (_tmc_integration_current_status.json | list | length) == 0 or
+      (_tmc_integration_current_status.json.integrations | map(attribute='fullName') | selectattr('clusterName', 'equalto', tanzu_cluster_name) | selectattr('name', 'equalto', 'tanzu-service-mesh' ) | list | length) == 0
+  block:
+    - name: "enable tanzu service mesh for cluster"
+      uri:
+        url:         "{{ tanzu_service_mesh.tmc_org_url }}/{{ tanzu_service_mesh.tmc_api_version }}/clusters/{{ tanzu_cluster_name }}/integrations"
+        method:      "POST"
+        status_code: "200"
+        headers:
+          Authorization: "Bearer {{ _tmc_access_token }}"
+        body_format: "json"
+        body:
+          integration:
+            full_name:
+              name: "tanzu-service-mesh"
+              managementClusterName: "attached"
+              provisionerName: "attached"
+            spec:
+              configurations:
+              #  enableNamespaceExclusions: true
+      register: _tmc_integration_enable_status

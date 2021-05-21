@@ -1,0 +1,64 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: {{ tanzu_app_stack.gateway.namespace }}
+  labels:
+    app.kubernetes.io/name: "{{ tanzu_app_stack.gateway.resource_name }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "{{ tanzu_app_stack.gateway.resource_name }}"
+  template:
+    metadata:
+      namespace: {{ tanzu_app_stack.gateway.namespace }}
+      labels:
+        app.kubernetes.io/name: "{{ tanzu_app_stack.gateway.resource_name }}"
+    spec:
+      securityContext:
+        runAsUser: 1001
+      containers:
+      - name: gateway
+        image: {{ tanzu_app_stack.gateway.remote_image }}:{{ tanzu_app_stack.gateway.remote_image_tag }}
+        imagePullPolicy: Always
+        ports:
+          - containerPort: 8080
+        resources: {{ tanzu_app_stack.gateway.resources }}
+        readinessProbe:
+          httpGet:
+            port: 8080
+            path: {{ tanzu_app_stack.gateway.app_prefix }}/actuator/health
+          initialDelaySeconds: 30
+          timeoutSeconds: 2
+          periodSeconds: 60
+          failureThreshold: 5
+        livenessProbe:
+          httpGet:
+            port: 8080
+            path: {{ tanzu_app_stack.gateway.app_prefix }}/actuator/info
+          initialDelaySeconds: 30
+          timeoutSeconds: 2
+          periodSeconds: 60
+          failureThreshold: 5
+      serviceAccountName: {{ tanzu_app_stack.service_account }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  namespace: {{ tanzu_app_stack.gateway.namespace }}
+  labels:
+    app.kubernetes.io/name: "{{ tanzu_app_stack.gateway.resource_name }}"
+spec:
+  ports:
+    - name: web
+      port: 80
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app.kubernetes.io/name: "{{ tanzu_app_stack.gateway.resource_name }}"
+  type: NodePort

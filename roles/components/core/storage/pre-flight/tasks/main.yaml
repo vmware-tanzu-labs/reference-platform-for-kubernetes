@@ -1,0 +1,100 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "get storage classes"
+  k8s_info:
+    kind:        "StorageClass"
+    context:     "{{ tanzu_kubectl_context }}"
+    api_version: "storage.k8s.io/v1"
+  register: _storage_classes
+
+- name: "ensure _cluster_has_default_class fact is set"
+  set_fact:
+    _cluster_has_default_class: false
+
+- name: "determine if cluster has default storage class already"
+  set_fact:
+    _cluster_has_default_class: true
+  with_items: "{{ _storage_classes.resources }}"
+  when:
+    - item.metadata.annotations is defined
+    - ((item.metadata.annotations['storageclass.kubernetes.io/is-default-class'] | default('false') | string | lower) == 'true') or
+      ((item.metadata.annotations['storageclass.beta.kubernetes.io/is-default-class'] | default('false') | string | lower) == 'true') or
+      ((item.metadata.annotations['storageclass.alpha.kubernetes.io/is-default-class'] | default('false') | string | lower) == 'true')
+
+#
+# AWS
+#
+- when: tanzu_provider == "aws"
+  block:
+    - name: "combine user inputted aws storage classes with defaults"
+      set_fact:
+        _aws_storage_classes: "{{ tanzu_storage.aws.storage_classes + tanzu_storage_classes_aws }}"
+
+    - name: "must specify exactly one default storage class for aws"
+      fail:
+        msg: "exactly one default storage class must be set or pre-defined in the cluster"
+      when:
+        - (_aws_storage_classes | selectattr("default", "defined") | selectattr("default", "equalto", true) | list | length) != 1
+        - (not _cluster_has_default_class) | bool
+
+#
+# AZURE
+#
+- when: tanzu_provider == "azure"
+  block:
+    - name: "combine user inputted azure storage classes with defaults"
+      set_fact:
+        _azure_storage_classes: "{{ tanzu_storage.azure.storage_classes + tanzu_storage_classes_azure }}"
+
+    - name: "must specify exactly one default storage class for azure"
+      fail:
+        msg: "exactly one default storage class must be set or pre-defined in the cluster"
+      when:
+        - (_azure_storage_classes | selectattr("default", "defined") | selectattr("default", "equalto", true) | list | length) != 1
+        - (not _cluster_has_default_class) | bool
+
+#
+# KIND
+#
+- when: tanzu_provider == "kind"
+  block:
+    - name: "combine user inputted kind storage classes with defaults"
+      set_fact:
+        _kind_storage_classes: "{{ tanzu_storage.kind.storage_classes + tanzu_storage_classes_kind }}"
+
+    - name: "must specify exactly one default storage class for kind"
+      fail:
+        msg: "exactly one default storage class must be set or pre-defined in the cluster"
+      when:
+        - (_kind_storage_classes | selectattr("default", "defined") | selectattr("default", "equalto", true) | list | length) != 1
+        - (not _cluster_has_default_class) | bool
+
+#
+# VMWARE
+#
+- when: tanzu_provider == "vmware"
+  block:
+    - name: "combine user inputted vmware storage classes with defaults"
+      set_fact:
+        _vmware_storage_classes: "{{ tanzu_storage.vmware.storage_classes + tanzu_storage_classes_vmware }}"
+
+    - name: "must specify exactly one default storage class for vmware"
+      fail:
+        msg: "exactly one default storage class must be set or pre-defined in the cluster"
+      when:
+        - (_vmware_storage_classes | selectattr("default", "defined") | selectattr("default", "equalto", true) | list | length) != 1
+        - (not _cluster_has_default_class) | bool
+
+    - name: "must pre-define a default storage class for vsphere 7 w/ kubernetes clusters"
+      fail:
+        msg: "default storage class must be pre-defined in vsphere 7 w/ kubernetes clusters"
+      when:
+        - (not _cluster_has_default_class) | bool
+        - (tanzu_cluster_is_v7wk8s) | bool
+
+    - name: "must defined vcenter_username, vcenter_password, and vcenter_server"
+      fail:
+        msg: "must defined all of vcenter_username, vcenter_password, and vcenter_server in the inventory"
+      when:
+        - (vcenter_username is undefined) or (vcenter_password is undefined) or (vcenter_server is undefined)

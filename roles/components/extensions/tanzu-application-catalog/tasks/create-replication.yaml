@@ -1,0 +1,91 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "create replication policy: {{ item.name }}"
+  uri:
+    url:              "https://{{ tanzu_application_catalog.registry_endpoint }}/api/v2.0/replication/policies"
+    url_username:     "{{ tanzu_container_registry.admin_username }}"
+    url_password:     "{{ tanzu_container_registry.admin_password }}"
+    method:           "POST"
+    follow_redirects: true
+    force_basic_auth: true
+    validate_certs:   false
+    status_code:      201
+    body_format:      "json"
+    body: |
+      {
+        "name": "{{ item.name }}",
+        "description": "TAC replication policy",
+        "enabled": true,
+        "deletion": false,
+        "override": true,
+        "dest_namespace": "{{ tanzu_application_catalog.replication_policy_name }}",
+        "src_registry": {
+          "id": {{ _harbor_registry_id | int }}
+        },
+        "dest_registry": null,
+        "trigger": {
+          "type": "scheduled",
+          "trigger_settings": {
+          "cron": "{{ tanzu_application_catalog.cron_schedule }}"
+          }
+        },
+        "filters": [
+          {
+            "type": "name",
+            "value": "{{ item.image }}"
+          },
+          {
+            "type": "tag",
+            "value": "{{ item.tag }}"
+          }
+        ]
+      }
+  register: _create_replication_policy_response
+  until:    not _create_replication_policy_response.failed
+  retries:  10
+  delay:    6
+  when: (_get_replication_policies_response.json | selectattr("name", "equalto", item.name) | list | length) < 1
+
+- name: "find replication policy id"
+  uri:
+    url:              "https://{{ tanzu_application_catalog.registry_endpoint }}/api/v2.0/replication/policies?name={{ item.name }}"
+    url_username:     "{{ tanzu_container_registry.admin_username }}"
+    url_password:     "{{ tanzu_container_registry.admin_password }}"
+    method:           "GET"
+    follow_redirects: true
+    force_basic_auth: true
+    validate_certs:   false
+  register: _replication_policy
+  until:    not _replication_policy.failed
+  retries:  10
+  delay:    6
+
+- name: "get policy id if it exists"
+  set_fact:
+    _policy_id: "{{ _replication_policy.json[0].id }}"
+  when: _replication_policy.json
+
+- name: "begin replication execution"
+  uri:
+    url:              "https://{{ tanzu_application_catalog.registry_endpoint }}/api/v2.0/replication/executions"
+    url_username:     "{{ tanzu_container_registry.admin_username }}"
+    url_password:     "{{ tanzu_container_registry.admin_password }}"
+    method:           "POST"
+    follow_redirects: true
+    force_basic_auth: true
+    validate_certs:   false
+    status_code:      201
+    body_format:      "json"
+
+    # NOTE: the following body is raw json because uri has trouble converting strings to ints
+    #       and the harbor api expects an int
+    body: |
+      {
+        "policy_id": {{ _policy_id | int }}
+      }
+  register: _replication_execution
+  when:     not _policy_id | bool
+  until:    not _replication_execution.failed
+  retries:  10
+  delay:    6

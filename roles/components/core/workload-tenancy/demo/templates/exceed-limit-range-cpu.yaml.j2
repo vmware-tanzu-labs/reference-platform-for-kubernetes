@@ -1,0 +1,24 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: demo-exceed-max-cpu
+    app.kubernetes.io/name: demo-exceed-max-cpu
+  name: demo-exceed-max-cpu
+  namespace: {{ tanzu_workload_tenancy.demo_namespace }}
+spec:
+  containers:
+    - image: projects.registry.vmware.com/rpk/nginx:1.19.5-debian-10-r8
+      name: demo-exceed-max-cpu
+      resources:
+        requests:
+          cpu: 4
+        limits:
+          cpu: 4
+      securityContext:
+        runAsUser: 101
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always

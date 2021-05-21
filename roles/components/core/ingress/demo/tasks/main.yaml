@@ -1,0 +1,42 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "wait for ingress dns"
+  import_role:
+    name: "common/wait-for-dns"
+  vars:
+    hostname: "{{ tanzu_ingress.dns }}"
+
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_ingress.demo.staging_dir }}"
+
+- name: "ensure namespace exists"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_ingress.demo.namespace }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_ingress.demo.staging_dir }}/tanzu-namespace.yaml"
+
+- name: "ensure demo application exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "demo application"
+    manifest_template:    "app-kuard.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_ingress.demo.staging_dir }}"
+
+- name: "wait for demo application dns"
+  import_role:
+    name: "common/wait-for-dns"
+  vars:
+    hostname: "{{ tanzu_ingress.demo.dns }}"
+
+- name: "you may view your demo application with the following information"
+  debug:
+    msg:
+      - "You can access the demo application at URL http://{{ tanzu_ingress.demo.dns }}"
+    verbosity: 0

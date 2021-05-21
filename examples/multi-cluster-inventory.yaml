@@ -1,0 +1,147 @@
+#
+# NOTE: this is a typical ansible inventory in YAML format.  please only modify variables under GLOBAL VARS
+#       and REQUIRED VARS unless you know what you are doing.
+#
+---
+all:
+  #
+  # GLOBAL VARS
+  #
+  vars:
+    #
+    # OPTIONAL VARS
+    #   NOTE: the below vars are optional for a standard platform deployment but may be required
+    #         depending upon which roles are enabled in your profile
+    #
+    # optional_vars_go_here: ""
+    aws_access_key:                        "my_aws_access_key_id"
+    aws_secret_key:                        "my_aws_secret_key_id"
+    azure_tenant_id:                       "my_azure_tenant_id"
+    azure_subscription_id:                 "my_azure_subscription_id"
+    azure_client_id:                       "my_azure_client_id"
+    azure_client_secret:                   "my_azure_client_secret"
+    azure_dns_resource_group_name:         "my_azure_dns_resource_group_name"
+    tanzu_mission_control_org_name:        ""
+    tanzu_mission_control_api_token:       ""
+    tanzu_service_mesh_api_token:          ""
+    tanzu_service_mesh_url:                ""
+    tanzu_observability_org_name:          ""
+    tanzu_observability_api_token:         ""
+    tanzu_build_service_username:          ""
+    tanzu_build_service_password:          ""
+    tanzu_sql_username:                    ""
+    tanzu_sql_password:                    ""
+    tanzu_network_api_token:               ""
+    tanzu_network_legacy_api_token:        ""
+    tanzu_application_catalog_username:    ""
+    tanzu_application_catalog_password:    ""
+    tanzu_application_catalog_api_token:   ""
+    tanzu_spring_cloud_data_flow_username: ""
+    tanzu_spring_cloud_data_flow_password: ""
+    tanzu_default_tls_provider:            "ca"
+
+  children:
+    #
+    # vmware cluster example
+    #
+    # NOTE: hosts are placeholder hosts which represent the tkg clusters since we use a
+    # local connection with kubectl.  clusters are grouped by provider type with the
+    # tanzu_provider variable describing the type of provider that tkg is running upon.
+    #
+    vmware_clusters:
+      vars:
+        tanzu_provider:     "vmware"
+        tanzu_dns_provider: "route53"  # internal, route53, xip.io, and none supported
+      hosts:
+        vmware_tanzu_cluster1:
+          #
+          # REQUIRED VARS: VMWARE
+          #
+          tanzu_kubectl_context:                    "infra-prod-vsphere-admin@infra-prod-vsphere"
+          tanzu_management_cluster_kubectl_context: "mgmt-prod-vsphere-admin@mgmt-prod-vsphere"
+          tanzu_ingress_domain:                     "vsphere.example.com"
+          tanzu_cluster_name:                       "vsphere"
+          rpk_profile:                              "platform"
+          rpk_demo:                                 false
+          tanzu_cluster_is_v7wk8s:                  false
+          tanzu_load_balancer_nsx:                  false
+          tanzu_load_balancer_subnet:               ""              # format 1.2.3.4/24
+          tanzu_load_balancer_start_ip:             "172.26.0.226"  # must be in range of tanzu_load_balancer_subnet
+          tanzu_load_balancer_end_ip:               "172.26.0.230"  # must be in range of tanzu_load_balancer_subnet
+          tanzu_mission_control_cluster_group:      "rpk-clusters"
+          vcenter_server:                           "vcenter.example.com"
+          vcenter_username:                         "administrator@vsphere.local"
+          vcenter_password:                         "P@$$w0rd"
+
+          #
+          # REQUIRED VARS: AVI INTEGRATION ONLY
+          #
+          avi_controller_license_data: |
+            paste avi license here
+          avi_vcenter_datacenter:                ""
+          avi_vcenter_cluster:                   ""
+          avi_vcenter_datastore:                 ""
+          avi_vcenter_management_portgroup:      ""
+          avi_controller_dns_server:             ""
+          avi_controller_ntp_server:             ""
+          avi_controller_networks:               []
+          avi_service_engine_networks:           []
+          avi_service_engine_management_ip:      ""
+          avi_service_engine_management_netmask: ""
+          avi_service_engine_management_gateway: ""
+
+          # NOTE: the following is an example specifying additional storage classes
+          #       see all options at roles/storage/README.md and roles/storage/common/vars/main.yaml
+          tanzu_storage_classes_vmware:
+            - name: "bronze"
+              datastores:
+                - "vmw_nfs_q01lp"
+                - "vmw_nfs_q02lp"
+            - name: "silver"
+              datastores:
+                - "vmw_iscsi_q01lp"
+                - "vmw_iscsi_q02lp"
+                - "vmw_iscsi_q03lp"
+            - name:                  "gold"
+              default: true   # at least one default storage class must be set
+              datastores:
+                - "vmw_iscsi_q01hp"
+                - "vmw_iscsi_q02hp"
+            - name: "platinum"
+              datastores:
+                - "vmw_vsan_v01hp"
+
+    #
+    # aws cluster example
+    #
+    # NOTE: hosts are placeholder hosts which represent the tkg clusters since we use a
+    # local connection with kubectl.  clusters are grouped by provider type with the
+    # tanzu_provider variable describing the type of provider that tkg is running upon.
+    #
+    aws_clusters:
+      vars:
+        tanzu_provider:     "aws"
+        tanzu_dns_provider: "route53"  # internal, route53, xip.io, and none supported
+      hosts:
+        aws_tanzu_cluster1:
+          #
+          # REQUIRED VARS: AWS
+          #
+          tanzu_kubectl_context:                    "infra-dev-aws-admin@infra-dev-aws"
+          tanzu_management_cluster_kubectl_context: "mgmt-dev-aws-admin@mgmt-dev-aws"
+          tanzu_ingress_domain:                     "aws.example.com"
+          tanzu_cluster_name:                       "aws"
+          rpk_profile:                              "platform"
+          rpk_demo:                                 false
+          tanzu_mission_control_cluster_group:      "rpk-clusters"
+          tanzu_storage_classes_aws: []
+          # NOTE: the following is an example specifying additional storage classes
+          #       see all options at roles/storage/README.md and roles/storage/common/vars/main.yaml
+          # tanzu_storage_classes_aws:
+          #   - name:        "gp2-example"
+          #     default:     false
+          #   - name:        "io1-example"
+          #     iops_per_gb: "10"
+          #   - name:        "encrypted-example"
+          #     encrypted:   "true"
+          #     file_system: "xfs"

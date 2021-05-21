@@ -1,0 +1,19 @@
+#
+# molucule defaults
+#
+# ansible-lint config for functional testing, used to bypass expected metadata
+# errors in molecule-generated roles. Loaded via the metadata_lint_update
+# pytest helper. For reference, see "E7xx - metadata" in:
+#  https://docs.ansible.com/ansible-lint/rules/default_rules.html
+skip_list:
+  # metadata/106 - Name Pattern
+  - '106'
+  # metadata/204 - Line Length = 120
+  - '204'
+  # metadata/602 - Compare to empty string
+  - '602'
+  # metadata/701 - Role info should contain platforms
+  - '701'
+  # metadata/703 - Should change default metadata: <field>
+  - '703'
+# See https://github.com/ansible/ansible/issues/63734

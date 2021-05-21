@@ -1,0 +1,15 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "echo unsupported message"
+  debug:
+    msg: "DNS Provider {{ tanzu_ingress.external_dns.provider }} is not currently supported"
+    verbosity: 0
+  when: tanzu_ingress.external_dns.provider not in tanzu_ingress.external_dns.supported_providers
+
+- name: "check for aws_secret_key and aws_access_key"
+  fail:
+    msg: "must define both of aws_secret_key and aws_access_key for route53 dns provider"
+  when:
+    - (tanzu_ingress.aws_secret_key == '') or (tanzu_ingress.aws_access_key == '')
+    - tanzu_ingress.external_dns.provider == 'route53'

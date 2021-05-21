@@ -1,0 +1,63 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: kibana.k8s.elastic.co/v1
+kind: Kibana
+metadata:
+  labels:
+    app.kubernetes.io/name: kibana
+  name: kibana
+  namespace: "{{ tanzu_logging.namespace }}"
+spec:
+  version: {{ tanzu_logging.kibana.version }}
+  count: 1
+  elasticsearchRef:
+    name: "elasticsearch"
+  http:
+    tls:
+      selfSignedCertificate:
+        disabled: true
+  podTemplate:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kibana
+    spec:
+      containers:
+      - name: kibana
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /login
+            port: 5601
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 10
+        resources: {{ tanzu_logging.kibana.resources }}
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: kibana
+  namespace: "{{ tanzu_logging.namespace }}"
+  annotations:
+    external-dns.alpha.kubernetes.io/target: "{{ tanzu_ingress.dns }}"
+    ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  tls:
+    - hosts:
+      - "{{ tanzu_logging.dns }}"
+      secretName: "{{ tanzu_logging.tls.secret }}"
+  rules:
+    - host: {{ tanzu_logging.dns }}
+      http:
+        paths:
+        - path: /
+          backend:
+            serviceName: kibana-kb-http
+            servicePort: 5601

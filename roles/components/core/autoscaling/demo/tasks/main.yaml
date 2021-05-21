@@ -1,0 +1,52 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# NAMESPACES
+#
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_autoscaling.staging_dir }}"
+
+- name: "create namespace"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_autoscaling.demo_namespace }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_autoscaling.staging_dir }}/tanzu-namespace.yaml"
+
+#
+# VPA DEMO
+#
+- name: "ensure demo nginx deployment exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "nginx deployment"
+    manifest_template:    "nginx-app.yaml.j2"
+    manifest_file:        "nginx-app.yaml"
+    manifest_staging_dir: "{{ tanzu_autoscaling.staging_dir }}"
+
+- name: "ensure vpa for nginx deployment exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "nginx deployment vpa"
+    manifest_template:    "nginx-vpa.yaml.j2"
+    manifest_file:        "nginx-vpa.yaml"
+    manifest_staging_dir: "{{ tanzu_autoscaling.staging_dir }}"
+
+#
+# PRINT INFO
+#
+- name: "print the demo information"
+  debug:
+    msg:
+      - "Demo VPA is in 'Initial' mode.  More info: https://github.com/kubernetes/autoscaler/tree/master/vertical-pod-autoscaler#quick-start"
+      - "VPA recoommendations can be viewed with: kubectl describe vpa -n {{ tanzu_autoscaling.demo_namespace }}"
+      - "Apply VPA recommendation by deleting pod: kubectl delete po -n {{ tanzu_autoscaling.demo_namespace }} $(kubectl get po -n {{ tanzu_autoscaling.demo_namespace }} | grep nginx | awk '{print $1}')"
+    verbosity: 0
+

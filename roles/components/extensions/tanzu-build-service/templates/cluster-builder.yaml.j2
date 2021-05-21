@@ -1,0 +1,20 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+apiVersion: kpack.io/v1alpha1
+kind: ClusterBuilder
+metadata:
+  name: {{ tanzu_build_service.demo.builder.name }}
+spec:
+  order:
+  - group:
+    - id: tanzu-buildpacks/nodejs
+  serviceAccountRef:
+    name: canonical-registry-serviceaccount
+    namespace: {{ tanzu_build_service.namespace_kpack }}
+  stack:
+    kind: ClusterStack
+    name: {{ tanzu_build_service.demo.stack.name }}
+  store:
+    kind: ClusterStore
+    name: {{ tanzu_build_service.demo.store.name }}
+  tag: {{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/rpk-cb-nodejs' }}

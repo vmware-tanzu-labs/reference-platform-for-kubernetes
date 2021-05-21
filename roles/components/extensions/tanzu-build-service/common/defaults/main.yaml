@@ -1,0 +1,143 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_build_service:
+  # common vars
+  namespace:                       "build-service"
+  namespace_kpack:                 "kpack"
+  namespace_stack_operator_system: "stack-operator-system"
+  staging_dir:                     "{{ rpk_staging_dir }}/tanzu-build-service"
+  module:                          "build-service"
+  security:
+    policy:
+      role:            "rpk-tanzu-build-service-cluster-role"
+      role_bind:       "rpk-tanzu-build-service-cluster-role-binding"
+      name:            "rpk-tanzu-build-service-psp"
+      service_account: "tbs-image-migrate-job-sa"
+
+  eula:
+    check:  true
+    prompt: false
+    api:
+      url:
+        root:                 "network.tanzu.vmware.com"
+        build_pack_suites:    "/api/v2/products/tanzu-buildpacks-suite"
+        stack_suites:         "/api/v2/products/tanzu-stacks-suite"
+        build_service_suites: "/api/v2/products/build-service"
+
+  demo:
+    builder:
+      name: "rpk-cluster-builder-nodejs"
+    stack:
+      name: "tanzu-rpk-cluster-stack-full"
+    store:
+      name: "tanzu-rpk-cluster-store-nodejs"
+    secrets:
+      - name: "rpk-registry-secret"
+
+  # harbor
+  registry:
+    project:
+      project_name: "rpk-build-service"
+      metadata:
+        auto_scan: "false"
+        public:    "false"
+    source_url:      "registry.pivotal.io"
+    destination_tag: "rpk-1.0"
+    build_service_images:
+      - name:   "kpack-controller"
+        digest: "sha256:101143de3d1abe2d2f738ce96b5991cd085ecc6f0e8dc761b940dd1cd346b864"
+      - name:   "kpack-rebase"
+        digest: "sha256:a8c378ca28941ba8274185556aa901f9c723cbdca2b169a45ab37a17525820f5"
+      - name:   "kpack-completion"
+        digest: "sha256:798623b1715f35be5c2bf7951735c871b0ac58aaa7dc1bdd63084df7f2856a2b"
+      - name:   "kpack-completion-windows"
+        digest: "sha256:4faaa2a46eeff8f225382e21703b0afcc3910b8453e7aa30830f3b615a0f3929"
+      - name:   "kpack-lifecycle"
+        digest: "sha256:fb7e0916ea429697630743b34e858c3555ddfbb5940683754dfccd3bfa446e0a"
+      - name:   "kpack-webhook"
+        digest: "sha256:5d053b1e85a910312cba59d6fd2019921fcd29e2854262c21e9ed1c6a0f575ff"
+      - name:   "kpack-build-init"
+        digest: "sha256:ee73f0c697c2c0f71c263cd5254fd02309fe7a07a8141290c63e37c9b401f817"
+      - name:   "kpack-build-init-windows"
+        digest: "sha256:8a6d67db07938d1f7ee6ac711a3a8b1fefe7997e96d4b1db53570441485bc9b2"
+      - name:   "pod-webhook"
+        digest: "sha256:d40667df0d832800d894d4f9c1f662f96805de5dd5f6951d99ac0b56d56db2da"
+      - name:   "setup-ca-certs"
+        digest: "sha256:de52c865c102bb8ba65c2378a45ee6c080e95d7d8765f3f52555e763c797d300"
+      - name:   "smart-warmer"
+        digest: "sha256:c8d3acb20048c7b9a4843235f785f2047007fc023c1a131b8da35f0771d28237"
+      - name:   "secret-syncer"
+        digest: "sha256:bfe60f3ed34da87d5b07aad763512069f3b37a800a3d0b64fc89cd6d304ed195"
+      - name:   "sleeper"
+        digest: "sha256:9e4b3c352ef900dd543b2ef0c2fa16041c2e1207ed356b56c9ccb00d1244ad01"
+      - name:   "stacks-operator-controller"
+        digest: "sha256:0be2f03da1876d37f364094b8ca68cd0b82f086aa0f3eb9fd4463e0fb74ca052"
+      - name:   "stackify"
+        digest: "sha256:1b4d890741cd70eae4c7bf8fd08998f9e13de108b22973f1deb7bed2e838549f"
+
+    buildpack_images:
+      stack:
+        - name:
+            source:      "run"
+            destination: "run-base"
+          repo:   "tanzu-base-bionic-stack"
+          digest: "sha256:0bf521429c5fac06616ef542da735f9e34c4997cc5d5987242eb7199b04ac923"
+        - name:
+            source:      "run"
+            destination: "run-tiny"
+          repo:   "tanzu-tiny-bionic-stack"
+          digest: "sha256:f35345771f18118a5632def411d3c3e688384e603c35e899d7b7f78b516f3539"
+        - name:
+            source:      "run"
+            destination: "run-full"
+          repo:   "tanzu-full-bionic-stack"
+          digest: "sha256:81d69f6ecbb2a9003608947bca3ff21bdf3996c438cac3724d682cffcce3913d"
+        - name:
+            source:      "build"
+            destination: "build-base"
+          repo:   "tanzu-base-bionic-stack"
+          digest: "sha256:c14014504c2fd0195f27ba8ae972e60c403dd9384f15e5f4a2aed454791f8dc9"
+        - name:
+            source:      "build"
+            destination: "build-full"
+          repo:   "tanzu-full-bionic-stack"
+          digest: "sha256:bc256b2bc5d0a88a2ee163eca01ad4d7525dd34ccf7d0a2fc4004d4a1778a7a5"
+        - name:
+            source:      "build"
+            destination: "build-tiny"
+          repo:   "tanzu-tiny-bionic-stack"
+          digest: "sha256:b642dd2d4ec4617e683b3e510bda20e6027979f1653f84801a876658ce27ca86"
+
+      store:
+        - name:   "paketo-buildpacks_procfile"
+          repo:   "tbs-dependencies"
+          digest: "sha256:bf6a4265db23ae25b34d402cd24e04c36dccdf24d6a6b9297f1d154a9d0b8062"
+        - name:   "tanzu-buildpacks_httpd"
+          repo:   "tbs-dependencies"
+          digest: "sha256:34989fb8e264ccaea7916a9017b306d621b017920f71439fc515164ac0484cf5"
+        - name:   "tanzu-buildpacks_nginx"
+          repo:   "tbs-dependencies"
+          digest: "sha256:e67d5cd2e5240a9eb7a899b9b5d979ad85d0cf6c8182e15424516dac9f577371"
+        - name:   "tanzu-buildpacks_php"
+          repo:   "tbs-dependencies"
+          digest: "sha256:fd5abb334f4adbcf46f42977992af145db04fb262d4c516ff4264f94e1fcd689"
+        - name:   "dotnet-core"
+          repo:   "tanzu-dotnet-core-buildpack"
+          digest: "sha256:024607974e03deab30b64478a41b91233bec5d6285c75dbaf1398a10bb47cd58"
+        - name:   "java-native-image"
+          repo:   "tanzu-java-native-image-buildpack"
+          digest: "sha256:662b27ae983ff6b0aed6eca1e5ba7e25cab178204a628ca0542cfe23c25826bf"
+        - name:   "nodejs"
+          repo:   "tanzu-nodejs-buildpack"
+          digest: "sha256:100fc4c332c6207a8c79c33b8dab0df4adee31d0a7b21edaf5ecbf50395f56a2"
+        - name:   "java"
+          repo:   "tanzu-java-buildpack"
+          digest: "sha256:00ace9c3fbf2f0553858f01f9cf4e31828517fe12662ea9fb4f9a3cf8a10e4b3"
+        - name:   "go"
+          repo:   "tanzu-go-buildpack"
+          digest: "sha256:2146fb2de550f162a49b5f4c2d6183f8f7c63a9a7c432635f65785f4e0330bff"
+
+  # use namespace operator or not
+  workload_tenancy:
+    enabled: false

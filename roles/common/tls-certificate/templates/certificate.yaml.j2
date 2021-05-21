@@ -1,0 +1,34 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: cert-manager.io/v1alpha2
+kind: Certificate
+metadata:
+  name: "{{ fqdn | replace(".", "-") }}"
+  namespace: "{{ namespace }}"
+spec:
+  secretName: "{{ secret }}"
+  commonName: "{{ commonName | default(fqdn) }}"
+  dnsNames:
+    - "{{ fqdn }}"
+{% for name in dns %}
+{% if name != fqdn %}
+    - "{{ name }}"
+{% endif %}
+{% endfor %}
+{% if (ip | default([]) | type_debug == "list") and (ip | default([]) | length) > 0 %}
+  ipAddresses:
+{% for address in ip %}
+    - "{{ address }}"
+{% endfor %}
+{% endif %}
+  duration: "2160h0m0s"
+  renewBefore: "360h0m0s"
+  organization:
+    - "vmware"
+  keySize: 4096
+  keyAlgorithm: "rsa"
+  keyEncoding: "pkcs1"
+  issuerRef:
+    name: "{{ tls_provider }}"
+    kind: "ClusterIssuer"

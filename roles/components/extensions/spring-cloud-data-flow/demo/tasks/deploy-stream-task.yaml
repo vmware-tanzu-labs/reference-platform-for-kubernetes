@@ -1,0 +1,33 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "remove previous job if exist"
+  k8s:
+    state:     "absent"
+    context:   "{{ tanzu_kubectl_context }}"
+    kind:      "{{ item.kind }}"
+    name:      "{{ item.name }}"
+    namespace: "{{ tanzu_spring_cloud_data_flow.namespace }}"
+    wait:      true
+  with_items:
+    - name: "rpk-scdf-deploy-stream-job"
+      kind: "Job"
+    - name: "rpk-scdf-deploy-stream-config"
+      kind: "ConfigMap"
+
+- name: "ensure stream deploy ob exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "deploy-stream-job"
+    manifest_template:    "job-deploy-stream.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_spring_cloud_data_flow.staging_dir }}"
+
+- name: "ensure rpk-scdf-deploy-stream-job succeeded"
+  import_role:
+    name: "common/wait-for-job"
+  vars:
+    name:      "rpk-scdf-deploy-stream-job"
+    namespace: "{{ tanzu_spring_cloud_data_flow.namespace }}"
+    retries:   360
+    delay:     5

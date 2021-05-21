@@ -1,0 +1,21 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "wait for dns"
+  import_role:
+    name: "common/wait-for-dns"
+  vars:
+    hostname: "{{ tanzu_logging.dns }}"
+
+- name: "ensure the dashboard is available"
+  uri:
+    url: "https://{{ tanzu_logging.dns }}"
+    validate_certs: false
+
+- name: "print the dashboard access information"
+  debug:
+    msg:
+      - "User: {{ tanzu_logging.elastic.user }}"
+      - "Password: {{ tanzu_logging.elastic.password }}"
+      - "You can access the Kibana Dashboard at URL http://{{ tanzu_logging.dns }}"
+    verbosity: 0

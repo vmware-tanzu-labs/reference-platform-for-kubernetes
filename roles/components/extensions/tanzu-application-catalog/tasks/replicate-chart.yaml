@@ -1,0 +1,47 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# TODO: this will be irrelevant when chart-syncer implements this functionality.
+# NOTE: this was not all the way complete due to problems with helm pushing to registries with self-signed certs.
+#
+- name: "login to the upstream registry"
+  shell: "echo '{{ tanzu_application_catalog_password }}' | helm registry login {{ tanzu_application_catalog.remote_registry_url.split('://')[-1] }} --insecure --username '{{ tanzu_application_catalog_username }}' --password-stdin"
+  no_log:       true
+  changed_when: false
+  tags:
+    - skip_ansible_lint
+  environment:
+    HELM_EXPERIMENTAL_OCI: 1
+
+- name: "login to the local registry"
+  shell: "echo '{{ tanzu_container_registry.admin_password }}' | helm registry login {{ tanzu_application_catalog.registry_endpoint }} --insecure --username '{{ tanzu_container_registry.admin_username }}' --password-stdin"
+  no_log:       true
+  changed_when: false
+  tags:
+    - skip_ansible_lint
+  environment:
+    HELM_EXPERIMENTAL_OCI: 1
+
+- name: "replicate charts"
+  include_tasks: "replicate-chart.yaml"
+  with_items: "{{ _tac_chart_list }}"
+  vars:
+    remote_registry: "{{ tanzu_application_catalog.remote_registry_url.split('://')[-1] + '/tac-for-tanzu-advanced' }}"
+    local_registry:  "{{ tanzu_application_catalog.registry_endpoint + '/' + tanzu_application_catalog.replication_policy_name }}"
+    remote_chart:    "{{ item }}"
+    local_chart:     "{{ item | replace(remote_registry, local_registry) }}"
+
+- name: "pull the chart from the upstream registry"
+  shell: "helm chart pull {{ remote_chart }}"
+  environment:
+    HELM_EXPERIMENTAL_OCI: 1
+  tags:
+    - skip_ansible_lint
+
+- name: "push the chart to the local registry"
+  shell: "helm chart push {{ local_chart }}"
+  environment:
+    HELM_EXPERIMENTAL_OCI: 1
+  tags:
+    - skip_ansible_lint

@@ -1,0 +1,49 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: sac
+  namespace: {{ tanzu_admission_control.namespace }}
+  name: sac
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sac
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sac
+      name: sac
+    spec:
+      containers:
+        - name: sac
+          image: {{ tanzu_admission_control.mutator.image }}:{{ tanzu_admission_control.mutator.image_tag }}
+          resources: {{ tanzu_admission_control.mutator.resources | default(tanzu_admission_control.default_resources) }}
+          securityContext:
+            runAsUser: 65532
+          volumeMounts:
+            - name: cert-volume
+              mountPath: "/tmp/k8s-webhook-server/serving-certs"
+              readOnly: true
+      volumes:
+        - name: cert-volume
+          secret:
+            secretName: sac-cert
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: sac
+  namespace: {{ tanzu_admission_control.namespace }}
+spec:
+  selector:
+    app.kubernetes.io/name: sac
+  ports:
+    - name: https
+      protocol: TCP
+      port: 443
+      targetPort: 8443

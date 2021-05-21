@@ -1,0 +1,91 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: job-registry-auth-config
+  namespace: {{ tanzu_spring_cloud_gateway.namespace }}
+  labels:
+    "app.kubernetes.io/name": 'tbs-skopeo'
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_spring_cloud_gateway.module }}"
+    rpk.resource: "job-registry-auth-config"
+data:
+  registries.conf: |-
+    [registries.insecure]
+    registries = ['harbor-core.tanzu-container-registry']
+  config.json: |-
+    {
+        "auths": {
+            "{{ tanzu_container_registry.core.dns }}": {
+                "auth": "{{ (tanzu_container_registry.admin_username + ':' + tanzu_container_registry.admin_password) | b64encode }}"
+            }
+        },
+        "HttpHeaders": {
+            "User-Agent": "Docker-Client/18.09.7 (linux)"
+        }
+    }
+  migrate.sh: |-
+    #/bin/bash
+    # set -eux
+    cd /tmp/
+
+    echo "--> Download Spring Cloud Gateway from PivNet"
+    wget -q -O "/tmp/scg.tgz" --header="Authorization: Token {{ tanzu_network_api_token }}" {{ tanzu_spring_cloud_gateway.pivnet.download_url }}
+    if [[ "$(sha256sum /tmp/scg.tgz | awk '{print $1}')" != "{{ tanzu_spring_cloud_gateway.pivnet.download_sha }}" ]]; then
+      echo "downloaded file does not match checksum"
+      exit 1;
+    fi
+
+    echo "--> Untar Spring Cloud Gateway"
+    tar xzvf /tmp/scg.tgz
+
+    {% for image in tanzu_spring_cloud_gateway.registry.images %}
+      echo "--> upload {{ image.name }} to registry"
+      ls -alh
+      skopeo copy --retry-times 3 --registries-conf=/workspace/mnt/registries.conf \
+        --dest-authfile /workspace/mnt/config.json --dest-tls-verify=false \
+        docker-archive:spring-cloud-gateway-k8s-v{{ tanzu_spring_cloud_gateway.pivnet.version }}/images/{{ image.name }}-{{ image.tag }}.tar \
+        docker://{{ tanzu_container_registry.core.dns }}/{{ tanzu_spring_cloud_gateway.registry.project.project_name + '/' +  image.name +':'+  tanzu_spring_cloud_gateway.registry.destination_tag }}
+    {% endfor %}
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rpk-tscg-image-migrate-job
+  namespace: {{ tanzu_spring_cloud_gateway.namespace }}
+  labels:
+    app.kubernetes.io/name: tanzu-spring-cloud-gateway-image-migrate-job
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_spring_cloud_gateway.module }}"
+    rpk.resource: "job-image-migrate"
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tanzu-spring-cloud-gateway-image-migrate-job
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 1001
+      containers:
+        - image: robinfoe/alp-skopeo:1.0
+          name: migrate-repo
+          command: ["/bin/bash", './mnt/migrate.sh',]
+          resources:
+            limits:
+              cpu: 250m
+              memory: 256Mi
+            requests:
+              cpu: 250m
+              memory: 32Mi
+          volumeMounts:
+            - name: job-registry-auth-config
+              mountPath: /workspace/mnt
+      volumes:
+        - name: job-registry-auth-config
+          configMap:
+            name: job-registry-auth-config

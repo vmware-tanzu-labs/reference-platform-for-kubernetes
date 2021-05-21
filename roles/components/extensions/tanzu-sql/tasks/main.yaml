@@ -1,0 +1,86 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# NAMESPACES
+#
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_sql.staging_dir }}"
+
+- name: "create namespace"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_sql.namespace }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_sql.staging_dir }}/tanzu-namespace.yaml"
+
+- name: "call harbor api to create build-service repository"
+  uri:
+    url:              "https://{{ tanzu_container_registry.core.dns }}/api/v2.0/projects"
+    user:             "{{ tanzu_container_registry.admin_username }}"
+    password:         "{{ tanzu_container_registry.admin_password }}"
+    method:           "POST"
+    status_code:      [201, 409]
+    force_basic_auth: true
+    validate_certs: false
+    body_format:      "json"
+    body:             "{{ tanzu_sql.registry.project }}"
+  register: harbor_registry_info
+
+- name: "ensure image migration job exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "image-migrate-job"
+    manifest_template:    "job-tanzu-sql-image-migrate.yaml.j2"
+    manifest_file:        "job-tanzu-sql-image-migrate.yaml"
+    manifest_staging_dir: "{{ tanzu_sql.staging_dir }}"
+
+- name: "ensure rpk-tanzu-sql-image-migrate-job job succeeded"
+  import_role:
+    name: "common/wait-for-job"
+  vars:
+    name:      "rpk-tanzu-sql-image-migrate-job"
+    namespace: "{{ tanzu_sql.namespace }}"
+    retries:   360
+    delay:     5
+
+- name: "ensure tanzu sql crd exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "tanzu sql custom resource definition"
+    manifest_template:    "tanzu-sql-crd.yaml.j2"
+    manifest_file:        "tanzu-sql-crd.yaml"
+    manifest_staging_dir: "{{ tanzu_sql.staging_dir }}"
+
+- name: "ensure tanzu sql secret exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "tanzu sql secret"
+    manifest_template:    "tanzu-sql-secret.yaml.j2"
+    manifest_file:        "tanzu-sql-secret.yaml"
+    manifest_staging_dir: "{{ tanzu_sql.staging_dir }}"
+
+- name: "ensure tanzu sql rbac exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "tanzu sql rbac"
+    manifest_template:    "tanzu-sql-rbac.yaml.j2"
+    manifest_file:        "tanzu-sql-rbac.yaml"
+    manifest_staging_dir: "{{ tanzu_sql.staging_dir }}"
+
+- name: "ensure tanzu sql release exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "tanzu sql release"
+    manifest_template:    "tanzu-sql-release.yaml.j2"
+    manifest_file:        "tanzu-sql-release.yaml"
+    manifest_staging_dir: "{{ tanzu_sql.staging_dir }}"

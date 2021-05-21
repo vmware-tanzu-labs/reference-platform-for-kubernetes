@@ -1,0 +1,32 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+#@data/values
+---
+tanzu_role_name:
+  # common vars
+  namespace:   "tanzu-{{ role_name }}"
+  staging_dir: "{{ rpk_staging_dir }}/tanzu-{{ role_name }}"
+  component:   "{{ role_name }}"
+
+  # resources
+  default_resources: "{{ rpk_default_resources }}"
+  default_quota:     "{{ rpk_default_quota }}"
+  default_maximums:  "{{ rpk_default_maximums }}"
+
+  # app1 (sub-component 1)
+  # app1:
+  #   resources:
+  #     requests:
+  #       cpu:
+  #       memory:
+  #     limits:
+  #       cpu:
+  #       memory:
+  #   replicas:      1
+  #   resource_name: "app1"
+  #   change_group:  "{{ rpk_extension_group }}/app1"
+
+  # app2 (sub-component 2)
+  # app2:
+  #   resource_name: "app2"
+  #   change_group:  "{{ rpk_extension_group }}/app2"

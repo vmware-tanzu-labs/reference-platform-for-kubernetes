@@ -1,0 +1,61 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_storage.staging_dir }}"
+
+- name: "get storage classes"
+  k8s_info:
+    kind:        "StorageClass"
+    context:     "{{ tanzu_kubectl_context }}"
+    api_version: "storage.k8s.io/v1"
+  register: storage_classes
+
+- name: "the following storage classes have been created for your use"
+  debug:
+    msg:       "{{ item.metadata.name }}"
+    verbosity: 0
+  with_items: "{{ storage_classes.resources }}"
+
+- name: "deploy demo pod aws"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "demo aws pod"
+    manifest_template:    "demo-app-aws.yaml.j2"
+    manifest_file:        "demo-app-aws.yaml"
+    manifest_staging_dir: "{{ tanzu_storage.staging_dir }}"
+  when: tanzu_provider == 'aws'
+
+- name: "deploy demo pod vmware"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "demo vmware pod"
+    manifest_template:    "demo-app-vmware.yaml.j2"
+    manifest_file:        "demo-app-vmware.yaml"
+    manifest_staging_dir: "{{ tanzu_storage.staging_dir }}"
+  when: tanzu_provider == 'vmware'
+
+- name: "deploy demo pod azure"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "demo azure pod"
+    manifest_template:    "demo-app-azure.yaml.j2"
+    manifest_file:        "demo-app-azure.yaml"
+    manifest_staging_dir: "{{ tanzu_storage.staging_dir }}"
+  when: tanzu_provider == 'azure'
+
+# TODO: this always get stuck
+# - name: "deploy demo pod ephemeral"
+#   import_role:
+#     name: "common/manifest-file-with-wait"
+#   vars:
+#     manifest_description: "demo ephemeral pod"
+#     manifest_template:    "demo-app-ephemeral.yaml.j2"
+#     manifest_file:        "demo-app-ephemeral.yaml.j2"
+#     manifest_staging_dir: "{{ tanzu_storage.staging_dir }}"

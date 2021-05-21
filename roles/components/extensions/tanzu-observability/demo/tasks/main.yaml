@@ -1,0 +1,7 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "print the dashboard access information"
+  debug:
+    msg: "You can access the Tanzu Observability Dashboard at URL https://{{ tanzu_observability_org_name }}.wavefront.com"
+    verbosity: 0

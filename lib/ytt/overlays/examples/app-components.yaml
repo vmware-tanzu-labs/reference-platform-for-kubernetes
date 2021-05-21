@@ -1,0 +1,72 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# DO NOT DELETE: KEEP AS AN EXAMPLE
+#
+
+#@ load("@ytt:overlay", "overlay")
+#@ load("@ytt:data", "data")
+
+#@ for app_component in data.values.common_values.app_components:
+
+#@ stateful_set = overlay.subset({"kind": "StatefulSet", "metadata": {"name": app_component.name}})
+#@ deployment   = overlay.subset({"kind": "Deployment", "metadata": {"name": app_component.name}})
+#@ daemon_set   = overlay.subset({"kind": "DaemonSet", "metadata": {"name": app_component.name}})
+#@ job          = overlay.subset({"kind": "Job", "metadata": {"name": app_component.name}})
+#@ pod          = overlay.subset({"kind": "Pod", "metadata": {"name": app_component.name}})
+#@ service      = overlay.subset({"kind": "Service", "metadata": {"name": app_component.name}})
+
+#
+# labels
+#
+
+#@overlay/match by=overlay.subset({"metadata": {"name": app_component.name}}),expects="1+"
+---
+metadata:
+  #@overlay/match missing_ok=True
+  #@overlay/match-child-defaults missing_ok=True
+  labels:
+    app.kubernetes.io/name: #@ app_component.name
+    app: #@ app_component.name
+
+#@overlay/match by=overlay.or_op(stateful_set, deployment, daemon_set, job),expects="0+"
+---
+spec:
+  #@overlay/match missing_ok=True
+  #@overlay/match-child-defaults missing_ok=True
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: #@ app_component.name
+      app: #@ app_component.name
+  template:
+    #@overlay/match missing_ok=True
+    #@overlay/match-child-defaults missing_ok=True
+    metadata:
+      labels:
+        app.kubernetes.io/name: #@ app_component.name
+        app: #@ app_component.name
+    spec:
+      containers:
+        #@overlay/match by="name",expects="0+"
+        - name: #@ app_component.name
+
+#@overlay/match by=overlay.or_op(service),expects="0+"
+---
+spec:
+  #@overlay/match missing_ok=True
+  #@overlay/match-child-defaults missing_ok=True
+  selector:
+    app.kubernetes.io/name: #@ app_component.name
+    app: #@ app_component.name
+
+#
+# replicas
+#
+
+#@overlay/match by=overlay.or_op(stateful_set, deployment),expects="0+"
+---
+spec:
+  replicas: #@ getattr(app_component, "replicas") if hasattr(app_component, "replicas") else 1
+
+#@ end

@@ -1,0 +1,93 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure the namespace is removed"
+  import_role:
+    name: "common/namespace/clean"
+  vars:
+    namespace: "{{ tanzu_build_service.namespace }}"
+
+- name: "ensure the kpack namespace is removed"
+  import_role:
+    name: "common/namespace/clean"
+  vars:
+    namespace: "{{ tanzu_build_service.namespace_kpack }}"
+
+- name: "ensure the stack operator namespace is removed"
+  import_role:
+    name: "common/namespace/clean"
+  vars:
+    namespace: "{{ tanzu_build_service.namespace_stack_operator_system }}"
+
+- name: "ensure the cluster-wide rbac resources are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "ClusterRoleBinding"
+    name:    "{{ item.name }}"
+  with_items:
+    - name: "cert-injection-webhook-cluster-role-binding"
+    - name: "build-service-secret-syncer-role-binding"
+    - name: "build-service-warmer-role-binding"
+    - name: "build-service-admin-role-binding"
+    - name: "build-service-authenticated-role-binding"
+    - name: "kpack-controller-admin-binding"
+    - name: "kpack-webhook-certs-mutatingwebhookconfiguration-admin-binding"
+    - name: "proxy-rolebinding"
+    - name: "stacks-operator-manager-rolebinding"
+
+- name: "ensure the cluster-wide rbac resources are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "ClusterRole"
+    name:    "{{ item.name }}"
+  with_items:
+    - name: "build-service-user-role"
+    - name: "cert-injection-webhook-cluster-role"
+    - name: "build-service-secret-syncer-role"
+    - name: "build-service-admin-role"
+    - name: "build-service-authenticated-role"
+    - name: "build-service-warmer-role"
+    - name: "kpack-controller-admin"
+    - name: "kpack-webhook-mutatingwebhookconfiguration-admin"
+    - name: "metrics-reader"
+    - name: "proxy-role"
+    - name: "custom-stack-editor-role"
+    - name: "custom-stack-viewer-role"
+    - name: "stacks-operator-manager-role"
+
+- name: "ensure the mutating webhook rbac resources are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "MutatingWebhookConfiguration"
+    name:    "{{ item.name }}"
+  with_items:
+    - name: "defaults.webhook.cert-injection.tanzu.vmware.com"
+    - name: "defaults.webhook.kpack.io"
+
+- name: "ensure the validating webhook  resources are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "ValidatingWebhookConfiguration"
+    name:    "{{ item.name }}"
+  with_items:
+    - name: "validation.webhook.kpack.io"
+
+- name: "ensure the custom resource definition resources are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "CustomResourceDefinition"
+    name:    "{{ item.name }}"
+  with_items:
+    - name: "builds.kpack.io"
+    - name: "builders.kpack.io"
+    - name: "clusterbuilders.kpack.io"
+    - name: "clusterstores.kpack.io"
+    - name: "images.kpack.io"
+    - name: "sourceresolvers.kpack.io"
+    - name: "clusterstacks.kpack.io"
+    - name: "customstacks.stacks.stacks-operator.tanzu.vmware.com"

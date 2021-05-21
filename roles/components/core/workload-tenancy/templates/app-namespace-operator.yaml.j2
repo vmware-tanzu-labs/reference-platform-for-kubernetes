@@ -1,0 +1,30 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ tanzu_workload_tenancy.namespace_operator.app_name }}
+  namespace: {{ tanzu_workload_tenancy.namespace }}
+  name: {{ tanzu_workload_tenancy.namespace_operator.app_name }}
+spec:
+  replicas: {{ tanzu_workload_tenancy.namespace_operator.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ tanzu_workload_tenancy.namespace_operator.app_name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ tanzu_workload_tenancy.namespace_operator.app_name }}
+      name: {{ tanzu_workload_tenancy.namespace_operator.app_name }}
+    spec:
+      serviceAccountName: {{ tanzu_workload_tenancy.namespace_operator.service_account }}
+      containers:
+        - name: {{ tanzu_workload_tenancy.namespace_operator.app_name }}
+          image: {{ tanzu_workload_tenancy.namespace_operator.image }}:{{ tanzu_workload_tenancy.namespace_operator.image_tag }}
+          resources: {{ tanzu_workload_tenancy.namespace_operator.resources }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532

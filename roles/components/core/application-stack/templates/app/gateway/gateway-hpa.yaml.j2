@@ -1,0 +1,16 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: gateway
+  namespace: {{ tanzu_app_stack.gateway.namespace }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: gateway
+  minReplicas: {{ tanzu_app_stack.gateway.min_replicas }}
+  maxReplicas: {{ tanzu_app_stack.gateway.max_replicas }}
+  targetCPUUtilizationPercentage: {{ tanzu_app_stack.gateway.target_utilization }}

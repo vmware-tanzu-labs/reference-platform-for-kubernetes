@@ -1,0 +1,10 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+# see https://github.com/vmware-tanzu-labs/namespace-operator
+apiVersion: tenancy.platform.cnr.vmware.com/v1alpha1
+kind: TanzuNamespace
+metadata:
+  name: {{ avi.namespace }}
+spec:
+  tanzuNamespaceName: "{{ avi.namespace }}"

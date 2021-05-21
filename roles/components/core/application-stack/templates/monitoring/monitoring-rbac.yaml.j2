@@ -1,0 +1,66 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: "{{ tanzu_app_stack.monitoring.resource_name }}"
+  namespace: "{{ tanzu_app_stack.monitoring.namespace }}"
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: "{{ tanzu_app_stack.monitoring.resource_name }}"
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - services
+      - endpoints
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: "{{ tanzu_app_stack.department.namespace }}-monitoring"
+  namespace: "{{ tanzu_app_stack.department.namespace }}"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: "{{ tanzu_app_stack.monitoring.resource_name }}"
+subjects:
+  - kind: ServiceAccount
+    name: "{{ tanzu_app_stack.monitoring.resource_name }}"
+    namespace: "{{ tanzu_app_stack.monitoring.namespace }}"
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: "{{ tanzu_app_stack.employee.namespace }}-monitoring"
+  namespace: "{{ tanzu_app_stack.employee.namespace }}"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: "{{ tanzu_app_stack.monitoring.resource_name }}"
+subjects:
+  - kind: ServiceAccount
+    name: "{{ tanzu_app_stack.monitoring.resource_name }}"
+    namespace: "{{ tanzu_app_stack.monitoring.namespace }}"
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: "{{ tanzu_app_stack.organization.namespace }}-monitoring"
+  namespace: "{{ tanzu_app_stack.organization.namespace }}"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: "{{ tanzu_app_stack.monitoring.resource_name }}"
+subjects:
+  - kind: ServiceAccount
+    name: "{{ tanzu_app_stack.monitoring.resource_name }}"
+    namespace: "{{ tanzu_app_stack.monitoring.namespace }}"

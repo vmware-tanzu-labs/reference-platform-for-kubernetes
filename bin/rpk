@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+
+# fast fail
+set -o pipefail
+
+# defaults
+DEFAULT_RPK_ANSIBLE_CONNECTION="local"
+DEFAULT_RPK_ANSIBLE_CLUSTER="all"
+DEFAULT_RPK_ANSIBLE_DEBUG_LEVEL=""
+DEFAULT_RPK_ANSIBLE_INVENTORY_FILE="./build/inventory.yaml"
+DEFAULT_RPK_ANSIBLE_EXTRA_ARGS=""
+DEFAULT_RPK_ANSIBLE_ACTION="deploy"
+
+while getopts ":a:r:p:c:l:i:e:v:n:dh" opt; do
+  case ${opt} in
+    a ) RPK_ANSIBLE_ACTION=${OPTARG}
+      ;;
+    d ) RPK_DEBUG=true
+      ;;
+    r ) RPK_ANSIBLE_ROLE=${OPTARG}
+      ;;
+    p ) RPK_ANSIBLE_PROFILE=${OPTARG}
+      ;;
+    c ) RPK_ANSIBLE_CLUSTER=${OPTARG}
+      ;;
+    n ) RPK_ANSIBLE_CONNECTION=${OPTARG}
+      ;;
+    l ) RPK_ANSIBLE_DEBUG_LEVEL=${OPTARG}
+      ;;
+    i ) RPK_ANSIBLE_INVENTORY_FILE=${OPTARG}
+      ;;
+    e ) RPK_ANSIBLE_EXTRA_ARGS=${OPTARG}
+      ;;
+    v ) RPK_ANSIBLE_VIRTUALENV=${OPTARG}
+      ;;
+    h ) cat << EOF
+rpk is the CLI for installing VMware's RPK
+Usage: rpk [ARGS]
+  -a action ($DEFAULT_RPK_ANSIBLE_ACTION) [deploy,clean,demo,infra,validate]
+  -d (enable debug mode)
+  -r ansible-role (${DEFAULT_RPK_ANSIBLE_ROLE})
+  -p ansible-profile (${DEFAULT_RPK_ANSIBLE_PROFILE})
+  -c ansible-cluster (${DEFAULT_RPK_ANSIBLE_CLUSTER})
+  -n ansible-connection (${DEFAULT_RPK_ANSIBLE_CONNECTION})
+  -l ansible-debug-level (${DEFAULT_RPK_ANSIBLE_DEBUG_LEVEL})
+  -i ansible-inventory-file (${DEFAULT_RPK_ANSIBLE_INVENTORY_FILE})
+  -v /path/to/virtualenv (system python or pre-activated virtualenv)
+  -e ansible-extra-args ("")
+
+environment variables in the form of RPK_ARG_NAME can be set
+(ex RPK_ANSIBLE_ROLE). Precidence is CLI Arg, Env, Default.
+EOF
+        exit 0
+      ;;
+  esac
+done
+shift $((OPTIND -1))
+
+# process args in the order of CLI, Env, Default.
+# CLI Arg, Env Variable, Default.
+RPK_DEBUG=${RPK_DEBUG}
+if [[ -n "$RPK_DEBUG" ]]; then
+  echo "DEBUG is turned on."
+  set -eux
+fi
+
+RPK_ANSIBLE_ACTION=${RPK_ANSIBLE_ACTION:-"${DEFAULT_RPK_ANSIBLE_ACTION}"}
+RPK_ANSIBLE_PROFILE=${RPK_ANSIBLE_PROFILE:-""}
+RPK_ANSIBLE_CLUSTER=${RPK_ANSIBLE_CLUSTER:-"${DEFAULT_RPK_ANSIBLE_CLUSTER}"}
+RPK_ANSIBLE_CONNECTION=${RPK_ANSIBLE_CONNECTION:-"${DEFAULT_RPK_ANSIBLE_CONNECTION}"}
+RPK_ANSIBLE_DEBUG_LEVEL=${RPK_ANSIBLE_DEBUG_LEVEL:-"${DEFAULT_RPK_ANSIBLE_DEBUG_LEVEL}"}
+RPK_ANSIBLE_INVENTORY_FILE=${RPK_ANSIBLE_INVENTORY_FILE:-"${DEFAULT_RPK_ANSIBLE_INVENTORY_FILE}"}
+RPK_ANSIBLE_EXTRA_ARGS=${RPK_ANSIBLE_EXTRA_ARGS:-"${DEFAULT_RPK_ANSIBLE_EXTRA_ARGS}"}
+RPK_ANSIBLE_VIRTUALENV=${RPK_ANSIBLE_VIRTUALENV:-""}
+RPK_ANSIBLE_ROLE=${RPK_ANSIBLE_ROLE:-""}
+
+# If role specified we need to add it as an ansible extra arg
+# -e rpk_profile=single
+if [[ -n "${RPK_ANSIBLE_ROLE}" ]]; then
+  RPK_ANSIBLE_EXTRA_ARGS="${RPK_ANSIBLE_EXTRA_ARGS} -e rpk_role_name=${RPK_ANSIBLE_ROLE}"
+fi
+
+# set the rpk profile if set
+if [[ "${RPK_ANSIBLE_PROFILE}" != "" ]]; then
+  RPK_ANSIBLE_EXTRA_ARGS="${RPK_ANSIBLE_EXTRA_ARGS} -e rpk_profile=${RPK_ANSIBLE_PROFILE}"
+fi
+
+# figure out if we have a virtualenv available to us, either specified or implied
+if [[ -n "${RPK_ANSIBLE_VIRTUALENV}" && -e "${RPK_ANSIBLE_VIRTUALENV}/bin/ansible-playbook" ]]; then
+  [[ -n "${RPK_DEBUG}" ]] && echo "Using virtualenv ${RPK_ANSIBLE_VIRTUALENV}"
+  RPK_ANSIBLE_BINARY="${RPK_ANSIBLE_VIRTUALENV}/bin/ansible-playbook"
+  export ANSIBLE_PYTHON_INTERPRETER="${RPK_ANSIBLE_VIRTUALENV}/bin/python"
+elif [[ -e "./ansible-virtualenv/bin/ansible-playbook" ]]; then
+  [[ -n "${RPK_DEBUG}" ]] && echo "Using virtualenv ./ansible-virtualenv"
+  RPK_ANSIBLE_BINARY="./ansible-virtualenv/bin/ansible-playbook"
+  export ANSIBLE_PYTHON_INTERPRETER="./ansible-virtualenv/bin/python"
+else
+  RPK_ANSIBLE_BINARY="$(which ansible-playbook)"
+fi
+
+# set debug level in ansible
+if [[ -n "${RPK_DEBUG}" ]]; then
+  RPK_ANSIBLE_EXTRA_ARGS="${RPK_ANSIBLE_EXTRA_ARGS} -vv"
+fi
+
+# determine ansible action
+case ${RPK_ANSIBLE_ACTION} in
+  clean )
+    RPK_ANSIBLE_EXTRA_ARGS="${RPK_ANSIBLE_EXTRA_ARGS} -e rpk_action=clean"
+    ;;
+  demo )
+    RPK_ANSIBLE_EXTRA_ARGS="${RPK_ANSIBLE_EXTRA_ARGS} -e rpk_action=demo"
+    ;;
+  deploy )
+    RPK_ANSIBLE_EXTRA_ARGS="${RPK_ANSIBLE_EXTRA_ARGS} -e rpk_action=deploy"
+    ;;
+  * )
+    RPK_ANSIBLE_EXTRA_ARGS="${RPK_ANSIBLE_EXTRA_ARGS} -e rpk_action=other"
+    ;;
+esac
+
+echo "cluster: ${RPK_ANSIBLE_CLUSTER}"
+# set the ansible-playbook command to run
+RPK="${RPK_ANSIBLE_BINARY} ${RPK_ANSIBLE_DEBUG_LEVEL} ./site.yaml -c ${RPK_ANSIBLE_CONNECTION} ${RPK_ANSIBLE_EXTRA_ARGS} -i ${RPK_ANSIBLE_INVENTORY_FILE} -l ${RPK_ANSIBLE_CLUSTER}"
+
+echo "running rpk deployment tool..."
+echo "executing: ${RPK}"
+
+# main program loop
+${RPK}

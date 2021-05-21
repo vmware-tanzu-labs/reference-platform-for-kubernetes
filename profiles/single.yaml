@@ -1,0 +1,4 @@
+---
+rpk_components:
+  - name:    "{{ rpk_role_name }}"
+    enabled: true

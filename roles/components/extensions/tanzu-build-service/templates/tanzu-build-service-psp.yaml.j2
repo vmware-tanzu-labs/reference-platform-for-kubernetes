@@ -1,0 +1,102 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: {{ tanzu_build_service.security.policy.name }}
+spec:
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  runAsUser:
+    rule: RunAsAny
+  fsGroup:
+    rule: RunAsAny
+  privileged: true
+  volumes:
+    - '*'
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ tanzu_build_service.security.policy.service_account }}
+  namespace:  {{ tanzu_build_service.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-sa"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ tanzu_build_service.security.policy.service_account }}
+  namespace:  {{ tanzu_build_service.namespace_kpack }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "kpack-sa"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: stack-operator
+  namespace: {{ tanzu_build_service.namespace_stack_operator_system }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "stack-operator-sa"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-cluster-role"
+  name: {{ tanzu_build_service.security.policy.role }}
+rules:
+- apiGroups:
+    - policy
+  resources:
+    - podsecuritypolicies
+  verbs:
+    - use
+  resourceNames:
+    - {{ tanzu_build_service.security.policy.name }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-cluster-role-binding"
+  name: {{ tanzu_build_service.security.policy.role_bind }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ tanzu_build_service.security.policy.role }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ tanzu_build_service.security.policy.service_account }}
+    namespace: "{{ tanzu_build_service.namespace }}"
+  - kind: ServiceAccount
+    name: {{ tanzu_build_service.security.policy.service_account }}
+    namespace: "{{ tanzu_build_service.namespace_kpack }}"
+  - kind: ServiceAccount
+    name: controller
+    namespace: "{{ tanzu_build_service.namespace_kpack }}"
+  - kind: ServiceAccount
+    name: webhook
+    namespace: "{{ tanzu_build_service.namespace_kpack }}"
+  - kind: ServiceAccount
+    name: secret-syncer-service-account
+    namespace: "{{ tanzu_build_service.namespace }}"
+  - kind: ServiceAccount
+    name: cert-injection-webhook-sa
+    namespace: "{{ tanzu_build_service.namespace }}"
+  - kind: ServiceAccount
+    name: stack-operator
+    namespace: "{{ tanzu_build_service.namespace_stack_operator_system }}"

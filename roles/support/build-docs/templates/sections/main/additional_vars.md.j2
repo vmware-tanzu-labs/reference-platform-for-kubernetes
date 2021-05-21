@@ -1,0 +1,31 @@
+In most cases you will not need to manipulate any of the preset variables for RPK components.  However, you may encounter edge cases where the behavior of a component needs to be tuned or modified to affect how it is deployed into your cluster.  This is a rare circumstance, but if you would like to delve into all the possible configuration options for the deployment of RPK, see each of the component specific documentation pages from the table below.
+
+##### RPK Components
+
+###### Platform Profile
+
+The following components are displayed in the order they will be deployed to a TKG cluster.  Additional tuning and behavior can be changed by adding additional variables to your `build/inventory.yaml`.
+
+| Component Name | Documentation |
+| --- | --- |
+{% for p_comp in platform.rpk_components %}
+{% if p_comp.enabled | bool %}
+| {{ p_comp.name }} | [README.md](../../roles/components/core/{{ p_comp.name }}/README.md) |
+{% endif %}
+{% endfor %}
+
+###### Advanced Profile
+
+The following components are displayed in the order they will be deployed to a TKG cluster.  Additional tuning and behavior can be changed by adding additional variables to your `build/inventory.yaml`.
+
+| Component Name | Documentation |
+| --- | --- |
+{% for a_comp in advanced.rpk_components %}
+{% if a_comp.enabled | bool %}
+{% if a_comp in platform.rpk_components %}
+| {{ a_comp.name }} | [README.md](../../roles/components/core/{{ a_comp.name }}/README.md) |
+{% else %}
+| {{ a_comp.name }} | [README.md](../../roles/components/extensions/{{ a_comp.name }}/README.md) |
+{% endif %}
+{% endif %}
+{% endfor %}

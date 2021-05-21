@@ -1,0 +1,16 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_security.staging_dir }}/certificates"
+
+- name: "create certificate using existing wildcard"
+  import_tasks: wildcard.yaml
+  when: tls_provider | default(tanzu_security.default_tls_provider) == "wildcard"
+
+- name: "create certificate using cert-manager"
+  import_tasks: cert-manager.yaml
+  when: tls_provider | default(tanzu_security.default_tls_provider) != "wildcard"

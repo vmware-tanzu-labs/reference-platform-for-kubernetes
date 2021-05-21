@@ -1,0 +1,84 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rpk-scdf-deploy-stream-config
+  namespace: {{ tanzu_spring_cloud_data_flow.namespace }}
+  labels:
+    app.kubernetes.io/name: "tanzu-spring-cloud-data-flow-image-migrate-job"
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "scdf-deploy-stream-config"
+data:
+  startup.sh: |
+    #!/bin/sh
+    ./wait-for-it.sh -t 0 scdf-server:80;
+    ./wait-for-it.sh -t 0 skipper:80;
+    script_dir=$(dirname $0)
+    # Optionally destroy all existing flows
+    java -jar shell.jar --dataflow.uri=http://scdf-server:80 --spring.shell.commandFile=$script_dir/scdf-destroy.txt
+    java -jar shell.jar --dataflow.uri=http://scdf-server:80 --spring.shell.commandFile=$script_dir/scdf-init.txt
+  scdf-init.txt: |
+    app import https://repo1.maven.org/maven2/org/springframework/cloud/stream/app/spring-cloud-stream-app-descriptor/Einstein.SR9/spring-cloud-stream-app-descriptor-Einstein.SR9.stream-apps-rabbit-docker
+    stream create --name words --definition "http | splitter --expression=payload.split(' ') | log"
+    stream deploy words --properties "deployer.http.kubernetes.create-load-balancer=false"
+  scdf-destroy.txt: |
+    stream undeploy words
+    stream destroy words
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rpk-scdf-deploy-stream-job
+  namespace: {{ tanzu_spring_cloud_data_flow.namespace }}
+  labels:
+    app.kubernetes.io/name: "tanzu-spring-cloud-data-flow-deploy-stream-job"
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "job-scdf-deploy-stream"
+spec:
+  activeDeadlineSeconds: 300
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "tanzu-spring-cloud-data-flow-deploy-stream-job"
+    spec:
+      securityContext:
+        runAsUser: 1000
+      containers:
+      - name: rpk-scdf-deploy-stream
+        image: projects.registry.vmware.com/rpk/spring-cloud-dataflow-server:2.7.1-SNAPSHOT
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: 400m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - name: rpk-scdf-deploy-stream-config
+          mountPath: /startup
+        command: ["/startup/startup.sh"]
+      imagePullSecrets:
+      - name: scdf-image-regcred
+      restartPolicy: Never
+      volumes:
+      - name: rpk-scdf-deploy-stream-config
+        configMap:
+          name: rpk-scdf-deploy-stream-config
+          items:
+          - key: startup.sh
+            path: startup.sh
+            mode: 0744
+          - key: scdf-init.txt
+            path: scdf-init.txt
+            mode: 0744
+          - key: scdf-destroy.txt
+            path: scdf-destroy.txt
+            mode: 0744

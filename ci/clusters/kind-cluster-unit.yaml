@@ -1,0 +1,34 @@
+---
+all:
+  vars:
+    tanzu_mission_control_org_name:      ""
+    tanzu_mission_control_api_token:     ""
+    tanzu_service_mesh_api_token:        ""
+    tanzu_service_mesh_url:              ""
+    tanzu_observability_org_name:        ""
+    tanzu_observability_api_token:       ""
+    tanzu_build_service_username:        ""
+    tanzu_build_service_password:        ""
+    tanzu_sql_username:                  ""
+    tanzu_sql_password:                  ""
+    tanzu_network_api_token:             ""
+    tanzu_application_catalog_username:  ""
+    tanzu_application_catalog_password:  ""
+    tanzu_application_catalog_api_token: ""
+    tanzu_default_tls_provider:          "ca"
+  children:
+    kind_clusters:
+      vars:
+        tanzu_provider:                  "kind"
+        tanzu_networking_ipip_mode:      "Always"
+        tanzu_admission_control_enabled: false
+        tanzu_dashboard_enabled:         false
+        tanzu_dns_provider:              "none"
+      hosts:
+        kind_tanzu_cluster1:
+          tanzu_kubectl_context:               "kind-{{ lookup('env', 'CI_BUILD_ID') }}"
+          tanzu_cluster_name:                  "kind-{{ lookup('env', 'CI_BUILD_ID') }}"
+          tanzu_ingress_domain:                "127.0.0.1.xip.io"
+          ingress_ip:                          "127.0.0.1"
+          tanzu_mission_control_cluster_group: "rpk-clusters"
+          tanzu_storage_classes_kind: []

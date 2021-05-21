@@ -1,0 +1,9 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure manifest staging directory exists"
+  file:
+    path:  "{{ staging_dir }}"
+    state: "directory"
+    mode:  "0700"
+  changed_when: false

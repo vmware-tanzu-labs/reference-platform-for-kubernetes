@@ -1,0 +1,10 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+dependencies:
+  - component: "security"
+    priority:  200
+  - component: "ingress"
+    priority:  400
+  - component: "container-registry"
+    priority:  500

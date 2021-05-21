@@ -1,0 +1,76 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# PORTAL
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ tanzu_container_registry.portal.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+    component: portal
+spec:
+  replicas: {{ tanzu_container_registry.portal.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "harbor"
+      component: portal
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "harbor"
+        component: portal
+    spec:
+      containers:
+        - name: portal
+          image: {{ tanzu_container_registry.portal.image }}:{{ tanzu_container_registry.base_image_tag }}
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /
+              scheme: HTTPS
+              port: 8443
+            initialDelaySeconds: 300
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              scheme: HTTPS
+              port: 8443
+            initialDelaySeconds: 1
+            periodSeconds: 10
+          ports:
+            - containerPort: 8443
+          volumeMounts:
+            - name: portal-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: portal-internal-certs
+              mountPath: /etc/harbor/ssl/portal
+      volumes:
+        - name: portal-config
+          configMap:
+            name: "{{ tanzu_container_registry.portal.resource_name }}"
+        - name: portal-internal-certs
+          secret:
+            secretName: "{{ tanzu_container_registry.portal.tls_internal_name }}"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ tanzu_container_registry.portal.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+  annotations:
+    projectcontour.io/upstream-protocol.tls: "443"
+spec:
+  ports:
+    - port: 443
+      targetPort: 8443
+  selector:
+    app.kubernetes.io/name: "harbor"
+    component: portal

@@ -1,0 +1,41 @@
+{
+    "Version": "2012-10-17",
+    "Statement":[
+        {
+            "Effect":"Allow",
+            "Action":[
+                "route53:*", 
+                "route53domains:*",
+                "cloudfront:ListDistributions",
+                "elasticloadbalancing:DescribeLoadBalancers",
+                "elasticbeanstalk:DescribeEnvironments",
+                "s3:ListBucket",
+                "s3:GetBucketLocation",
+                "s3:GetBucketWebsite",
+                "ec2:DescribeRegions",
+                "ec2:DescribeVpcs",
+                "ec2:CreateNetworkInterface",
+                "ec2:CreateNetworkInterfacePermission",
+                "ec2:DeleteNetworkInterface",
+                "ec2:DescribeAvailabilityZones",
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeSubnets",
+                "ec2:ModifyNetworkInterfaceAttribute",
+                "sns:ListTopics",
+                "sns:ListSubscriptionsByTopic",
+                "sns:CreateTopic",
+                "cloudwatch:DescribeAlarms",
+                "cloudwatch:PutMetricAlarm",
+                "cloudwatch:DeleteAlarms",
+                "cloudwatch:GetMetricStatistics"
+            ],
+            "Resource":"*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": "apigateway:GET",
+            "Resource": "arn:aws:apigateway:*::/domainnames"
+        }
+    ]
+}

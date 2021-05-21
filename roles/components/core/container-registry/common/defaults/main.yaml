@@ -1,0 +1,169 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_container_registry:
+  # common vars
+  namespace:      "tanzu-container-registry"
+  staging_dir:    "{{ rpk_staging_dir }}/tanzu-container-registry"
+  base_image_tag: "v2.0.2"
+  default_resources:
+    requests:
+      cpu:    "50m"
+      memory: "64Mi"
+    limits:
+      cpu:    "50m"
+      memory: "64Mi"
+
+  # auth vars
+  admin_username: "admin"
+  admin_password: "tanzu"
+
+  # postgres
+  postgres:
+    resource_name: "harbor-database"
+    username:      "postgres"
+    password:      "tanzu"
+    size:          "5Gi"
+    image:         "projects.registry.vmware.com/rpk/harbor-db"
+    replicas:      1
+    resources:
+      requests:
+        cpu:    "50m"
+        memory: "128Mi"
+      limits:
+        cpu:    "200m"
+        memory: "384Mi"
+
+  # redis
+  redis:
+    resource_name: "harbor-redis"
+    size:          "5Gi"
+    image:         "projects.registry.vmware.com/rpk/redis-photon"
+    replicas:      1
+    resources:
+      requests:
+        cpu:    "50m"
+        memory: "64Mi"
+      limits:
+        cpu:    "100m"
+        memory: "128Mi"
+
+  # core
+  core:
+    dns:               "registry.{{ tanzu_ingress_domain }}"
+    resource_name:     "harbor-core"
+    image:             "projects.registry.vmware.com/rpk/harbor-core"
+    replicas:          1
+    ca_name:           "harbor-core-ca"
+    tls_provider:      "{{ tanzu_default_tls_provider }}"
+    tls_internal_name: "harbor-core-internal-tls"
+    ingress_tls_name:  "harbor-core-ingress-tls"
+    resources:
+      requests:
+        cpu:    "1000m"
+        memory: "512Mi"
+      limits:
+        cpu:    "2000m"
+        memory: "2048Mi"
+    # NOTE: the following are unsupported at this time
+    # ca_cert:          ""
+    # tls_cert:         ""
+    # tls_key:          ""
+
+  # notary
+  notary:
+    dns:              "notary.{{ tanzu_ingress_domain }}"
+    ca_name:          "harbor-notary-ca"
+    tls_provider:     "{{ tanzu_default_tls_provider }}"
+    ingress_tls_name: "harbor-notary-ingress-tls"
+    # NOTE: the following are unsupported at this time
+    # ca_cert:         ""
+    # tls_cert:        ""
+    # tls_key:         ""
+    server:
+      resource_name: "harbor-notary-server"
+      image:         "projects.registry.vmware.com/rpk/notary-server-photon"
+      replicas:      1
+    signer:
+      resource_name:     "harbor-notary-signer"
+      tls_internal_name: "harbor-notary-signer-internal-tls"
+      image:             "projects.registry.vmware.com/rpk/notary-signer-photon"
+      replicas:          1
+
+  # registry
+  registry:
+    resource_name:     "harbor-registry"
+    size:              "50Gi"
+    image:             "projects.registry.vmware.com/rpk/registry-photon"
+    replicas:          1
+    tls_internal_name: "harbor-registry-internal-tls"
+    registryctl:
+      image: "projects.registry.vmware.com/rpk/harbor-registryctl"
+    resources:
+      requests:
+        cpu:    "1000m"
+        memory: "1024Mi"
+      limits:
+        cpu:    "2000m"
+        memory: "2048Mi"
+
+  # jobservice
+  jobservice:
+    resource_name:     "harbor-jobservice"
+    size:              "1Gi"
+    image:             "projects.registry.vmware.com/rpk/harbor-jobservice"
+    replicas:          1
+    # ca_name:          "harbor-jobservice-ca"
+    tls_internal_name: "harbor-jobservice-internal-tls"
+
+  # clair
+  clair:
+    resource_name:     "harbor-clair"
+    image:             "projects.registry.vmware.com/rpk/clair-photon"
+    replicas:          1
+    tls_internal_name: "harbor-clair-internal-tls"
+    adapter:
+      image: "projects.registry.vmware.com/rpk/clair-adapter-photon"
+    resources:
+      requests:
+        cpu:    "100m"
+        memory: "256Mi"
+      limits:
+        cpu:    "200m"
+        memory: "512Mi"
+
+  # chartmuseum
+  chartmuseum:
+    resource_name: "harbor-chartmuseum"
+    size:          "5Gi"
+    image:         "projects.registry.vmware.com/rpk/chartmuseum-photon"
+    replicas:      1
+
+  # portal
+  portal:
+    resource_name:     "harbor-portal"
+    image:             "projects.registry.vmware.com/rpk/harbor-portal"
+    replicas:          1
+    tls_internal_name: "harbor-portal-internal-tls"
+
+  # trivy
+  trivy:
+    resource_name:     "harbor-trivy"
+    image:             "projects.registry.vmware.com/rpk/trivy-adapter-photon"
+    replicas:          1
+    size:              "5Gi"
+    tls_internal_name: "harbor-trivy-internal-tls"
+    resources:
+      requests:
+        cpu:    "100m"
+        memory: "64Mi"
+      limits:
+        cpu:    "300m"
+        memory: "128Mi"
+
+  # demo vars
+  demo_project:
+    name:   "demo"
+    public: true
+  demo_robot_account:
+    name: "deployer"

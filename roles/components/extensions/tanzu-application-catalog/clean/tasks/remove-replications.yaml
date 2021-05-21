@@ -1,0 +1,45 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "remove replication policy if found"
+  block:
+    - name: "get replication executions"
+      uri:
+        url:              "https://{{ tanzu_application_catalog.registry_endpoint }}/api/v2.0/replication/executions?policy_id={{ item.id }}&status=InProgress"
+        url_username:     "{{ tanzu_container_registry.admin_username }}"
+        url_password:     "{{ tanzu_container_registry.admin_password }}"
+        method:           "GET"
+        follow_redirects: true
+        force_basic_auth: true
+        validate_certs:   false
+        body_format:      "json"
+      register: _get_replication_executions_response
+
+    - name: "stop replication executions"
+      uri:
+        url:              "https://{{ tanzu_application_catalog.registry_endpoint }}/api/v2.0/replication/executions/{{ execution.id }}"
+        url_username:     "{{ tanzu_container_registry.admin_username }}"
+        url_password:     "{{ tanzu_container_registry.admin_password }}"
+        method:           "PUT"
+        follow_redirects: true
+        force_basic_auth: true
+        validate_certs:   false
+        body_format:      "json"
+      loop: "{{ _get_replication_executions_response.json }}"
+      loop_control:
+        loop_var: execution
+
+    - name: "remove replication policy"
+      uri:
+        url:              "https://{{ tanzu_application_catalog.registry_endpoint }}/api/v2.0/replication/policies/{{ item.id }}"
+        url_username:     "{{ tanzu_container_registry.admin_username }}"
+        url_password:     "{{ tanzu_container_registry.admin_password }}"
+        method:           "DELETE"
+        follow_redirects: true
+        force_basic_auth: true
+        validate_certs:   false
+        status_code:      200,404
+      register: _remove_policy
+      retries:  20
+      until:    not _remove_policy.failed
+  when: item.id is defined

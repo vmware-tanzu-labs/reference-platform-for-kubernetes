@@ -1,0 +1,75 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "validate that tanzu_build_service_username is defined"
+  fail:
+    msg: "tanzu_build_service_username is undefined; please specify in inventory which provides a username to the registry.pivotal.io registry"
+  when: (tanzu_build_service_username is undefined) or (tanzu_build_service_username == "")
+
+- name: "validate that tanzu_build_service_password is defined"
+  fail:
+    msg: "tanzu_build_service_password is undefined; please specify in inventory which provides a password to the registry.pivotal.io registry"
+  when: (tanzu_build_service_password is undefined) or (tanzu_build_service_password == "")
+
+- name: "validate that tanzu_network_legacy_api_token is defined"
+  fail:
+    msg: "tanzu_network_legacy_api_token is undefined; please specify in inventory which provides an api token for network.tanzu.vmware.com"
+  when: (tanzu_network_legacy_api_token is undefined) or (tanzu_network_legacy_api_token == "")
+
+- name: "validate that tanzu_network_api_token is defined"
+  fail:
+    msg: "tanzu_network_api_token is undefined; please specify in inventory which provides an api token for network.tanzu.vmware.com"
+  when: (tanzu_network_api_token is undefined) or (tanzu_network_api_token == "")
+
+- name: "eula acceptance"
+  pause:
+    prompt: "If you havent done so ,\nPlease accept Tanzu build service eula at : \n 1. https://network.tanzu.vmware.com/products/tanzu-buildpacks-suite  \n 2. https://network.tanzu.vmware.com/products/tanzu-stacks-suite \n 3.https://network.tanzu.vmware.com/products/build-service/ \n 4.https://network.tanzu.vmware.com/products/tbs-dependencies/ \nHit Enter to continue RPK execution"
+  when: tanzu_build_service.eula.prompt
+
+- name: "validate eula through api"
+  block:
+    - name: "retrieve tanzu build service suite related products"
+      uri:
+        url:              "https://{{ tanzu_build_service.eula.api.url.root + tanzu_build_service.eula.api.url.build_service_suites }}"
+        method:           "GET"
+        status_code:      [200]
+        validate_certs: false
+      register: _buildservice_suites
+
+    - name: "retrieve tanzu buildpack suite related products"
+      uri:
+        url:              "https://{{ tanzu_build_service.eula.api.url.root + tanzu_build_service.eula.api.url.build_pack_suites }}"
+        method:           "GET"
+        status_code:      [200]
+        validate_certs: false
+      register: _buildpack_suites
+
+    - name: "retrieve tanzu stack suite related products"
+      uri:
+        url:              "https://{{ tanzu_build_service.eula.api.url.root + tanzu_build_service.eula.api.url.stack_suites }}"
+        method:           "GET"
+        status_code:      [200]
+        validate_certs: false
+      register: _stack_suites
+
+    - name: "combine eula suites"
+      set_fact:
+        _eula_suites: "{{ _buildservice_suites.json.related_products + _buildpack_suites.json.related_products + _stack_suites.json.related_products }}"
+
+    - name: "check user eula acceptance"
+      include_tasks: pre-check-eula.yaml
+      loop: "{{ _eula_suites }}"
+  when: tanzu_build_service.eula.check
+
+- name: "get internal harbor service"
+  k8s_info:
+    api_version: "v1"
+    kind:        "Service"
+    namespace:   "{{ tanzu_container_registry.namespace }}"
+    name:        "{{ tanzu_container_registry.core.resource_name }}"
+    context:     "{{ tanzu_kubectl_context }}"
+  register: _harbor_internal_service
+
+- name: "get the internal ip from the harbor service"
+  set_fact:
+    _harbor_internal_service_ip: "{{ _harbor_internal_service.resources[0].spec.clusterIP }}"

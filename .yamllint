@@ -1,0 +1,69 @@
+---
+yaml-files:
+  - '*.yml'
+  - '*.yaml'
+  - '.yamllint'
+
+# ignore ansible virtualenv
+# ignore crds as they can sometimes be several thousand lines long
+# ignore psps as they may diverge from upstream even if we lint them
+# ignore helm as they may diverge from templating even if we lint them
+ignore: |
+  ansible-virtualenv
+  **/files/base/*.yaml
+  **/psp/**/*
+  **/helm/**/*
+  **/build/**/*
+  roles/external/**/*
+  **.pip/**/*
+  inventory.yaml
+  roles/**/files/**
+
+rules:
+  braces:
+    level:             'error'
+    min-spaces-inside: 0
+    max-spaces-inside: 0
+  brackets:
+    level:             'error'
+    min-spaces-inside: 0
+    max-spaces-inside: 0
+  colons:
+    level:             'error'
+    max-spaces-before: 0
+    max-spaces-after:  -1
+  commas:
+    level:             'error'
+    max-spaces-before: 0
+  comments:
+    level:                   'error'
+    min-spaces-from-content: 0
+    require-starting-space:  false
+    ignore-shebangs:         true
+  comments-indentation: 'disable'
+  document-end: 'disable'
+  document-start:
+    level:   'error'
+    present: true
+  empty-lines:
+    level: 'error'
+    max:       1
+    max-end:   1
+    max-start: 1
+  empty-values: 'disable'
+  hyphens:
+    level:            'error'
+    max-spaces-after: 1
+  indentation:
+    level:  'error'
+    spaces: 2
+  key-duplicates: 'enable'
+  key-ordering: 'disable'
+  line-length: 'disable'
+  new-line-at-end-of-file: 'enable'
+  new-lines: 'enable'
+  octal-values: 'disable'
+  quoted-strings: 'disable'
+  trailing-spaces: 'enable'
+  truthy:
+    level: 'error'

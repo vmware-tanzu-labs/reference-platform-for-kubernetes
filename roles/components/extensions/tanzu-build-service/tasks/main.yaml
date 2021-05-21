@@ -1,0 +1,211 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# NAMESPACES
+#
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_build_service.staging_dir }}"
+
+- name: "create namespace for build service"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_build_service.namespace }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_build_service.staging_dir }}/tanzu-namespace.yaml"
+
+- name: "create namespace for kpack"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_build_service.namespace_kpack }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_build_service.staging_dir }}/tanzu-namespace-kpack.yaml"
+
+- name: "create namespace for stack-operator"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_build_service.namespace_stack_operator_system }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_build_service.staging_dir }}/tanzu-namespace-stack-operator-system.yaml"
+
+- name: "call harbor api to create build-service repository"
+  uri:
+    url:              "https://{{ tanzu_container_registry.core.dns }}/api/v2.0/projects"
+    user:             "{{ tanzu_container_registry.admin_username }}"
+    password:         "{{ tanzu_container_registry.admin_password }}"
+    method:           "POST"
+    status_code:      [201, 409]
+    force_basic_auth: true
+    validate_certs: false
+    body_format:      "json"
+    body:             "{{ tanzu_build_service.registry.project }}"
+  register: harbor_registry_info
+
+- name: "ensure kpack crds exist"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "kpack custom resource definition"
+    manifest_template:    "kpack-crd.yaml.j2"
+    manifest_file:        "kpack-crd.yaml"
+    manifest_staging_dir: "{{ tanzu_build_service.staging_dir }}"
+
+- name: "ensure kpack rbac exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "kpack rbac"
+    manifest_template:    "kpack-rbac.yaml.j2"
+    manifest_file:        "kpack-rbac.yaml"
+    manifest_staging_dir: "{{ tanzu_build_service.staging_dir }}"
+
+- name: "ensure build-service rbac exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "build-service rbac"
+    manifest_template:    "buildservice-rbac.yaml.j2"
+    manifest_file:        "buildservice-rbac.yaml"
+    manifest_staging_dir: "{{ tanzu_build_service.staging_dir }}"
+
+- name: "ensure stack-operator rbac exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "stack-operator rbac"
+    manifest_template:    "stack-operator-rbac.yaml.j2"
+    manifest_file:        "stack-operator-rbac.yaml"
+    manifest_staging_dir: "{{ tanzu_build_service.staging_dir }}"
+
+- name: "ensure psp exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "kpack custom resource definition"
+    manifest_template:    "tanzu-build-service-psp.yaml.j2"
+    manifest_file:        "tanzu-build-service-psp.yaml"
+    manifest_staging_dir: "{{ tanzu_build_service.staging_dir }}"
+
+- name: "initiate image migration"
+  include_tasks: "migrate_image_task.yaml"
+  when: tanzu_build_service.migrate_images | default(true)
+
+- name: "call harbor api to retrive repository certificate"
+  uri:
+    url:              "https://{{ tanzu_container_registry.core.dns }}/api/v2.0/systeminfo/getcert"
+    user:             "{{ tanzu_container_registry.admin_username }}"
+    password:         "{{ tanzu_container_registry.admin_password }}"
+    method:           "GET"
+    status_code:      [200, 304]
+    force_basic_auth: true
+    validate_certs:   false
+    dest:             "{{ tanzu_build_service.staging_dir }}/harbor-ca.crt"
+
+- name: "set harbor ca cert fact"
+  set_fact:
+    harbor_ca: "{{ lookup('file',  tanzu_build_service.staging_dir + '/harbor-ca.crt') }}"
+
+- name: "ensure build-service secret exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "build-service secret"
+    manifest_template:    "buildservice-secret.yaml.j2"
+    manifest_file:        "buildservice-secret.yaml"
+    manifest_staging_dir: "{{ tanzu_build_service.staging_dir }}"
+
+- name: "ensure kpack secret exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "kpack secret"
+    manifest_template:    "kpack-secret.yaml.j2"
+    manifest_file:        "kpack-secret.yaml"
+    manifest_staging_dir: "{{ tanzu_build_service.staging_dir }}"
+
+- name: "ensure stack-operator secret exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "stack-operator secret"
+    manifest_template:    "stack-operator-secret.yaml.j2"
+    manifest_file:        "stack-operator-secret.yaml"
+    manifest_staging_dir: "{{ tanzu_build_service.staging_dir }}"
+
+- name: "ensure kpack release exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "kpack release"
+    manifest_template:    "kpack-release.yaml.j2"
+    manifest_file:        "kpack-release.yaml"
+    manifest_staging_dir: "{{ tanzu_build_service.staging_dir }}"
+
+- name: "ensure build-service secret-syncer exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "build-service secret-syncer"
+    manifest_template:    "buildservice-secret-syncer.yaml.j2"
+    manifest_file:        "buildservice-secret-syncer.yaml"
+    manifest_staging_dir: "{{ tanzu_build_service.staging_dir }}"
+
+- name: "ensure build-service smart-warmer exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "build-service smart-warmer"
+    manifest_template:    "buildservice-smart-warmer.yaml.j2"
+    manifest_file:        "buildservice-smart-warmer.yaml"
+    manifest_staging_dir: "{{ tanzu_build_service.staging_dir }}"
+
+- name: "ensure build-service pod-webhook exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "build-service pod-webhook"
+    manifest_template:    "buildservice-pod-webhook.yaml.j2"
+    manifest_file:        "buildservice-pod-webhook.yaml"
+    manifest_staging_dir: "{{ tanzu_build_service.staging_dir }}"
+
+- name: "ensure stack-operator release exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "stack-operator release"
+    manifest_template:    "stack-operator-release.yaml.j2"
+    manifest_file:        "stack-operator-release.yaml"
+    manifest_staging_dir: "{{ tanzu_build_service.staging_dir }}"
+
+- name: "ensure cluster stack exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "cluster-stack"
+    manifest_template:    "cluster-stack.yaml.j2"
+    manifest_file:        "cluster-stack.yaml"
+    manifest_staging_dir: "{{ tanzu_build_service.staging_dir }}"
+
+- name: "ensure nodejs cluster-store exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "nodejs cluster-store"
+    manifest_template:    "cluster-store.yaml.j2"
+    manifest_file:        "cluster-store.yaml"
+    manifest_staging_dir: "{{ tanzu_build_service.staging_dir }}"
+
+- name: "ensure nodejs cluster-builder exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "nodejs cluster-builder"
+    manifest_template:    "cluster-builder.yaml.j2"
+    manifest_file:        "cluster-builder.yaml"
+    manifest_staging_dir: "{{ tanzu_build_service.staging_dir }}"

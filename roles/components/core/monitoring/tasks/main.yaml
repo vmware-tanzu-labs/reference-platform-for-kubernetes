@@ -1,0 +1,194 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# NAMESPACES
+#
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_monitoring.staging_dir }}"
+
+- name: "create namespace"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_monitoring.namespace }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_monitoring.staging_dir }}/tanzu-namespace.yaml"
+
+#
+# SSL
+#
+- name: "add tls certificate for grafana"
+  import_role:
+    name: "common/tls-certificate"
+  vars:
+    fqdn:         "{{ tanzu_monitoring.grafana.dns }}"
+    namespace:    "{{ tanzu_monitoring.namespace }}"
+    secret:       "{{ tanzu_monitoring.grafana.tls.secret }}"
+    tls_provider: "{{ tanzu_monitoring.grafana.tls.provider }}"
+    dns:
+      - "{{ tanzu_monitoring.grafana.dns }}"
+    ip: []
+
+- name: "add tls certificate for prometheus"
+  import_role:
+    name: "common/tls-certificate"
+  vars:
+    fqdn:         "{{ tanzu_monitoring.prometheus.dns }}"
+    namespace:    "{{ tanzu_monitoring.namespace }}"
+    secret:       "{{ tanzu_monitoring.prometheus.tls.secret }}"
+    tls_provider: "{{ tanzu_monitoring.prometheus.tls.provider }}"
+    dns:
+      - "{{ tanzu_monitoring.prometheus.dns }}"
+    ip: []
+
+- name: "add tls certificate for alert manager"
+  import_role:
+    name: "common/tls-certificate"
+  vars:
+    fqdn:         "{{ tanzu_monitoring.alertmanager.dns }}"
+    namespace:    "{{ tanzu_monitoring.namespace }}"
+    secret:       "{{ tanzu_monitoring.alertmanager.tls.secret }}"
+    tls_provider: "{{ tanzu_monitoring.alertmanager.tls.provider }}"
+    dns:
+      - "{{ tanzu_monitoring.alertmanager.dns }}"
+    ip: []
+
+#
+# PROMETHEUS
+#
+- name: "ensure prometheus operator exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "prometheus operator"
+    manifest_template:    "app-operator.yaml.j2"
+    manifest_file:        "app-operator.yaml"
+    manifest_staging_dir: "{{ tanzu_monitoring.staging_dir }}"
+
+#
+# ALERT MANAGER
+#
+- name: "ensure alert manager exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "alert manager"
+    manifest_template:    "app-alertmanager.yaml.j2"
+    manifest_file:        "app-alertmanager.yaml"
+    manifest_staging_dir: "{{ tanzu_monitoring.staging_dir }}"
+
+- name: "get the ingress ip"
+  import_role:
+    name: "common/ingress-ip"
+
+- name: "add ingress dns records for alertmanager"
+  import_role:
+    name: "common/etc-hosts"
+  vars:
+    ip:   "{{ ingress_ip }}"
+    fqdn: "{{ tanzu_monitoring.alertmanager.dns }}"
+
+#
+# GRAFANA
+#
+- name: "write temporary grafana datasources config"
+  template:
+    src:  "datasources.json.j2"
+    dest: "{{ tanzu_monitoring.staging_dir }}/datasources.json"
+    mode: "0400"
+  changed_when: false
+
+- name: "encode datasources config for secret"
+  slurp:
+    src: "{{ tanzu_monitoring.staging_dir }}/datasources.json"
+  register: tanzu_monitoring_grafana_datasources_b64
+
+- name: "delete temporary grafana datasources config"
+  file:
+    dest: "{{ tanzu_monitoring.staging_dir }}/datasources.json"
+    state: absent
+  changed_when: false
+
+- name: "ensure grafana exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "grafana"
+    manifest_template:    "app-grafana.yaml.j2"
+    manifest_file:        "app-grafana.yaml"
+    manifest_staging_dir: "{{ tanzu_monitoring.staging_dir }}"
+
+- name: "add ingress dns records for grafana"
+  import_role:
+    name: "common/etc-hosts"
+  vars:
+    ip:   "{{ ingress_ip }}"
+    fqdn: "{{ tanzu_monitoring.grafana.dns }}"
+
+#
+# KUBE STATE METRICS
+#
+- name: "ensure kube state metrics exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "kube state metrics"
+    manifest_template:    "app-kube-state-metrics.yaml.j2"
+    manifest_file:        "app-kube-state-metrics.yaml"
+    manifest_staging_dir: "{{ tanzu_monitoring.staging_dir }}"
+
+#
+# NODE EXPORTER
+#
+- name: "ensure node exporter pod security policies exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "node exporter pod security policies"
+    manifest_template:    "psp-node-exporter.yaml.j2"
+    manifest_file:        "psp-node-exporter.yaml"
+    manifest_staging_dir: "{{ tanzu_monitoring.staging_dir }}"
+
+- name: "ensure node exporter exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "node exporter"
+    manifest_template:    "app-node-exporter.yaml.j2"
+    manifest_file:        "app-node-exporter.yaml"
+    manifest_staging_dir: "{{ tanzu_monitoring.staging_dir }}"
+
+#
+# PROMETHEUS ADAPTER
+#
+- name: "ensure prometheus adapter exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "prometheus adapter"
+    manifest_template:    "app-adapter.yaml.j2"
+    manifest_file:        "app-adapter.yaml"
+    manifest_staging_dir: "{{ tanzu_monitoring.staging_dir }}"
+
+#
+# PROMETHEUS K8S
+#
+- name: "ensure prometheus exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "prometheus"
+    manifest_template:    "app-prometheus.yaml.j2"
+    manifest_file:        "app-prometheus.yaml"
+    manifest_staging_dir: "{{ tanzu_monitoring.staging_dir }}"
+
+- name: "ensure dns resolvability for prometheus"
+  import_role:
+    name: "common/etc-hosts"
+  vars:
+    ip:   "{{ ingress_ip }}"
+    fqdn: "{{ tanzu_monitoring.prometheus.dns }}"

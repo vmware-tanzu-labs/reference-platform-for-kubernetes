@@ -1,0 +1,70 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+  namespace: {{ tanzu_secrets.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+    app.kubernetes.io/instance: hashicorp
+data:
+  extraconfig-from-values.hcl: |-
+    disable_mlock = true
+    ui = true
+
+    listener "tcp" {
+      tls_disable = 1
+      address = "[::]:8200"
+      cluster_address = "[::]:8201"
+    }
+    storage "file" {
+      path = "/vault/data"
+    }
+
+    # Example configuration for using auto-unseal, using Google Cloud KMS. The
+    # GKMS keys must already exist, and the cluster must have a service account
+    # that is authorized to access GCP KMS.
+    #seal "gcpckms" {
+    #   project     = "vault-dev"
+    #   region      = "global"
+    #   key_ring    = "vault-unseal-kr"
+    #   crypto_key  = "vault-unseal-key"
+    #}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ tanzu_secrets.hashicorp_vault.init_script }}
+  namespace: {{ tanzu_secrets.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+    app.kubernetes.io/instance: hashicorp
+data:
+  init-script.sh: |
+    #!/usr/bin/env sh
+
+    # wait for vault to be ready
+    sleep 15
+
+    # check if vault has been initialized
+    # WARN: you would not want to distribute root tokens and
+    #       unseal keys in production
+    if [[ ! -f /vault/data/keys.txt ]]; then
+      vault operator init > /vault/data/keys.txt
+    else
+      FILE_CONTENTS=$(cat /vault/data/keys.txt)
+      if [[ -z "$FILE_CONTENTS" ]]; then
+        vault operator init > /vault/data/keys.txt
+      fi
+    fi
+
+    # get the vault root token and unseal keys
+    ROOT_TOKEN=$(cat /vault/data/keys.txt | grep "Initial Root Token" | awk '{print $NF}')
+    UNSEAL_KEYS=$(cat /vault/data/keys.txt | grep "Unseal Key" | awk '{print $NF}' | head -3)
+
+    # unseal the vault
+    for KEY in ${UNSEAL_KEYS}; do
+      vault operator unseal ${KEY}
+    done

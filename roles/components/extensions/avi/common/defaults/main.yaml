@@ -1,0 +1,63 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+avi:
+  # common vars
+  namespace:   "avi-system"
+  staging_dir: "{{ rpk_staging_dir }}/avi"
+  job_resources:
+    requests:
+      cpu:    "1000m"
+      memory: "1Gi"
+    limits:
+      cpu:    "1000m"
+      memory: "2Gi"
+
+  # vcenter vars
+  vcenter:
+    datacenter:           "{{ avi_vcenter_datacenter           | default(None) }}"
+    cluster:              "{{ avi_vcenter_cluster              | default(None) }}"
+    datastore:            "{{ avi_vcenter_datastore            | default(None) }}"
+    folder:               "{{ avi_vcenter_folder               | default(None) }}"
+    management_portgroup: "{{ avi_vcenter_management_portgroup | default(None) }}"
+
+  # avi controller vars
+  controller:
+    # TODO: transition to jobs
+    install_job_timeout:  3600
+    install_job_name:     "avi-controller-install-playbook"
+    workload_job_timeout: 3600
+    workload_job_name:    "avi-controller-workload-playbook"
+    username:             "{{ avi_controller_username             | default('admin') }}"
+    password:             "{{ avi_controller_password             | default('tanzu') }}"
+    tenant:               "{{ avi_controller_tenant               | default('admin') }}"  # this must remain admin (only support for AKO)
+    workload_name:        "{{ avi_controller_workload_name        | default('tanzu') }}"  # this must remain admin (only support for AKO)
+    ha_mode:              "{{ avi_controller_ha_mode              | default(True) }}"
+    anti_affinity_create: "{{ avi_controller_anti_affinity_create | default(True) }}"
+    dns_server:           "{{ avi_controller_dns_server           | default(None) }}"
+    ntp_server:           "{{ avi_controller_ntp_server           | default(None) }}"
+    vip:                  "{{ avi_controller_vip                  | default(None) }}"
+    networks:             "{{ avi_controller_networks             | default([]) }}"
+    memory_mb:            "{{ avi_controller_memory_mb            | default('24576') }}"
+    num_cpus:             "{{ avi_controller_num_cpus             | default('8') }}"
+    disk_size_gb:         "{{ avi_controller_disk_size_gb         | default('128') }}"
+    license_data:         "{{ avi_controller_license_data         | default(None) }}"
+    license_path:         "{{ rpk_staging_dir }}/avi/files/license"
+    license_file:         "avi-license.yml"
+    ova_path:             "/ansible"
+    ova_file:             "avi.ova"
+
+  # service engine vars
+  service_engine:
+    group:              "{{ avi_service_engine_group              | default('Default-Group') }}"  # this must remaind Default-Group (only support for AKO)
+    networks:           "{{ avi_service_engine_networks           | default([]) }}"
+    management_ip:      "{{ avi_service_engine_management_ip      | default(None) }}"
+    management_netmask: "{{ avi_service_engine_management_netmask | default(None) }}"
+    management_gateway: "{{ avi_service_engine_management_gateway | default(None) }}"
+    memory_mb:          "{{ avi_service_engine_memory_mb          | default(4096) }}"
+    num_cpus:           "{{ avi_service_engine_num_cpus           | default(2) }}"
+    disk_size_gb:       "{{ avi_service_engine_disk_size_gb       | default(20) }}"
+
+  # use namespace operator or not
+  workload_tenancy:
+    enabled: false

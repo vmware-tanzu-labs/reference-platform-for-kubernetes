@@ -1,0 +1,48 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_secrets.staging_dir }}"
+
+- name: "wait for dns"
+  import_role:
+    name: "common/wait-for-dns"
+  vars:
+    hostname: "{{ tanzu_secrets.dns }}"
+
+- name: "retrieve the hashicorp vault root token and unseal keys"
+  import_role:
+    name: "common/vault-secrets"
+
+- name: "ensure demo application secrets are created"
+  hashivault_write:
+    authtype:    "token"
+    token:       "{{ hashicorp_vault_root_token }}"
+    url:         "{{ tanzu_secrets.external_url }}"
+    secret:      "app1/test"
+    mount_point: "tanzu"
+    data:
+      tkgi:  "foobar"
+      tanzu: "k00l"
+    version: "2"
+
+- name: "ensure demo application is deployed"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "demo application"
+    manifest_template:    "demo-app.yaml.j2"
+    manifest_file:        "demo-app.yaml"
+    manifest_staging_dir: "{{ tanzu_secrets.staging_dir }}"
+
+- name: "print the hashicorp vault access information"
+  debug:
+    msg:
+      - "You can access the Vault UI at URL {{ tanzu_secrets.external_url }}"
+      - "Root Token: {{ hashicorp_vault_root_token }}"
+      - "Unseal Keys: {{ hashicorp_vault_unseal_keys }}"
+      - "View the mounted Vault secrets via demo app pod at /vault: {{ tanzu_secrets.hashicorp_vault.demo.app_name }}"
+    verbosity: 0

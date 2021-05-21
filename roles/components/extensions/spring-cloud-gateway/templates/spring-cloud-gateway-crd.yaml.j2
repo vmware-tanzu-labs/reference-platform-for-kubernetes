@@ -1,0 +1,146 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: springcloudgatewaybindings.tanzu.vmware.com
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_spring_cloud_gateway.module }}"
+    rpk.resource: "spring-cloud-gateway-crd"
+spec:
+  group: tanzu.vmware.com
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: ["gateway", "service"]
+              properties:
+                routes:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      uri:
+                        type: string
+                      predicates:
+                        type: array
+                        items:
+                          type: string
+                      filters:
+                        type: array
+                        items:
+                          type: string
+                      order:
+                        type: integer
+                      ssoEnabled:
+                        type: boolean
+                        default: false
+                      tokenRelay:
+                        type: boolean
+                        default: false
+                gateway:
+                  type: string
+                service:
+                  type: string
+  scope: Namespaced
+  names:
+    plural: springcloudgatewaybindings
+    singular: springcloudgatewaybinding
+    kind: SpringCloudGatewayBinding
+    shortNames:
+      - scgb
+      - scgbs
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: springcloudgateways.tanzu.vmware.com
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_spring_cloud_gateway.module }}"
+    rpk.resource: "spring-cloud-gateway-crd"
+spec:
+  group: tanzu.vmware.com
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                routes:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      uri:
+                        type: string
+                      predicates:
+                        type: array
+                        items:
+                          type: string
+                      filters:
+                        type: array
+                        items:
+                          type: string
+                      order:
+                        type: integer
+                      ssoEnabled:
+                        type: boolean
+                        default: false
+                      tokenRelay:
+                        type: boolean
+                        default: false
+                resources:
+                  type: object
+                  properties:
+                    limits:
+                      type: object
+                      properties:
+                        cpu:
+                          type: string
+                        memory:
+                          type: string
+                    requests:
+                      type: object
+                      properties:
+                        cpu:
+                          type: string
+                        memory:
+                          type: string
+                count:
+                  type: integer
+                  minimum: 0
+                  exclusiveMinimum: false
+                  default: 1
+                revisionHistoryLimit:
+                  type: integer
+                  minimum: 0
+                  exclusiveMinimum: false
+                  default: 10
+                ssoEnabled:
+                  type: boolean
+                  default: false
+  scope: Namespaced
+  names:
+    plural: springcloudgateways
+    singular: springcloudgateway
+    kind: SpringCloudGateway
+    shortNames:
+      - scg
+      - scgs

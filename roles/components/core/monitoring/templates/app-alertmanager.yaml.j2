@@ -1,0 +1,151 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Alertmanager
+metadata:
+  labels:
+    alertmanager: main
+    app.kubernetes.io/name: alert-manager
+  name: main
+  namespace: "{{ tanzu_monitoring.namespace }}"
+spec:
+  podMetadata:
+    labels:
+      app.kubernetes.io/name: alertmanager-main
+  image: "{{ tanzu_monitoring.alertmanager.image }}:{{ tanzu_monitoring.alertmanager.image_tag }}"
+  nodeSelector:
+    kubernetes.io/os: linux
+  replicas: {{ tanzu_monitoring.alertmanager.replicas }}
+  securityContext:
+    fsGroup: 2000
+    runAsNonRoot: true
+    runAsUser: 1000
+  serviceAccountName: alertmanager-main
+  resources: {{ tanzu_monitoring.alertmanager.resources }}
+  version: v0.20.0
+  routePrefix: /
+  retention: 168h
+  storage:
+    volumeClaimTemplate:
+      spec:
+        resources:
+          requests:
+            storage: 5Gi
+---
+apiVersion: v1
+data: {}
+kind: Secret
+metadata:
+  name: alertmanager-main
+  namespace: "{{ tanzu_monitoring.namespace }}"
+stringData:
+  alertmanager.yaml: |-
+    "global":
+      "resolve_timeout": "5m"
+    "inhibit_rules":
+    - "equal":
+      - "namespace"
+      - "alertname"
+      "source_match":
+        "severity": "critical"
+      "target_match_re":
+        "severity": "warning|info"
+    - "equal":
+      - "namespace"
+      - "alertname"
+      "source_match":
+        "severity": "warning"
+      "target_match_re":
+        "severity": "info"
+    "receivers":
+    - "name": "Default"
+{% if tanzu_monitoring.alertmanager.slack_url != "" %}
+      "slack_configs":
+      - "api_url": "{{ tanzu_monitoring.alertmanager.slack_url }}"
+{% endif %}
+    - "name": "Watchdog"
+{% if tanzu_monitoring.alertmanager.watchdog_slack_url != "" %}
+      "slack_configs":
+      - "api_url": "{{ tanzu_monitoring.alertmanager.watchdog_slack_url }}"
+{% endif %}
+    - "name": "Critical"
+{% if tanzu_monitoring.alertmanager.critical_slack_url != "" %}
+      "slack_configs":
+      - "api_url": "{{ tanzu_monitoring.alertmanager.critical_slack_url }}"
+{% endif %}
+    "route":
+      "group_by":
+      - "namespace"
+      "group_interval": "5m"
+      "group_wait": "30s"
+      "receiver": "Default"
+      "repeat_interval": "12h"
+      "routes":
+      - "match":
+          "alertname": "Watchdog"
+        "receiver": "Watchdog"
+      - "match":
+          "severity": "critical"
+        "receiver": "Critical"
+type: Opaque
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    alertmanager: main
+  name: alertmanager-main
+  namespace: "{{ tanzu_monitoring.namespace }}"
+spec:
+  ports:
+  - name: web
+    port: 9093
+    targetPort: web
+  selector:
+    alertmanager: main
+    app.kubernetes.io/name: alertmanager-main
+  sessionAffinity: ClientIP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: alertmanager-main
+  namespace: "{{ tanzu_monitoring.namespace }}"
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app.kubernetes.io/name: alertmanager
+  name: alertmanager
+  namespace: "{{ tanzu_monitoring.namespace }}"
+spec:
+  endpoints:
+  - interval: 30s
+    port: web
+  selector:
+    matchLabels:
+      alertmanager: main
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: alertmanager
+  namespace: "{{ tanzu_monitoring.namespace }}"
+  annotations:
+    external-dns.alpha.kubernetes.io/target: "{{ tanzu_ingress.dns }}"
+    ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  tls:
+    - hosts:
+      - "{{ tanzu_monitoring.alertmanager.dns }}"
+      secretName: "{{ tanzu_monitoring.alertmanager.tls.secret }}"
+  rules:
+  - host: {{ tanzu_monitoring.alertmanager.dns }}
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: alertmanager-main
+          servicePort: 9093

@@ -1,0 +1,6 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+dependencies:
+  # vars
+  - role: "extensions/avi/common"

@@ -1,0 +1,28 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequiredLabels
+metadata:
+  name: require-app-label
+spec:
+  match:
+    # NOTE: TKG deploys with pods which do not contain the app label, so we want to exclude them
+    excludedNamespaces:
+      - "kube-system"
+      # TODO: elasticsearch and kibana are managed via the elastic operator.  the kibana resource
+      #       fails to add the app label in the PodTemplate spec.  find out why.
+      - "tanzu-logging"
+      - "istio-system"
+      # KIND specific
+      - "local-path-provisioner"
+      - "local-path-storage"
+    kinds:
+      - apiGroups: ["extension", "apps"]
+        kinds:
+          - Deployment
+      - apiGroups: [""]
+        kinds:
+          - Pod
+  parameters:
+    labels: ["app.kubernetes.io/name"]

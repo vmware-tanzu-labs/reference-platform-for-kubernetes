@@ -1,0 +1,39 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure ca is in tls_providers"
+  fail:
+    msg: |
+      tanzu_security.tls_providers must include 'ca'
+      tanzu_security.tls_providers is currently: {{ tanzu_security.tls_providers }}
+  when: "'ca' not in tanzu_security.tls_providers"
+
+- name: "validate certs are base64 encoded"
+  fail:
+    msg: "certs should be base64 encoded"
+  when:
+    - item != ""
+    - not (item | b64decode | regex_search("^-----BEGIN"))
+  with_items:
+    - "{{ tanzu_security.ca.tls_root_ca_cert }}"
+    - "{{ tanzu_security.ca.tls_root_ca_key }}"
+    - "{{ tanzu_security.wildcard.tls_root_ca_cert }}"
+    - "{{ tanzu_security.wildcard.tls_cert }}"
+    - "{{ tanzu_security.wildcard.tls_key }}"
+    - "{{ tanzu_security.letsencrypt_stage.tls_root_ca_cert }}"
+
+- name: "fetch the control plane nodes"
+  k8s_info:
+    kind:      "Node"
+    context:   "{{ tanzu_kubectl_context }}"
+    label_selectors:
+      - node-role.kubernetes.io/master
+  register: _control_plane_nodes
+
+- name: "fetch the data plane nodes"
+  k8s_info:
+    kind:      "Node"
+    context:   "{{ tanzu_kubectl_context }}"
+    label_selectors:
+      - 'node-role.kubernetes.io/master notin ()'
+  register: _worker_nodes

@@ -1,0 +1,14 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+staging_dir:         "{{ rpk_staging_dir }}/{{ component }}"
+output_dir:          "{{ staging_dir }}/manifests"
+discovered_values:   "{{ rpk_staging_dir }}/discovered-values.yaml"
+component_base:      "{{ staging_dir }}/base"
+component_overlays:  "{{ staging_dir }}/overlays"
+component_templates: "{{ staging_dir }}/templates"
+component_values:    "{{ staging_dir }}/values"
+common_files:
+  - "{{ playbook_dir }}/lib/ytt/templates/kapp-config.yaml"   # use common kapp configuration
+  - "{{ playbook_dir }}/lib/ytt/overlays/change-groups.yaml"  # configure the change groups
+  - "{{ playbook_dir }}/lib/ytt/templates/namespace.yaml"     # inject the namespace

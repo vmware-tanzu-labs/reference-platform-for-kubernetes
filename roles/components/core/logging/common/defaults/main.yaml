@@ -1,0 +1,63 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_logging:
+  # common vars
+  namespace:   "tanzu-logging"
+  staging_dir: "{{ rpk_staging_dir }}/tanzu-logging"
+  dns:         "logs.{{ tanzu_ingress_domain }}"
+
+  # operator
+  operator:
+    image:         "docker.elastic.co/eck/eck-operator"
+    image_version: "1.1.2"
+    resources:
+      requests:
+        cpu:    "100m"
+        memory: "48Mi"
+      limits:
+        cpu:    "200m"
+        memory: "96Mi"
+
+  # elasticsearch
+  elastic:
+    cluster_name:  "cluster-0"
+    instance_name: "instance-0"
+    user:          "elastic"
+    password:      "tanzu"
+    version:       "7.9.0"
+    resources:
+      requests:
+        memory: "1.5Gi"
+        cpu:    "500m"
+      limits:
+        memory: "3Gi"
+        cpu:    "1000m"
+
+  # fluent-bit
+  fluent:
+    image:         "registry.tkg.vmware.run/fluent-bit"
+    image_version: "v1.5.3_vmware.1"
+    resources:
+      requests:
+        cpu:    "60m"
+        memory: "32Mi"
+      limits:
+        cpu:    "120m"
+        memory: "64Mi"
+
+  # kibana
+  kibana:
+    version: "7.9.0"
+    resources:
+      requests:
+        cpu:    "300m"
+        memory: "1Gi"
+      limits:
+        cpu:    "600m"
+        memory: "2Gi"
+
+  # tls
+  tls:
+    secret:   "tanzu-logging-tls"
+    provider: "{{ tanzu_default_tls_provider }}"

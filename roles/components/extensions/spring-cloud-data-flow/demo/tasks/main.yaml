@@ -1,0 +1,20 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "wait for dns"
+  import_role:
+    name: "common/wait-for-dns"
+  vars:
+    hostname: "{{ tanzu_spring_cloud_data_flow.dns }}"
+
+- name: "ensure the dashboard is available"
+  uri:
+    url: "http://{{ tanzu_spring_cloud_data_flow.dns }}/dashboard/#/apps"
+
+- name:          "initiate stream deployment"
+  include_tasks: "deploy-stream-task.yaml"
+
+- name: "print the dashboard access information"
+  debug:
+    msg: "You can access the Spring Cloud Data Flow Dashboard at URL http://{{ tanzu_spring_cloud_data_flow.dns }}/dashboard/#/streams/runtime"
+    verbosity: 0

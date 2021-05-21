@@ -1,0 +1,74 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_secrets:
+  # common vars
+  namespace:    "tanzu-secrets"
+  staging_dir:  "{{ rpk_staging_dir }}/tanzu-secrets"
+  component:    "secret-management"
+  dns:          "secrets.{{ tanzu_ingress_domain }}"
+  external_url: "http://secrets.{{ tanzu_ingress_domain }}"
+  ingress_dns:  "{{ tanzu_ingress.dns }}"
+
+  # resources
+  default_resources: "{{ rpk_default_resources }}"
+  default_quota:     "{{ rpk_default_quota }}"
+  default_maximums:
+    cpu:    "1000m"
+    memory: "128Mi"
+
+  # injector
+  hashicorp_vault_injector:
+    resource_name: "hashicorp-vault-agent-injector"
+    image:         "projects.registry.vmware.com/rpk/vault-k8s"
+    image_tag:     "0.4.0"
+    replicas:      1
+
+  # vault
+  hashicorp_vault:
+    change_group:   "{{ rpk_extension_group }}/hashicorp-vault"
+    resource_name:  "hashicorp-vault"
+    init_script:    "hashicorp-vault-init-script"
+    engine_backend: "kv-v2"
+    engine_name:    "tanzu"
+    policy_name:    "tanzu"
+    role_name:      "tanzu"
+    image:          "projects.registry.vmware.com/rpk/vault"
+    image_tag:      "1.4.2"
+    replicas:       1
+    volume_size:    "10Gi"
+    resources:
+      requests:
+        cpu:    "100m"
+        memory: "64Mi"
+      limits:
+        cpu:    "200m"
+        memory: "128Mi"
+    config_job:
+      name:                "hashicorp-vault-config-job"
+      playbook_config_map: "hashicorp-vault-config-job-playbook"
+      vars_secret:         "hashicorp-vault-config-job-vars"
+      change_group:        "{{ rpk_extension_group }}/hashicorp-vault-config"
+      resources:
+        requests:
+          cpu:    "500m"
+          memory: "64Mi"
+        limits:
+          cpu:    "1000m"
+          memory: "128Mi"
+    init_job:
+      name:                "hashicorp-vault-init-job"
+      playbook_config_map: "hashicorp-vault-init-job-playbook"
+      vars_secret:         "hashicorp-vault-init-job-vars"
+      change_group:        "{{ rpk_extension_group }}/hashicorp-vault-init"
+      resources:
+        requests:
+          cpu:    "500m"
+          memory: "64Mi"
+        limits:
+          cpu:    "1000m"
+          memory: "128Mi"
+
+    # demo
+    demo:
+      app_name: "tanzu-secrets-demo-app"

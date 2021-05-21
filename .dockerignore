@@ -1,0 +1,24 @@
+# ignore git directories
+.git
+.gitignore
+
+# ignore ci dependencies
+.yamllint
+.ansible-lint
+.ansible-lint-rules/
+ci/
+
+# ignore inventory files
+inventory.yaml
+lab.yaml
+
+# ignore cache
+.cache
+
+# ignore documentation
+README.md
+images/
+docs/
+
+# ignore local dev virtualenv
+ansible-virtualenv

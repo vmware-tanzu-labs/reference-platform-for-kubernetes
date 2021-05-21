@@ -1,0 +1,72 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_secrets.staging_dir }}"
+  delegate_to: "localhost"
+
+- name: "fetch the control plane nodes"
+  k8s_info:
+    kind:    "Node"
+    context: "{{ tanzu_kubectl_context }}"
+    label_selectors:
+      - node-role.kubernetes.io/master
+  register: nodes
+
+- name: "reconfigure api server to remove encryption from secrets"
+  include_tasks: "remove-encryption.yaml"
+  with_items: "{{ nodes.resources }}"
+
+- name: "decrypt all secrets on the cluster"
+  block:
+    - name: "get all secrets"
+      k8s_info:
+        api_version: v1
+        kind: Secret
+      register: secrets
+
+    - name: "replace all secrets"
+      k8s:
+        state: present
+        # ignore truthy lint rule. See https://docs.ansible.com/ansible/2.9/modules/k8s_module.html#parameter-force
+        # yamllint disable-line rule:truthy
+        force: yes
+        context: "{{ tanzu_kubectl_context }}"
+        definition: "{{ item }}"
+      with_items: "{{ secrets.resources }}"
+
+# This will remove the EncryptionConfig file from the control plane nodes.
+# The --encryption-provider option is not copied over to refreshed control plane nodes.
+- name: "remove EncryptionConfig from KACP"
+  include_tasks: "remove-encryption-provider-kacp.yaml"
+
+- name: "ensure the namespace is removed"
+  import_role:
+    name: "common/namespace/clean"
+  vars:
+    namespace: "{{ tanzu_secrets.namespace }}"
+
+- name: "ensure the pod security policies are removed"
+  k8s:
+    state:       "absent"
+    context:     "{{ tanzu_kubectl_context }}"
+    kind:        "PodSecurityPolicy"
+    name:        "{{ item }}"
+    api_version: "policy/v1beta1"
+  with_items:
+    - "job-kube-apiserver-psp"
+
+- name: "ensure the cluster-wide rbac resources are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "{{ item.kind }}"
+    name:    "{{ item.name }}"
+  with_items:
+    - name: "job-kube-apiserver-psp"
+      kind: "ClusterRole"
+    - name: "job-kube-apiserver-psp"
+      kind: "ClusterRoleBinding"

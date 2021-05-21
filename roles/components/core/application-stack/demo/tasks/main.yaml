@@ -1,0 +1,109 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "wait for dns"
+  import_role:
+    name: "common/wait-for-dns"
+  vars:
+    hostname: "{{ tanzu_app_stack.gateway.dns }}"
+
+#
+# POPULATE APP DATA
+#
+- name:         "populate app data"
+  import_tasks: "populate-app-data.yaml"
+
+#
+# DEMO HORIZONTAL POD AUTOSCALING
+#
+- name: "ensure traffic manifest staging directory exists"
+  file:
+    path:  "{{ tanzu_app_stack.staging_dir }}/demo"
+    state: "directory"
+  changed_when: false
+
+- name: "ensure post data configmap exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "post data configmap"
+    manifest_template:    "post-data-configmap.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}/demo"
+
+- name: "ensure post data job exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "post data job"
+    manifest_template:    "post-data-job.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}/demo"
+
+- name: "ensure post data job succeeded"
+  import_role:
+    name: "common/wait-for-job"
+  vars:
+    name:      "post-data"
+    namespace: "{{ tanzu_app_stack.gateway.namespace }}"
+    retries:   30
+    delay:     5
+
+- name: "ensure employee traffic job exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "employee traffic job"
+    manifest_template:    "traffic-employee-job.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}/demo"
+
+- name: "ensure employee traffic job succeeded"
+  import_role:
+    name: "common/wait-for-job"
+  vars:
+    name:      "traffic-employee"
+    namespace: "{{ tanzu_app_stack.gateway.namespace }}"
+    retries:   300
+    delay:     5
+
+- name: "ensure department traffic job exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "department traffic job"
+    manifest_template:    "traffic-department-job.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}/demo"
+
+- name: "ensure department traffic job succeeded"
+  import_role:
+    name: "common/wait-for-job"
+  vars:
+    name:      "traffic-department"
+    namespace: "{{ tanzu_app_stack.gateway.namespace }}"
+    retries:   300
+    delay:     5
+
+- name: "ensure organization traffic job exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "organization traffic job"
+    manifest_template:    "traffic-organization-job.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}/demo"
+
+- name: "ensure organization traffic job succeeded"
+  import_role:
+    name: "common/wait-for-job"
+  vars:
+    name:      "traffic-organization"
+    namespace: "{{ tanzu_app_stack.gateway.namespace }}"
+    retries:   300
+    delay:     5
+
+#
+# PRINT ACCESS INFO
+#
+- name: "print access info"
+  debug:
+    msg:
+      - "You may access the sample application at the following URL:"
+      - "URL: http://{{ tanzu_app_stack.gateway.dns }}{{ tanzu_app_stack.gateway.app_prefix }}/swagger-ui.html"
+    verbosity: 0

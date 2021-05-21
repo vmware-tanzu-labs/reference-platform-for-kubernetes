@@ -1,0 +1,98 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# NAMESPACES
+#
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_observability.staging_dir }}"
+
+- name: "create namespace"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_observability.namespace }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_observability.staging_dir }}/tanzu-namespace.yaml"
+  when: not tanzu_observability.use_tmc
+
+#
+# OBSERVABILITY COMPONENTS: DIRECT
+#   NOTE: the following assumes a direct manifest application and does not apply the
+#         wavefront integration by way of Tanzu Mission Control
+#
+- name: "ensure tanzu observability components exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "tanzu observability components"
+    manifest_template:    "app-wavefront.yaml.j2"
+    manifest_file:        "app-wavefront.yaml"
+    manifest_staging_dir: "{{ tanzu_observability.staging_dir }}"
+  when: not tanzu_observability.use_tmc
+
+#
+# OBSERVABILITY COMPONENTS: USING TMC
+#   NOTE: the following will enable wavefront integration by enabling it via supported TMC integrations
+#
+# AUTH
+#   # see https://code.vmware.com/apis/897/tanzu-mission-control
+#
+
+- name: "get tmc authentication token"
+  uri:
+    url:         "{{ tanzu_observability.tmc_access_token_url }}?refresh_token={{ tanzu_mission_control_api_token }}"
+    method:      "POST"
+    status_code: "200"
+  register: _tmc_access_token
+  # don't acidentally log our access_token
+  no_log: true
+  when: tanzu_observability.use_tmc
+
+- name: "set the tmc access token"
+  set_fact:
+    _tmc_access_token: "{{ _tmc_access_token.json.access_token }}"
+  # don't acidentally log our access_token
+  no_log: true
+  when: tanzu_observability.use_tmc
+
+- name: "get tmc integrations status"
+  uri:
+    url:         "{{ tanzu_observability.tmc_org_url }}/{{ tanzu_observability.tmc_api_version }}/clusters/{{ tanzu_cluster_name }}/integrations"
+    method:      "GET"
+    status_code: "200"
+    headers:
+      Authorization: "Bearer {{ _tmc_access_token }}"
+    body_format: "json"
+  register: _tmc_integration_current_status
+  when: tanzu_observability.use_tmc
+
+- when:
+    - tanzu_observability.use_tmc
+    - (_tmc_integration_current_status.json | list | length) == 0 or
+      (_tmc_integration_current_status.json.integrations | map(attribute='fullName') | selectattr('clusterName', 'equalto', tanzu_cluster_name) | selectattr('name', 'equalto', 'tanzu-observability-saas' ) | list | length) == 0
+  block:
+    - name: "enable tanzu observability for cluster"
+      uri:
+        url:         "{{ tanzu_observability.tmc_org_url }}/{{ tanzu_observability.tmc_api_version }}/clusters/{{ tanzu_cluster_name }}/integrations"
+        method:      "POST"
+        status_code: "200"
+        headers:
+          Authorization: "Bearer {{ _tmc_access_token }}"
+        body_format: "json"
+        body:
+          integration:
+            full_name:
+              name: "tanzu-observability-saas"
+              managementClusterName: "attached"
+              provisionerName: "attached"
+            spec:
+              configurations:
+                url: "https://{{ tanzu_observability_org_name }}.wavefront.com/api/"
+                clusterName: "{{ tanzu_cluster_name }}"
+              secrets:
+                token: "{{ tanzu_observability_api_token }}"
+      register: _tmc_integration_enable_status

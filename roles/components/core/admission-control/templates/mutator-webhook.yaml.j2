@@ -1,0 +1,32 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: mutating-webhook-configuration
+  annotations:
+    cert-manager.io/inject-ca-from: {{ tanzu_admission_control.namespace }}/sac
+webhooks:
+  - clientConfig:
+      service:
+        name: sac
+        namespace: {{ tanzu_admission_control.namespace }}
+        path: /mutate-v1-pod
+    namespaceSelector:
+      matchExpressions:
+      - key: name
+        operator: NotIn
+        values: ["kube-system","{{ tanzu_admission_control.namespace }}"]
+    failurePolicy: Fail
+    name: sac.{{ tanzu_admission_control.namespace }}.svc
+    rules:
+      - apiGroups:
+          - ""
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - pods

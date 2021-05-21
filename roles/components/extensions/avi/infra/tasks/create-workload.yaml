@@ -1,0 +1,147 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+# inspired by https://github.com/avinetworks/devops/blob/master/ansible/vcf/vcf-workload.yml
+- name: "create workload tenant"
+  avi_tenant:
+    controller:  "{{ _avi_controller_1_mgmt_ip }}"
+    username:    "{{ avi.controller.username }}"
+    password:    "{{ avi.controller.password }}"
+    tenant:      "{{ avi.controller.tenant }}"
+    config_settings:
+      se_in_provider_context:       false
+      tenant_access_to_provider_se: true
+      tenant_vrf:                   false
+    local: true
+    name: "{{ avi.controller.tenant }}"
+  when: avi.controller.tenant != 'admin'
+
+- name: "create dns profile"
+  avi_ipamdnsproviderprofile:
+    controller: "{{ _avi_controller_1_mgmt_ip }}"
+    username:   "{{ avi.controller.username }}"
+    password:   "{{ avi.controller.password }}"
+    tenant:     "{{ avi.controller.tenant }}"
+    name:       "{{ avi.controller.workload_name }}-ako-dns"
+    type:       "IPAMDNS_TYPE_INTERNAL_DNS"
+    tenant_ref: "/api/tenant?name={{ avi.controller.tenant }}"
+    internal_profile:
+      dns_service_domain:
+        - domain_name:  "{{ tanzu_ingress_domain }}"
+          num_dns_ip:   1
+          pass_through: true
+          record_ttl:   3600
+      ttl: 86400
+
+- name: "create vcenter cloud"
+  avi_cloud:
+    controller:               "{{ _avi_controller_1_mgmt_ip }}"
+    username:                 "{{ avi.controller.username }}"
+    password:                 "{{ avi.controller.password }}"
+    tenant:                   "{{ avi.controller.tenant }}"
+    name:                     "{{ avi.controller.workload_name }}-cloud"
+    vtype:                    "CLOUD_VCENTER"
+    apic_mode:                false
+    dhcp_enabled:             true
+    enable_vip_static_routes: false
+    license_type:             "LIC_CORES"
+    prefer_static_routes:     false
+    tenant_ref:               "/api/tenant?name={{ avi.controller.tenant }}"
+    dns_provider_ref:         "/api/ipamdnsproviderprofile?name={{ avi.controller.workload_name }}-ako-dns"
+    vcenter_configuration:
+      datacenter:         "{{ avi.vcenter.datacenter }}"
+      management_network: "{{ avi.vcenter.management_portgroup }}"
+      username:           "{{ vcenter_username }}"
+      password:           "{{ vcenter_password }}"
+      privilege:          "WRITE_ACCESS"
+      url:                "{{ vcenter_server }}"
+      vcenter_url:        "{{ vcenter_server }}"
+
+- name: "get networks"
+  avi_api_session:
+    http_method: get
+    controller: "{{ _avi_controller_1_mgmt_ip }}"
+    username:   "{{ avi.controller.username }}"
+    password:   "{{ avi.controller.password }}"
+    tenant:     "{{ avi.controller.tenant }}"
+    path:       "network"
+    params:
+      name: "{{ avi_service_engine_networks[0].portgroup }}"
+  register: _avi_network_results
+  until:    (_avi_network_results.obj.results | length) == 1
+  retries:  30
+  delay:    10
+
+- debug:
+    var: _avi_network_results
+
+- name: "create ipam profile"
+  avi_ipamdnsproviderprofile:
+    controller: "{{ _avi_controller_1_mgmt_ip }}"
+    username:   "{{ avi.controller.username }}"
+    password:   "{{ avi.controller.password }}"
+    tenant:     "{{ avi.controller.tenant }}"
+    name:       "{{ avi.controller.workload_name }}-ako-ipam"
+    type:       "IPAMDNS_TYPE_INTERNAL"
+    tenant_ref: "/api/tenant?name={{ avi.controller.tenant }}"
+    internal_profile:
+      usable_network_refs:
+        - "{{ _avi_network_results.obj.results[0].url }}"
+
+- name: "update vcenter cloud with ipam profile"
+  avi_cloud:
+    controller:               "{{ _avi_controller_1_mgmt_ip }}"
+    username:                 "{{ avi.controller.username }}"
+    password:                 "{{ avi.controller.password }}"
+    tenant:                   "{{ avi.controller.tenant }}"
+    name:                     "{{ avi.controller.workload_name }}-cloud"
+    vtype:                    "CLOUD_VCENTER"
+    apic_mode:                false
+    dhcp_enabled:             true
+    enable_vip_static_routes: false
+    license_type:             "LIC_CORES"
+    prefer_static_routes:     false
+    tenant_ref:               "/api/tenant?name={{ avi.controller.tenant }}"
+    dns_provider_ref:         "/api/ipamdnsproviderprofile?name={{ avi.controller.workload_name }}-ako-dns"
+    ipam_provider_ref:        "/api/ipamdnsproviderprofile?name={{ avi.controller.workload_name }}-ako-ipam"
+    vcenter_configuration:
+      datacenter:         "{{ avi.vcenter.datacenter }}"
+      management_network: "{{ _avi_network_results.obj.results[0].url }}"
+      username:           "{{ vcenter_username }}"
+      password:           "{{ vcenter_password }}"
+      privilege:          "WRITE_ACCESS"
+      url:                "{{ vcenter_server }}"
+      vcenter_url:        "{{ vcenter_server }}"
+
+- name: "create service engine group and add to cloud"
+  avi_serviceenginegroup:
+    controller:  "{{ _avi_controller_1_mgmt_ip }}"
+    username:    "{{ avi.controller.username }}"
+    password:    "{{ avi.controller.password }}"
+    tenant:      "{{ avi.controller.tenant }}"
+    cloud_ref:   "/api/cloud?name={{ avi.controller.workload_name }}-cloud"
+    name:        "{{ avi.service_engine.group }}"
+  when: avi.service_engine.group != 'Default-Group'
+
+- name: "add virtual ip network range to configured network"
+  avi_network:
+    controller:            "{{ _avi_controller_1_mgmt_ip }}"
+    username:              "{{ avi.controller.username }}"
+    password:              "{{ avi.controller.password }}"
+    tenant:                "{{ avi.controller.tenant }}"
+    name:                  "{{ avi_service_engine_networks[0].portgroup }}"
+    avi_api_update_method: "patch"
+    avi_api_patch_op:      "replace"
+    configured_subnets:
+      - prefix:
+          ip_addr:
+            addr: "{{ tanzu_load_balancer_subnet.split('/')[0] }}"
+            type: "V4"
+          mask: "{{ tanzu_load_balancer_subnet.split('/')[-1] | int }}"
+        static_ranges:
+          - begin:
+              type: "V4"
+              addr: "{{ tanzu_load_balancer_start_ip }}"
+            end:
+              type: "V4"
+              addr: "{{ tanzu_load_balancer_end_ip }}"

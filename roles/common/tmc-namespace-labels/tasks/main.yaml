@@ -1,0 +1,14 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure vmware-system-tmc namespace exists with proper labels"
+  k8s:
+    state:   "present"
+    context: "{{ tanzu_kubectl_context }}"
+    definition:
+      apiVersion: "v1"
+      kind:       "Namespace"
+      metadata:
+        name: "vmware-system-tmc"
+        labels:
+          name: "vmware-system-tmc"

@@ -1,0 +1,100 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kube-encryption-config-overlay
+  namespace: "{{ tanzu_secrets.namespace }}"
+data:
+  kube-encryption-config-overlay.yaml: |
+    #@ load("@ytt:overlay", "overlay")
+
+    #@ def has_secret_resources(i, left, right):
+    #@   resources = list(dict(left)["resources"])
+    #@   return "secrets" in resources
+    #@ end
+
+    #@ def is_identity_provider(i, left, right):
+    #@   providers = list(dict(left))
+    #@   return "identity" in providers
+    #@ end
+
+    #@overlay/match by=overlay.subset({"kind":"EncryptionConfiguration"})
+    ---
+    resources:
+    #@overlay/match by=has_secret_resources
+    - providers:
+        #@overlay/match by=is_identity_provider
+        #@overlay/remove
+        - identity: {}
+        #@overlay/match by=overlay.index(0)
+        #@overlay/insert before=True
+        - identity: {}
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ _job_name }}"
+  namespace: "{{ tanzu_secrets.namespace }}"
+spec:
+  # ensure our job doesn't keep retrying if we bork the apiserver
+  activeDeadlineSeconds: 240
+  backoffLimit: 0
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kube-encryption-config-clean
+    spec:
+      serviceAccountName: job-kube-apiserver
+      # schedule on master node(s)
+      nodeName: {{ name }}
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+
+      # create kubernetes manifests host path from master
+      restartPolicy: Never
+      containers:
+      - image: gerritk/ytt:v0.30.0
+        name: kube-apiserver-config
+        command:
+          - "/bin/sh"
+        args:
+          - "-c"
+          - |
+            cat {{ tanzu_secrets.etcd_encryption_conf_path }} > /etc/kubernetes/backup/encryption-config.yaml.orig
+            /usr/bin/ytt -f {{ tanzu_secrets.etcd_encryption_conf_path }} -f /etc/kubernetes/kube-encryption-config-overlay.yaml > /etc/kubernetes/backup/encryption-config.yaml.new
+            cat /etc/kubernetes/backup/encryption-config.yaml.new > {{ tanzu_secrets.etcd_encryption_conf_path }}
+            mv /etc/kubernetes/manifests/kube-apiserver.yaml /etc/kubernetes/backup/
+            sleep 20
+            mv /etc/kubernetes/backup/kube-apiserver.yaml /etc/kubernetes/manifests
+        volumeMounts:
+        - mountPath: /etc/kubernetes/pki/secrets
+          name: kubernetes-pki-secrets
+        - mountPath: /etc/kubernetes/manifests
+          name: kubernetes-manifests
+        - mountPath: /etc/kubernetes/backup
+          name: kubernetes-manifests-backup
+        - mountPath: /etc/kubernetes/kube-encryption-config-overlay.yaml
+          name: kube-encryption-config-overlay
+          subPath: kube-encryption-config-overlay.yaml
+          readOnly: true
+      volumes:
+      - name: kubernetes-pki-secrets
+        hostPath:
+          path: /etc/kubernetes/pki/secrets
+          type: Directory
+      - name: kubernetes-manifests
+        hostPath:
+          path: /etc/kubernetes/manifests
+          type: Directory
+      - name: kubernetes-manifests-backup
+        hostPath:
+          path: /etc/kubernetes/backup
+          type: DirectoryOrCreate
+      - name: kube-encryption-config-overlay
+        configMap:
+          name: kube-encryption-config-overlay

@@ -1,0 +1,27 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: cert-manager.io/v1alpha2
+kind: ClusterIssuer
+metadata:
+  # This issuer has low thresholds for rate limits,
+  # so only use once bugs have been worked out for ingress stanzas
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: root@{{ tanzu_ingress_domain }}
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    # Enable the HTTP-01 challenge provider
+    solvers:
+      - selector: {}
+        http01:
+          ingress:
+            podTemplate:
+              metadata:
+                creationTimestamp: null
+                labels:
+                  app.kubernetes.io/name: cluster-issuer
+              spec: {}
+            class: {{ tanzu_ingress.class }}

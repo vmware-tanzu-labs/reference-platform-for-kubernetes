@@ -1,0 +1,90 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# PRE-SET VARIABLES
+#   NOTE: this set of tasks happen BEFORE to running pre-flight tasks from all components
+#
+
+# determine components to be installed based on profile
+- name: "get the ivy_profile for backwards compatibility"
+  set_fact:
+    rpk_profile: "{{ ivy_profile | default('') }}"
+  when: rpk_profile is undefined
+
+- name: "fail fast if we still are missing the profile"
+  fail:
+    msg: "unable to determine profile from rpk_profile"
+  when: rpk_profile == ''
+
+- name: "collect rpk profile '{{ rpk_profile }}' settings"
+  include_vars: "{{ lookup('first_found', params) }}"
+  vars:
+    params:
+      files:
+        - "{{ rpk_inventory_dir }}/profiles/{{ rpk_profile }}.yaml"
+        - "profiles/{{ rpk_profile }}.yaml"
+  when: rpk_components is not defined
+
+- name: "set components with dependencies for single role"
+  set_fact:
+    rpk_components: "{{ [{'name': rpk_role_name, 'enabled': 'true'}] | rpk_resolve_deps }}"
+  when:
+    - rpk_role_name is defined
+
+- name: "collect all components"
+  include_vars:
+    file: "profiles/components.yaml"
+    name: _all_components
+
+- name: "preload variables from all components"
+  include_role:
+    name:   "{{ _component.name }}/common"
+    public: true
+  loop_control:
+    loop_var: _component
+    label:    "rpk_component: {{ _component.name }}"
+  with_items: "{{ _all_components.rpk_components }}"
+
+- when:
+    - rpk_action != "other"
+  block:
+    #
+    # VALIDATIONS
+    #
+    - name: "validate tanzu_provider"
+      fail:
+        msg: "invalid tanzu_provider for cluster {{ inventory_hostname }}"
+      when:
+        - tanzu_provider not in tanzu_providers
+
+    #
+    # AUTH
+    #   NOTE: any authentication steps required before interacting with cluster
+    #         e.g. v7wk8s kubectl vsphere login or tmc login
+    #   TODO: auth steps for v7wk8s and/or TMC-provisioned here
+    #
+
+    #
+    # NAMESPACE STRATEGY
+    #
+    - name: "determine if workload-tenancy is enabled"
+      set_fact:
+        _workload_tenancy_enabled: "{{ _workload_tenancy_component[0].enabled | default(false) }}"
+      vars:
+        _workload_tenancy_component: "{{ rpk_components | selectattr('name', 'equalto', 'workload-tenancy') | list | default([]) }}"
+      when:
+        - rpk_components is defined
+
+    - name: "get the tanzu namespace custom resource definition"
+      k8s_info:
+        kind:        "CustomResourceDefinition"
+        context:     "{{ tanzu_kubectl_context }}"
+        api_version: "apiextensions.k8s.io/v1"
+        name:        "tanzunamespaces.tenancy.platform.cnr.vmware.com"
+      register: _namespace_crd_status
+      when: _namespace_crd_status is not defined
+
+    - name: "determine tanzu namespace strategy"
+      set_fact:
+        _use_tanzu_namespace: "{{ ((_namespace_crd_status.resources | default([]) | length) == 1) or (_workload_tenancy_enabled) | default(false) }}"

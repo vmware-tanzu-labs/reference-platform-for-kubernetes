@@ -1,0 +1,17 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "wait for dns"
+  import_role:
+    name: "common/wait-for-dns"
+  vars:
+    hostname: "{{ tanzu_dashboard.dns }}"
+
+- name: "ensure the dashboard is available"
+  uri:
+    url: "http://{{ tanzu_dashboard.dns }}"
+
+- name: "print the dashboard access information"
+  debug:
+    msg: "You can access the Octant Dashboard at URL http://{{ tanzu_dashboard.dns }}"
+    verbosity: 0

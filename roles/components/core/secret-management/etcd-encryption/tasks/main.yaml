@@ -1,0 +1,56 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_secrets.staging_dir }}"
+  delegate_to: "localhost"
+
+- name: "create namespace"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_secrets.namespace }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_secrets.staging_dir }}/tanzu-namespace.yaml"
+
+#
+# RETRIEVE CLUSTER INFO
+#
+- name: "retrieve cluster info"
+  import_role:
+    name: "common/cluster-info"
+  when: tanzu_apiserver_url is not defined
+
+- name: "apply etcd encryption at rest configuration"
+  block:
+    - name: "insert secretbox provider encryptionconfig into KACP"
+      include_tasks: "insert-encryption-provider-kacp.yaml"
+
+    - name: "ensure psp for reconfiguring kube api server exists"
+      import_role:
+        name: "common/manifest-file-with-wait"
+      vars:
+        manifest_description: "psp for reconfiguring kube api server jobs"
+        manifest_template:    "psp-for-job-kube-apiserver.yaml.j2"
+        manifest_file:        "psp-for-job-kube-apiserver.yaml"
+        manifest_staging_dir: "{{ tanzu_secrets.staging_dir }}"
+
+    - name: "fetch the control plane nodes"
+      k8s_info:
+        kind:    "Node"
+        context: "{{ tanzu_kubectl_context }}"
+        label_selectors:
+          - node-role.kubernetes.io/master
+      register: nodes
+
+    - name: "reconfigure api server"
+      include_tasks: "reconfigure-api-server.yaml"
+      with_items: "{{ nodes.resources }}"
+
+- name: "Reminder to re-encrypt secrets"
+  debug:
+    msg: "Encryption config has been updated with a new secret. Re-encrypt your existing secrets with the command: \nkubectl get secrets --all-namespaces -o json | kubectl replace -f -"
+    verbosity: 0

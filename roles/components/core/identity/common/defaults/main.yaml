@@ -1,0 +1,71 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_identity:
+  # common vars
+  namespace:   "tanzu-identity"
+  staging_dir: "{{ rpk_staging_dir }}/tanzu-identity"
+
+  # ldap
+  ldap:
+    image:     "projects.registry.vmware.com/rpk/openldap"
+    image_tag: "1.2.2"
+    base_dn:   "dc={{ tanzu_ingress_domain.split('.') | join(',dc=') }}"
+    resources:
+      requests:
+        cpu:    "50m"
+        memory: "256Mi"
+      limits:
+        cpu:    "100m"
+        memory: "1Gi"
+
+  # dex
+  dex:
+    dns:                "oidc-server.{{ tanzu_ingress_domain }}"
+    image:              "registry.tkg.vmware.run/dex"
+    image_tag:          "v2.22.0_vmware.1"
+    service_account:    "dex"
+    clusterrole:        "dex-clusterrole"
+    clusterrolebinding: "dex-clusterrolebinding"
+    tls_provider:       "{{ tanzu_default_tls_provider }}"
+    resources:
+      requests:
+        cpu:    "100m"
+        memory: "32Mi"
+      limits:
+        cpu:    "200m"
+        memory: "64Mi"
+
+  # gangway
+  gangway:
+    dns:          "oidc-client.{{ tanzu_ingress_domain }}"
+    image:        "registry.tkg.vmware.run/gangway"
+    image_tag:    "v3.2.0_vmware.1"
+    tls_provider: "{{ tanzu_default_tls_provider }}"
+    resources:
+      requests:
+        cpu:    "100m"
+        memory: "128Mi"
+      limits:
+        cpu:    "200m"
+        memory: "256Mi"
+
+  # demo users
+  demo_users:
+    # example admin user
+    - username:           "jane"
+      password:           "foo"
+      first_name:         "jane"
+      last_name:          "doe"
+      email:              "jane@{{ tanzu_ingress_domain }}"
+      clusterrole:        "cluster-admin"
+      clusterrolebinding: "jane@{{ tanzu_ingress_domain }}"
+
+    # example read-only user
+    - username:           "john"
+      password:           "bar"
+      first_name:         "john"
+      last_name:          "doe"
+      email:              "john@{{ tanzu_ingress_domain }}"
+      clusterrole:        "view"
+      clusterrolebinding: "john@{{ tanzu_ingress_domain }}"

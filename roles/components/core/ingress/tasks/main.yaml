@@ -1,0 +1,152 @@
+---
+#
+# NAMESPACES
+#
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_ingress.staging_dir }}"
+
+- name: "create namespace"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_ingress.namespace }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_ingress.staging_dir }}/tanzu-namespace.yaml"
+
+#
+# LOAD BALANCER
+#   NOTE: for vSphere environments, we must ensure a load balancer is deployed first for ingress to work properly
+#
+- block:
+    - name: "ensure load balancer rbac exists"
+      import_role:
+        name: "common/manifest-file"
+      vars:
+        manifest_description: "load balancer rbac"
+        manifest_template:    "rbac-load-balancer.yaml.j2"
+        manifest_file:        "rbac-load-balancer.yaml"
+        manifest_staging_dir: "{{ tanzu_ingress.staging_dir }}"
+
+    - name: "ensure load balancer exists"
+      import_role:
+        name: "common/manifest-file-with-wait"
+      vars:
+        manifest_description: "load balancer"
+        manifest_template:    "app-load-balancer.yaml.j2"
+        manifest_file:        "app-load-balancer.yaml"
+        manifest_staging_dir: "{{ tanzu_ingress.staging_dir }}"
+  when:
+    - tanzu_provider == 'vmware'
+    - not (tanzu_load_balancer_nsx | default(False))
+
+#
+# DNS
+#
+- name: "ensure external-dns rbac exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "external-dns rbac"
+    manifest_template:    "rbac-external-dns.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_ingress.staging_dir }}"
+
+- name: "ensure internal external-dns provider is deployed"
+  import_tasks: "external-dns-internal.yaml"
+  when: tanzu_dns_provider | default(tanzu_ingress.external_dns.default_provider) == "internal"
+
+- name: "ensure route53 external-dns provider is deployed"
+  import_tasks: "external-dns-route53.yaml"
+  when: tanzu_dns_provider | default(tanzu_ingress.external_dns.default_provider) == "route53"
+
+- name: "ensure azure external-dns provider is deployed"
+  import_tasks: "external-dns-azure.yaml"
+  when: tanzu_dns_provider | default(tanzu_ingress.external_dns.default_provider) == "azure"
+
+- name: "ensure active directory external-dns provider is deployed"
+  import_tasks: "external-dns-active-directory.yaml"
+  when: tanzu_dns_provider | default(tanzu_ingress.external_dns.default_provider) == "active-directory"
+
+#
+# INGRESS
+#
+- name: "ensure contour custom resource definitions exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "contour custom resource definitions"
+    manifest_template:    "crds-contour.yaml.j2"
+    manifest_file:        "crds-contour.yaml"
+    manifest_staging_dir: "{{ tanzu_ingress.staging_dir }}"
+
+- name: "ensure contour configurations exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "contour configurations"
+    manifest_template:    "config-contour.yaml.j2"
+    manifest_file:        "config-contour.yaml"
+    manifest_staging_dir: "{{ tanzu_ingress.staging_dir }}"
+
+- name: "ensure self-signed certificates exist"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "self-signed certificates"
+    manifest_template:    "certs-self-signed.yaml.j2"
+    manifest_file:        "certs-self-signed.yaml"
+    manifest_staging_dir: "{{ tanzu_ingress.staging_dir }}"
+
+- name: "ensure contour rbac exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "contour rbac"
+    manifest_template:    "rbac-contour.yaml.j2"
+    manifest_file:        "rbac-contour.yaml"
+    manifest_staging_dir: "{{ tanzu_ingress.staging_dir }}"
+
+- name: "ensure contour exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "contour"
+    manifest_template:    "app-contour.yaml.j2"
+    manifest_file:        "app-contour.yaml"
+    manifest_staging_dir: "{{ tanzu_ingress.staging_dir }}"
+
+- name: "ensure envoy exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "envoy"
+    manifest_template:    "app-envoy.yaml.j2"
+    manifest_file:        "app-envoy.yaml"
+    manifest_staging_dir: "{{ tanzu_ingress.staging_dir }}"
+
+- name: "patch envoy for kind"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "kind envoy patch"
+    manifest_template:    "patch-envoy-kind.yaml.j2"
+    manifest_file:        "patch-envoy-kind.yaml"
+    manifest_staging_dir: "{{ tanzu_ingress.staging_dir }}"
+  when: tanzu_provider == "kind"
+
+#
+# INGRESS IP
+#
+- name: "determine the ingress ip"
+  import_role:
+    name: "common/ingress-ip"
+  when: ingress_ip is undefined
+
+- name: "ensure dns resolvability for ingress"
+  include_role:
+    name: "common/etc-hosts"
+  vars:
+    ip:   "{{ ingress_ip }}"
+    fqdn: "{{ tanzu_ingress.dns }}"

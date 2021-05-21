@@ -1,0 +1,51 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_identity.staging_dir }}"
+
+- name: "wait for dns - gangway"
+  import_role:
+    name: "common/wait-for-dns"
+  vars:
+    hostname: "{{ tanzu_identity.gangway.dns }}"
+
+- name: "wait for dns - dex"
+  import_role:
+    name: "common/wait-for-dns"
+  vars:
+    hostname: "{{ tanzu_identity.dex.dns }}"
+
+- name: "ensure the client is available"
+  uri:
+    url:            "https://{{ tanzu_identity.gangway.dns }}"
+    validate_certs: false
+  when: tanzu_provider != 'kind'
+
+- name: "write rbac definition file"
+  template:
+    src:  "rbac.yaml.j2"
+    dest: "{{ tanzu_identity.staging_dir }}/rbac.yaml"
+    mode: "0400"
+  changed_when: false
+
+- name: "ensure rbac exists"
+  k8s:
+    state:        "present"
+    context:      "{{ tanzu_kubectl_context }}"
+    src:          "{{ tanzu_identity.staging_dir }}/rbac.yaml"
+    wait:         true
+    wait_timeout: "300"
+
+- name: "you may obtain your kubectl files with the following information"
+  debug:
+    msg:
+      - "User: {{ item.email }}"
+      - "Password: {{ item.password }}"
+      - "You can access the OIDC Client Dashboard at URL https://{{ tanzu_identity.gangway.dns }}"
+      - "You will need to manually trust the CA certificates for this to work"
+    verbosity: 0
+  with_items: "{{ tanzu_identity.demo_users }}"

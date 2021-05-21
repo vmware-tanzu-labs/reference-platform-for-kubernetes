@@ -1,0 +1,36 @@
+# base version of ansible
+ansible==2.9.9
+
+# required for k8s ansible module
+openshift==0.11.1
+
+# required for vmware automation
+pyvim==3.0.2
+pyvmomi==7.0
+git+https://github.com/vmware/vsphere-automation-sdk-python.git#v6.9.1
+
+# required for aws automation
+boto==2.49.0
+boto3==1.14.5
+
+# required for hashicorp vault automation
+ansible-modules-hashivault==4.5.2
+hvac==0.10.4
+
+# required for dns lookups
+dnspython==1.16.0
+
+# required for application-pipeline
+python-jenkins>=0.4.12
+
+# required for linting
+yamllint==1.25.0
+ansible-lint==4.3.4
+
+# required for avi
+avisdk==20.1.2
+netaddr==0.8.0
+requests_toolbelt==0.9.1
+
+# required for tanzu-application-catalog
+docker>=1.20

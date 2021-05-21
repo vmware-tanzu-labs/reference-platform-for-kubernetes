@@ -1,0 +1,131 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: nexus-mirror-cfg
+  namespace: {{ tanzu_app_pipeline.namespace }}
+data:
+  rpk-settings.xml: |
+    <settings>
+        <mirrors>
+            <mirror>
+                <!--This sends everything else to /public -->
+                <id>nexus</id>
+                <mirrorOf>central</mirrorOf>
+                <url>http://{{ tanzu_app_pipeline.artifact_repo.dns }}/repository/maven-central/</url>
+            </mirror>
+            <mirror>
+                <!--This sends everything else to /public -->
+                <id>rpk</id>
+                <mirrorOf>spring-milestones</mirrorOf>
+                <url>http://{{ tanzu_app_pipeline.artifact_repo.dns }}/repository/rpk-snapshot/</url>
+            </mirror>
+        </mirrors>
+
+        <servers>
+            <server>
+                <id>mapbu-rpk-java</id>
+                <username>{{ tanzu_app_pipeline.artifact_repo.username }}</username>
+                <password>{{ tanzu_app_pipeline.artifact_repo.password }}</password>
+            </server>
+
+            <server>
+                <id>nexus</id>
+                <username>{{ tanzu_app_pipeline.artifact_repo.username }}</username>
+                <password>{{ tanzu_app_pipeline.artifact_repo.password }}</password>
+            </server>
+
+            <server>
+                <id>rpk</id>
+                <username>{{ tanzu_app_pipeline.artifact_repo.username }}</username>
+                <password>{{ tanzu_app_pipeline.artifact_repo.password }}</password>
+            </server>
+        </servers>
+
+        <profiles>
+            <profile>
+                <id>mapbu-rpk-java</id>
+                <repositories>
+                    <repository>
+                        <id>rpk</id>
+                        <url>http://{{ tanzu_app_pipeline.artifact_repo.username }}:{{ tanzu_app_pipeline.artifact_repo.password }}@{{ tanzu_app_pipeline.artifact_repo.dns }}/repository/rpk-snapshot</url>
+                        <releases>
+                            <enabled>true</enabled>
+                        </releases>
+                        <snapshots>
+                            <enabled>true</enabled>
+                        </snapshots>
+                    </repository>
+                </repositories>
+                <pluginRepositories>
+                    <pluginRepository>
+                        <id>rpk</id>
+                        <url>http://{{ tanzu_app_pipeline.artifact_repo.username }}:{{ tanzu_app_pipeline.artifact_repo.password }}@{{ tanzu_app_pipeline.artifact_repo.dns }}/repository/rpk-snapshot</url>
+                        <releases>
+                            <enabled>true</enabled>
+                        </releases>
+                        <snapshots>
+                            <enabled>true</enabled>
+                        </snapshots>
+                    </pluginRepository>
+                </pluginRepositories>
+
+                <properties>
+                    <altSnapshotDeploymentRepository>snapshots::default::http://{{ tanzu_app_pipeline.artifact_repo.username }}:{{ tanzu_app_pipeline.artifact_repo.password }}@{{ tanzu_app_pipeline.artifact_repo.dns }}/repository/rpk-snapshot</altSnapshotDeploymentRepository>
+                    <altReleaseDeploymentRepository>releases::default::http://{{ tanzu_app_pipeline.artifact_repo.username }}:{{ tanzu_app_pipeline.artifact_repo.password }}@{{ tanzu_app_pipeline.artifact_repo.dns }}/repository/rpk-snapshot</altReleaseDeploymentRepository>
+                </properties>
+            </profile>
+
+            <profile>
+                <id>nexus</id>
+                <repositories>
+                    <repository>
+                        <id>central</id>
+                        <url>http://central</url>
+                        <releases>
+                            <enabled>true</enabled>
+                        </releases>
+                        <snapshots>
+                            <enabled>true</enabled>
+                        </snapshots>
+                    </repository>
+                </repositories>
+                <pluginRepositories>
+                    <pluginRepository>
+                        <id>central</id>
+                        <url>http://central</url>
+                        <releases>
+                            <enabled>true</enabled>
+                        </releases>
+                        <snapshots>
+                            <enabled>true</enabled>
+                        </snapshots>
+                    </pluginRepository>
+                </pluginRepositories>
+            </profile>
+
+            <profile>
+                <id>sonar</id>
+                <activation>
+                    <activeByDefault>true</activeByDefault>
+                </activation>
+                <properties>
+                    <!-- Optional URL to server. Default value is http://localhost:9000 -->
+                    <sonar.host.url>http://{{ tanzu_app_pipeline.code_analyzer.dns }}</sonar.host.url>
+                </properties>
+            </profile>
+        </profiles>
+
+        <pluginGroups>
+            <pluginGroup>org.sonarsource.scanner.maven</pluginGroup>
+        </pluginGroups>
+
+        <activeProfiles>
+            <!--make the profile active all the time -->
+            <activeProfile>nexus</activeProfile>
+            <activeProfile>mapbu-rpk-java</activeProfile>
+            <activeProfile>sonar</activeProfile>
+        </activeProfiles>
+    </settings>

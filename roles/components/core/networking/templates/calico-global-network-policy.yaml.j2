@@ -1,0 +1,29 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: crd.projectcalico.org/v1
+kind: GlobalNetworkPolicy
+metadata:
+  name: tanzu-global-deny-all
+spec:
+  order: 2000
+  types:
+    - Ingress
+    - Egress
+  egress:
+    - action: Allow
+      destination: {}
+      source:
+        namespaceSelector: name == "kube-system" || name == "vmware-system-tmc" || name == "vmware-system-tsm" || name == "istio-system" || name == "kpack" || name == "build-service" || name == "avi-system" || name starts with "tanzu-"
+    - action: Allow
+      protocol: UDP
+      destination:
+        nets:
+          - 0.0.0.0/0
+        ports:
+          - 53
+  ingress:
+    - action: Allow
+      source: {}
+      destination:
+        namespaceSelector: name == "kube-system" || name == "vmware-system-tmc" || name == "vmware-system-tsm" || name == "istio-system" || name == "kpack" || name == "build-service" || name == "avi-system" || name starts with "tanzu-"

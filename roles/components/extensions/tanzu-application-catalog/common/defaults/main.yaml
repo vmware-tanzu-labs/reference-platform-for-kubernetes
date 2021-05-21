@@ -1,0 +1,27 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_application_catalog:
+  # common vars
+  namespace:               "tanzu-application-catalog"
+  staging_dir:             "{{ rpk_staging_dir }}/tanzu-application-catalog"
+  registry_endpoint:       "{{ tanzu_container_registry.core.dns }}"
+  remote_registry_name:    "tac-registry"
+  remote_registry_url:     "https://registry.pivotal.io"
+  replication_policy_name: "tac"
+  cron_schedule:           "0 40 4 * * 1"
+  app_list: "{{ tanzu_application_catalog_app_list | default([]) }}"
+    # Example:
+    # - name:  "kafka"
+    #   image: "tac-for-tanzu-advanced/containers/kafka"
+    #   tag:   "latest"
+    # - name:  "apache"
+    #   image: "tac-for-tanzu-advanced/containers/apache"
+    #   tag:   "latest"
+  chart_list: "{{ tanzu_application_catalog_chart_list | default([]) }}"
+  override_map:
+    "php":       "php-fpm"
+    "ubuntu-18": "tac-shell"
+    "kubeapps":  "kubeapps-dashboard"
+    "harbor":    "harbor-portal"
+    "wavefront": "wavefront-kubernetes-collector"

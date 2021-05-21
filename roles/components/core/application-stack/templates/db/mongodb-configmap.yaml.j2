@@ -1,0 +1,12 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongodb
+  namespace: {{ tanzu_app_stack.mongodb.namespace }}
+  labels:
+    app.kubernetes.io/name: "{{ tanzu_app_stack.mongodb.resource_name }}"
+data:
+  database-name: admin

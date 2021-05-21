@@ -1,0 +1,55 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: security.antrea.tanzu.vmware.com/v1alpha1
+kind: ClusterNetworkPolicy
+metadata:
+  name: tanzu-global-deny-all
+spec:
+  appliedTo:
+  - namespaceSelector:
+      matchLabels: {}
+  egress:
+  - action: Allow
+    to:
+    - namespaceSelector:
+        matchExpressions:
+        - key: name
+          operator: In
+          values: {{ tanzu_networking.allowed_namespaces }}
+  - action: Allow
+    ports:
+    - port: 53
+      protocol: UDP
+    to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+  - action: Drop
+    to:
+    - namespaceSelector:
+        matchLabels: {}
+  - action: Drop
+    to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+  ingress:
+  - action: Allow
+    from:
+    - namespaceSelector:
+        matchExpressions:
+        - key: name
+          operator: In
+          values: {{ tanzu_networking.allowed_namespaces }}
+  - action: Allow
+    ports:
+    - port: 53
+      protocol: UDP
+    from:
+    - namespaceSelector:
+        matchLabels: {}
+  - action: Drop
+    from:
+    - namespaceSelector:
+        matchLabels: {}
+  priority: 5
+  tier: SecurityOps

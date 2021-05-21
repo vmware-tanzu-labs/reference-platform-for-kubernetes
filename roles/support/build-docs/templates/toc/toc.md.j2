@@ -1,0 +1,4 @@
+{% for h in headings.stdout_lines %}
+{# spacing for indentation, link creation, ridding chars that break MD links etc #}
+{{ h | regex_replace('^(?P<space>#{2}\s)(?P<rest>.*$)', '- [\\g<rest>]') | regex_replace('^##','') | regex_replace('#', '  ') | regex_replace('^(?P<space>\s+)(?P<rest>.*)', '\\g<space>- [\\g<rest>]') }}(#{{ h | regex_replace('[#()./]', '') | regex_replace('(^\s{1})', '') | regex_replace('[\s]', '-') | lower }})
+{% endfor %}

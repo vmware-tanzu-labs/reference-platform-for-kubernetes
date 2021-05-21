@@ -1,0 +1,41 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: {{ tanzu_mesh.operator.name }}
+  namespace: {{ tanzu_mesh.namespace }}
+spec:
+  components:
+    pilot:
+      k8s:
+        overlays:
+          - kind: Service
+            name: istiod-{{ tanzu_mesh.image_tag | replace('.', '-') }}
+            patches:
+              - path: spec.selector
+                value: {{ tanzu_mesh.pod_labels | combine(tanzu_mesh.istiod.pod_labels) }}
+          - kind: Deployment
+            name: istiod-{{ tanzu_mesh.image_tag | replace('.', '-') }}
+            patches:
+              - path: spec.template.metadata.labels
+                value: {{ tanzu_mesh.pod_labels | combine(tanzu_mesh.istiod.pod_labels) }}
+              - path: metadata.labels
+                value: {{ tanzu_mesh.pod_labels | combine(tanzu_mesh.istiod.pod_labels) }}
+              - path: spec.selector.matchLabels
+                value: {{ tanzu_mesh.pod_labels | combine(tanzu_mesh.istiod.pod_labels) }}
+    ingressGateways:
+      - name: istio-ingressgateway
+        label: {{ tanzu_mesh.pod_labels | combine(tanzu_mesh.ingress_gateway.pod_labels) }}
+    egressGateways:
+      - name: istio-egressgateway
+        label: {{ tanzu_mesh.pod_labels | combine(tanzu_mesh.egress_gateway.pod_labels) }}
+  hub: {{ tanzu_mesh.image_repo }}
+  tag: {{ tanzu_mesh.image_tag }}
+  profile: {{ tanzu_mesh.policy_profile }}
+  values:
+    global:
+      istioNamespace: {{ tanzu_mesh.namespace }}
+    meshConfig:
+      rootNamespace: {{ tanzu_mesh.namespace }}

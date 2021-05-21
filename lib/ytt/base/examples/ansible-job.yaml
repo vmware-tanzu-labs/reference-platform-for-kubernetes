@@ -1,0 +1,44 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: common-ansible-job
+  labels:
+    app.kubernetes.io/name: ansible-job
+spec:
+  activeDeadlineSeconds: 600
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ansible-job
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+        runAsNonRoot: true
+      containers:
+        - image: projects.registry.vmware.com/rpk/rpk-job-runner:v1.0.11
+          name: rpk-job-runner
+          envFrom:
+            - secretRef:
+                name: ansible-vars-secret
+          volumeMounts:
+            - mountPath: /ansible/site.yaml
+              name: ansible-playbook-configmap
+              readOnly: true
+              subPath: site.yaml
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+      volumes:
+        - name: ansible-playbook-configmap
+          configMap:
+            name: ansible-playbook-configmap

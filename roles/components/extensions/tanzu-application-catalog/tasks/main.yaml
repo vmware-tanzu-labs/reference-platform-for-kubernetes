@@ -1,0 +1,83 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# NAMESPACES
+#
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_application_catalog.staging_dir }}"
+
+- name: "create namespace"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_application_catalog.namespace }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_application_catalog.staging_dir }}/tanzu-namespace.yaml"
+
+- name: "check if registry exists"
+  import_tasks: "find-registry.yaml"
+  vars:
+    registry_name: "{{ tanzu_application_catalog.remote_registry_name }}"
+
+- name: "ensure the tanzu application registry exists"
+  uri:
+    url:              "https://{{ tanzu_application_catalog.registry_endpoint }}/api/v2.0/registries"
+    url_username:     "{{ tanzu_container_registry.admin_username }}"
+    url_password:     "{{ tanzu_container_registry.admin_password }}"
+    method:           "POST"
+    follow_redirects: true
+    force_basic_auth: true
+    validate_certs:   false
+    status_code:      201
+    body_format:      'json'
+    body: |
+      {
+        "name": "{{ tanzu_application_catalog.remote_registry_name }}",
+        "url": "{{ tanzu_application_catalog.remote_registry_url }}",
+        "type": "docker-registry",
+        "insecure": false,
+        "credential": {
+          "access_key": "{{ tanzu_application_catalog_username }}",
+          "access_secret": "{{ tanzu_application_catalog_password }}",
+          "type": "basic"
+        }
+      }
+  no_log: not debug | default(True)
+  when: _harbor_registry_id is undefined
+
+- name: "verify tanzu application registry was created properly"
+  import_tasks: "find-registry.yaml"
+  vars:
+    registry_name: "{{ tanzu_application_catalog.remote_registry_name }}"
+  when: _harbor_registry_id is undefined
+
+- name: "fail if registry wasn't created"
+  fail:
+    msg: "An issue ocurred and the remote registry couldn't be created properly in Harbor."
+  when: _harbor_registry_id is undefined
+
+- name: "get image list"
+  import_tasks: "get-image-list.yaml"
+
+# NOTE: never implemented and will be superceded by chart-syncer
+# - name: "get chart list"
+#   import_tasks: "get-chart-list.yaml"
+
+- name: "get a list of replication policies"
+  uri:
+    url:              "https://{{ tanzu_application_catalog.registry_endpoint }}/api/v2.0/replication/policies"
+    url_username:     "{{ tanzu_container_registry.admin_username }}"
+    url_password:     "{{ tanzu_container_registry.admin_password }}"
+    method:           "GET"
+    follow_redirects: true
+    force_basic_auth: true
+    validate_certs:   false
+  register: _get_replication_policies_response
+
+- name: "create app replications"
+  include_tasks: "create-replication.yaml"
+  loop: "{{ _tac_image_list }}"

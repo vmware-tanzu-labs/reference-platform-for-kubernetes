@@ -1,0 +1,46 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sContainerRatios
+metadata:
+  name: tanzu-container-ratio
+spec:
+  match:
+    # TODO: excluded namespaces should be dynamic and not hard-coded
+    excludedNamespaces:
+      # NOTE: don't include kube-system and admission-control
+      - "kube-system"
+      - "tanzu-admission"
+      # other namespaces we deploy
+      - "tanzu-storage"
+      - "tanzu-identity"
+      - "tanzu-networking"
+      - "tanzu-monitoring"
+      - "tanzu-container-registry"
+      - "tanzu-mesh"
+      - "tanzu-logging"
+      - "tanzu-security"
+      - "tanzu-secrets"
+      - "tanzu-app-stack-department"
+      - "tanzu-app-stack-employee"
+      - "tanzu-app-stack-gateway"
+      - "tanzu-app-stack-mongodb"
+      - "tanzu-app-stack-monitoring"
+      - "tanzu-app-stack-organization"
+      - "tanzu-app-pipeline"
+      - "tanzu-spring-cloud-gateway"
+      - "tanzu-service-mesh"
+      - "vmware-system-tsm"
+      - "istio-system"
+      - "build-service" ## Tanzu build service hardcoded some of the pods to search for this namespace
+      - "kpack"
+      - "tanzu-spring-cloud-data-flow"
+      ## KIND Specific
+      - "local-path-provisioner"
+      - "local-path-storage"
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+  parameters:
+    ratio: "4"

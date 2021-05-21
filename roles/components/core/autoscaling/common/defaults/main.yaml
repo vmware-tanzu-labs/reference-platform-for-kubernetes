@@ -1,0 +1,12 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_autoscaling:
+  # common vars
+  namespace:      "tanzu-autoscaling"
+  demo_namespace: "tanzu-demo"
+  staging_dir:    "{{ rpk_staging_dir }}/tanzu-autoscaling"
+
+  # vertical pod autoscaler vars
+  vpa:
+    version: "0.9.0"

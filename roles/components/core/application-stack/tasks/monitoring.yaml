@@ -1,0 +1,42 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure application stack monitoring rbac exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "application stack monitoring rbac"
+    manifest_template:    "monitoring/monitoring-rbac.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}"
+
+- name: "ensure application stack monitoring application exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "application stack monitoring application"
+    manifest_template:    "monitoring/monitoring-app.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}"
+
+- name: "ensure application stack service monitors exist"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "application stack service monitors"
+    manifest_template:    "monitoring/monitoring-service-monitors.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}"
+
+- name: "ensure application stack monitoring rules exist"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "application stack monitoring rules"
+    manifest_template:    "monitoring/monitoring-rules.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}"
+
+- name: "ensure application stack ingress exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "application stack ingress"
+    manifest_template:    "monitoring/monitoring-ingress.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}"

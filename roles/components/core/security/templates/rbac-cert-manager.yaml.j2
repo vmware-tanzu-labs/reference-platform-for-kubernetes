@@ -1,0 +1,545 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ tanzu_security.cert_manager_cainjector.resource_name }}
+  namespace: "{{ tanzu_security.namespace }}"
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager_cainjector.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ tanzu_security.cert_manager.resource_name }}
+  namespace: "{{ tanzu_security.namespace }}"
+  annotations:
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+  namespace: "{{ tanzu_security.namespace }}"
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: {{ tanzu_security.cert_manager_cainjector.resource_name }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager_cainjector.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+rules:
+  - apiGroups: ["cert-manager.io"]
+    resources: ["certificates"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "create", "update", "patch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations", "mutatingwebhookconfigurations"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["apiregistration.k8s.io"]
+    resources: ["apiservices"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["auditregistration.k8s.io"]
+    resources: ["auditsinks"]
+    verbs: ["get", "list", "watch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ tanzu_security.cert_manager_cainjector.resource_name }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager_cainjector.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ tanzu_security.cert_manager_cainjector.resource_name }}
+subjects:
+  - name: {{ tanzu_security.cert_manager_cainjector.resource_name }}
+    namespace: "{{ tanzu_security.namespace }}"
+    kind: ServiceAccount
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: {{ tanzu_security.cert_manager_cainjector.resource_name }}:leaderelection
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager_cainjector.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+rules:
+  # Used for leader election by the controller
+  # TODO: refine the permission to *just* the leader election configmap
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: {{ tanzu_security.cert_manager_cainjector.resource_name }}:leaderelection
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager_cainjector.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ tanzu_security.cert_manager_cainjector.resource_name }}:leaderelection
+subjects:
+  - apiGroup: ""
+    kind: ServiceAccount
+    name: {{ tanzu_security.cert_manager_cainjector.resource_name }}
+    namespace: "{{ tanzu_security.namespace }}"
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ tanzu_security.cert_manager_webhook.resource_name }}:auth-delegator
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - apiGroup: ""
+    kind: ServiceAccount
+    name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+    namespace: "{{ tanzu_security.namespace }}"
+---
+# apiserver gets the ability to read authentication. This allows it to
+# read the specific configmap that has the requestheader-* entries to
+# api agg
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: {{ tanzu_security.cert_manager_webhook.resource_name }}:webhook-authentication-reader
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: extension-apiserver-authentication-reader
+subjects:
+  - apiGroup: ""
+    kind: ServiceAccount
+    name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+    namespace: "{{ tanzu_security.namespace }}"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ tanzu_security.cert_manager_webhook.resource_name }}:webhook-requester
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+rules:
+  - apiGroups:
+      - admission.cert-manager.io
+    resources:
+      - certificates
+      - certificaterequests
+      - issuers
+      - clusterissuers
+    verbs:
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: {{ tanzu_security.cert_manager_webhook.resource_name }}:dynamic-serving
+  namespace: {{ tanzu_security.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+    app.kubernetes.io/instance: {{ tanzu_security.cert_manager.resource_name }}
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+      - 'cert-manager-webhook-ca'
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: {{ tanzu_security.cert_manager_webhook.resource_name }}:dynamic-serving
+  namespace: {{ tanzu_security.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+    app.kubernetes.io/instance: {{ tanzu_security.cert_manager.resource_name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ tanzu_security.cert_manager_webhook.resource_name }}:dynamic-serving
+subjects:
+  - apiGroup: ""
+    kind: ServiceAccount
+    name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+    namespace: {{ tanzu_security.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: {{ tanzu_security.cert_manager.resource_name }}:leaderelection
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+rules:
+  # Used for leader election by the controller
+  # TODO: refine the permission to *just* the leader election configmap
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "create", "update", "patch"]
+---
+# grant cert-manager permission to manage the leaderelection configmap in the
+# leader election namespace
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: {{ tanzu_security.cert_manager.resource_name }}:leaderelection
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ tanzu_security.cert_manager.resource_name }}:leaderelection
+subjects:
+  - apiGroup: ""
+    kind: ServiceAccount
+    name: {{ tanzu_security.cert_manager.resource_name }}
+    namespace: "{{ tanzu_security.namespace }}"
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: {{ tanzu_security.cert_manager.resource_name }}-controller-issuers
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+rules:
+  - apiGroups: ["cert-manager.io"]
+    resources: ["issuers", "issuers/status"]
+    verbs: ["update"]
+  - apiGroups: ["cert-manager.io"]
+    resources: ["issuers"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: {{ tanzu_security.cert_manager.resource_name }}-controller-clusterissuers
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+rules:
+  - apiGroups: ["cert-manager.io"]
+    resources: ["clusterissuers", "clusterissuers/status"]
+    verbs: ["update"]
+  - apiGroups: ["cert-manager.io"]
+    resources: ["clusterissuers"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: {{ tanzu_security.cert_manager.resource_name }}-controller-certificates
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+rules:
+  - apiGroups: ["cert-manager.io"]
+    resources: ["certificates", "certificates/status", "certificaterequests", "certificaterequests/status"]
+    verbs: ["update"]
+  - apiGroups: ["cert-manager.io"]
+    resources: ["certificates", "certificaterequests", "clusterissuers", "issuers"]
+    verbs: ["get", "list", "watch"]
+  # We require these rules to support users with the OwnerReferencesPermissionEnforcement
+  # admission controller enabled:
+  # https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#ownerreferencespermissionenforcement
+  - apiGroups: ["cert-manager.io"]
+    resources: ["certificates/finalizers", "certificaterequests/finalizers"]
+    verbs: ["update"]
+  - apiGroups: ["acme.cert-manager.io"]
+    resources: ["orders"]
+    verbs: ["create", "delete", "get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: {{ tanzu_security.cert_manager.resource_name }}-controller-orders
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+rules:
+  - apiGroups: ["acme.cert-manager.io"]
+    resources: ["orders", "orders/status"]
+    verbs: ["update"]
+  - apiGroups: ["acme.cert-manager.io"]
+    resources: ["orders", "challenges"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["cert-manager.io"]
+    resources: ["clusterissuers", "issuers"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["acme.cert-manager.io"]
+    resources: ["challenges"]
+    verbs: ["create", "delete"]
+  # We require these rules to support users with the OwnerReferencesPermissionEnforcement
+  # admission controller enabled:
+  # https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#ownerreferencespermissionenforcement
+  - apiGroups: ["acme.cert-manager.io"]
+    resources: ["orders/finalizers"]
+    verbs: ["update"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: {{ tanzu_security.cert_manager.resource_name }}-controller-challenges
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+rules:
+  # Use to update challenge resource status
+  - apiGroups: ["acme.cert-manager.io"]
+    resources: ["challenges", "challenges/status"]
+    verbs: ["update"]
+  # Used to watch challenge resources
+  - apiGroups: ["acme.cert-manager.io"]
+    resources: ["challenges"]
+    verbs: ["get", "list", "watch"]
+  # Used to watch challenges, issuer and clusterissuer resources
+  - apiGroups: ["cert-manager.io"]
+    resources: ["issuers", "clusterissuers"]
+    verbs: ["get", "list", "watch"]
+  # Need to be able to retrieve ACME account private key to complete challenges
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+  # Used to create events
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+  # HTTP01 rules
+  - apiGroups: [""]
+    resources: ["pods", "services"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: ["extensions"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch", "create", "delete", "update"]
+  # We require the ability to specify a custom hostname when we are creating
+  # new ingress resources.
+  # See: https://github.com/openshift/origin/blob/21f191775636f9acadb44fa42beeb4f75b255532/pkg/route/apiserver/admission/ingress_admission.go#L84-L148
+  - apiGroups: ["route.openshift.io"]
+    resources: ["routes/custom-host"]
+    verbs: ["create"]
+  # We require these rules to support users with the OwnerReferencesPermissionEnforcement
+  # admission controller enabled:
+  # https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#ownerreferencespermissionenforcement
+  - apiGroups: ["acme.cert-manager.io"]
+    resources: ["challenges/finalizers"]
+    verbs: ["update"]
+  # DNS01 rules (duplicated above)
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: {{ tanzu_security.cert_manager.resource_name }}-controller-ingress-shim
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+rules:
+  - apiGroups: ["cert-manager.io"]
+    resources: ["certificates", "certificaterequests"]
+    verbs: ["create", "update", "delete"]
+  - apiGroups: ["cert-manager.io"]
+    resources: ["certificates", "certificaterequests", "issuers", "clusterissuers"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["extensions"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch"]
+  # We require these rules to support users with the OwnerReferencesPermissionEnforcement
+  # admission controller enabled:
+  # https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#ownerreferencespermissionenforcement
+  - apiGroups: ["extensions"]
+    resources: ["ingresses/finalizers"]
+    verbs: ["update"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ tanzu_security.cert_manager.resource_name }}-controller-issuers
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ tanzu_security.cert_manager.resource_name }}-controller-issuers
+subjects:
+  - name: {{ tanzu_security.cert_manager.resource_name }}
+    namespace: "{{ tanzu_security.namespace }}"
+    kind: ServiceAccount
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ tanzu_security.cert_manager.resource_name }}-controller-clusterissuers
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ tanzu_security.cert_manager.resource_name }}-controller-clusterissuers
+subjects:
+  - name: {{ tanzu_security.cert_manager.resource_name }}
+    namespace: "{{ tanzu_security.namespace }}"
+    kind: ServiceAccount
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ tanzu_security.cert_manager.resource_name }}-controller-certificates
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ tanzu_security.cert_manager.resource_name }}-controller-certificates
+subjects:
+  - name: {{ tanzu_security.cert_manager.resource_name }}
+    namespace: "{{ tanzu_security.namespace }}"
+    kind: ServiceAccount
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ tanzu_security.cert_manager.resource_name }}-controller-orders
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ tanzu_security.cert_manager.resource_name }}-controller-orders
+subjects:
+  - name: {{ tanzu_security.cert_manager.resource_name }}
+    namespace: "{{ tanzu_security.namespace }}"
+    kind: ServiceAccount
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ tanzu_security.cert_manager.resource_name }}-controller-challenges
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ tanzu_security.cert_manager.resource_name }}-controller-challenges
+subjects:
+  - name: {{ tanzu_security.cert_manager.resource_name }}
+    namespace: "{{ tanzu_security.namespace }}"
+    kind: ServiceAccount
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ tanzu_security.cert_manager.resource_name }}-controller-ingress-shim
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ tanzu_security.cert_manager.resource_name }}-controller-ingress-shim
+subjects:
+  - name: {{ tanzu_security.cert_manager.resource_name }}
+    namespace: "{{ tanzu_security.namespace }}"
+    kind: ServiceAccount
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ tanzu_security.cert_manager.resource_name }}-view
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+rules:
+  - apiGroups: ["cert-manager.io"]
+    resources: ["certificates", "certificaterequests", "issuers"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ tanzu_security.cert_manager.resource_name }}-edit
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager.resource_name }}
+    app.kubernetes.io/instance:  cert-manager
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+rules:
+  - apiGroups: ["cert-manager.io"]
+    resources: ["certificates", "certificaterequests", "issuers"]
+    verbs: ["create", "delete", "deletecollection", "patch", "update"]

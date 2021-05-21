@@ -1,0 +1,189 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hashicorp-vault
+  namespace: {{ tanzu_secrets.namespace }}
+  labels:
+    app.kubernetes.io/name: hashicorp-vault
+    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+    app.kubernetes.io/instance: hashicorp
+spec:
+  serviceName: hashicorp-vault-internal
+  podManagementPolicy: Parallel
+  replicas: {{ tanzu_secrets.hashicorp_vault.replicas }}
+  updateStrategy:
+    type: OnDelete
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hashicorp-vault
+      app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+      app.kubernetes.io/instance: hashicorp
+      component: server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: hashicorp-vault
+        app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+        app.kubernetes.io/instance: hashicorp
+        component: server
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: hashicorp-vault
+                  app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+                  app.kubernetes.io/instance: "hashicorp"
+                  component: server
+              topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 10
+      serviceAccountName: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+      securityContext:
+        runAsNonRoot: true
+        runAsGroup: 1000
+        runAsUser: 100
+        fsGroup: 1000
+      volumes:
+        - name: config
+          configMap:
+            name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+        - name: home
+          emptyDir: {}
+        - name: init-script
+          configMap:
+            name: {{ tanzu_secrets.hashicorp_vault.init_script }}
+            defaultMode: 0750
+      containers:
+        - name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+          image: {{ tanzu_secrets.hashicorp_vault.image }}:{{ tanzu_secrets.hashicorp_vault.image_tag }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - "/bin/sh"
+            - "-ec"
+          args:
+            - |
+              sed -E "s/HOST_IP/${HOST_IP?}/g" /vault/config/extraconfig-from-values.hcl > /tmp/storageconfig.hcl;
+              sed -Ei "s/POD_IP/${POD_IP?}/g" /tmp/storageconfig.hcl;
+              /usr/local/bin/docker-entrypoint.sh vault server -config=/tmp/storageconfig.hcl
+          env:
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: VAULT_K8S_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: VAULT_K8S_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: VAULT_LOG_LEVEL
+              value: debug
+            - name: VAULT_ADDR
+              value: "http://127.0.0.1:8200"
+            - name: VAULT_API_ADDR
+              value: "http://$(POD_IP):8200"
+            - name: SKIP_CHOWN
+              value: "true"
+            - name: SKIP_SETCAP
+              value: "true"
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: VAULT_CLUSTER_ADDR
+              value: "https://$(HOSTNAME).{{ tanzu_secrets.namespace }}:8201"
+            - name: HOME
+              value: "/home/vault"
+          volumeMounts:
+            - name: data
+              mountPath: /vault/data
+            - name: config
+              mountPath: /vault/config
+            - name: home
+              mountPath: /home/vault
+            - name: init-script
+              mountPath: /home/vault/init-script.sh
+              subPath: init-script.sh
+          ports:
+            - containerPort: 8200
+              name: http
+            - containerPort: 8201
+              name: https-internal
+            - containerPort: 8202
+              name: http-rep
+          readinessProbe:
+            # Check status; unsealed vault servers return 0
+            # The exit code reflects the seal status:
+            #   0 - unsealed
+            #   1 - error
+            #   2 - sealed
+            exec:
+              command: ["/bin/sh", "-ec", "vault status -tls-skip-verify"]
+            failureThreshold: 2
+            initialDelaySeconds: 5
+            periodSeconds: 3
+            successThreshold: 1
+            timeoutSeconds: 5
+          resources: {{ tanzu_secrets.hashicorp_vault.resources }}
+          lifecycle:
+            # Vault container doesn't receive SIGTERM from Kubernetes
+            # and after the grace period ends, Kube sends SIGKILL.  This
+            # causes issues with graceful shutdowns such as deregistering itself
+            # from Consul (zombie services).
+            preStop:
+              exec:
+                command: [
+                  "/bin/sh", "-c",
+                  # Adding a sleep here to give the pod eviction a
+                  # chance to propagate, so requests will not be made
+                  # to this pod while it's terminating
+                  "sleep 5 && kill -SIGTERM $(pidof vault)",
+                ]
+            postStart:
+              exec:
+                command:
+                  - "/home/vault/init-script.sh"
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hashicorp-vault
+  namespace: {{ tanzu_secrets.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+    app.kubernetes.io/instance: hashicorp
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  # clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: "http"
+      port: 8200
+      targetPort: 8200
+    - name: https-internal
+      port: 8201
+      targetPort: 8201
+  selector:
+    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+    app.kubernetes.io/instance: hashicorp
+    component: server

@@ -1,0 +1,33 @@
+---
+all:
+  vars:
+    aws_access_key:                      ""
+    aws_secret_key:                      ""
+    tanzu_mission_control_org_name:      ""
+    tanzu_mission_control_api_token:     ""
+    tanzu_service_mesh_api_token:        ""
+    tanzu_service_mesh_url:              ""
+    tanzu_observability_org_name:        ""
+    tanzu_observability_api_token:       ""
+    tanzu_build_service_username:        ""
+    tanzu_build_service_password:        ""
+    tanzu_sql_username:                  ""
+    tanzu_sql_password:                  ""
+    tanzu_network_api_token:             ""
+    tanzu_application_catalog_username:  ""
+    tanzu_application_catalog_password:  ""
+    tanzu_application_catalog_api_token: ""
+  children:
+    azure_clusters:
+      vars:
+        tanzu_provider:             "azure"
+        tanzu_dns_provider:         "internal"  # only internal and route53 supported for now
+        tanzu_default_tls_provider: "ca"
+      hosts:
+        azure_tanzu_cluster1:
+          rpk_profile:                         "platform"
+          tanzu_kubectl_context:               "{{ lookup('env', 'RPK_KUBECONFIG_CONTEXT') }}"
+          tanzu_ingress_domain:                "azure-cluster-1.ihazcloudthings.xyz"
+          tanzu_cluster_name:                  "azure-cluster-1"
+          tanzu_mission_control_cluster_group: "rpk-clusters-ci-cd"
+          tanzu_storage_classes_azure: []

@@ -1,0 +1,23 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: "{{ tanzu_app_stack.service_account }}"
+  namespace: "{{ tanzu_app_stack.mongodb.namespace }}"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ tanzu_app_stack.mongodb.resource_name }}
+  labels:
+    app.kubernetes.io/name: "{{ tanzu_app_stack.resource_name }}"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ tanzu_app_stack.resource_name }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ tanzu_app_stack.service_account }}
+    namespace: {{ tanzu_app_stack.mongodb.namespace }}

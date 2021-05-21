@@ -1,0 +1,10 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure the antrea cluster network policy is removed"
+  k8s:
+    state:       "absent"
+    context:     "{{ tanzu_kubectl_context }}"
+    kind:        "ClusterNetworkPolicy"
+    name:        "tanzu-global-deny-all"
+    api_version: "security.antrea.tanzu.vmware.com/v1alpha1"

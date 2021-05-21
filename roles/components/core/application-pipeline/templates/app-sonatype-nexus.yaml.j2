@@ -1,0 +1,151 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ tanzu_app_pipeline.artifact_repo.resource_name }}
+  namespace: {{ tanzu_app_pipeline.namespace }}
+  labels:
+    app.kubernetes.io/name: sonatype-nexus
+    fullname: sonatype-nexus
+    release: sonatype-nexus
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_app_pipeline.module }}"
+    rpk.resource: "pipeline-sonatype-nexus-sa"
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ tanzu_app_pipeline.artifact_repo.resource_name }}-data
+  namespace: {{ tanzu_app_pipeline.namespace }}
+  labels:
+    app.kubernetes.io/name: sonatype-nexus
+    fullname: sonatype-nexus
+    release: sonatype-nexus
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_app_pipeline.module }}"
+    rpk.resource: "pipeline-sonatype-nexus-pvc"
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "8Gi"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ tanzu_app_pipeline.artifact_repo.resource_name }}
+  namespace: {{ tanzu_app_pipeline.namespace }}
+  labels:
+    app.kubernetes.io/name: sonatype-nexus
+    fullname: sonatype-nexus
+    release: sonatype-nexus
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_app_pipeline.module }}"
+    rpk.resource: "pipeline-sonatype-nexus-deployment"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sonatype-nexus
+      release: sonatype-nexus
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sonatype-nexus
+        release: sonatype-nexus
+    spec:
+      serviceAccountName: {{ tanzu_app_pipeline.artifact_repo.resource_name }}
+      containers:
+        - name: nexus
+          image: "{{ tanzu_app_pipeline.artifact_repo.image }}:{{ tanzu_app_pipeline.artifact_repo.image_tag }}"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: install4jAddVmParams
+              value: -Xms1024M -Xmx1024M -XX:MaxDirectMemorySize=1024M -XX:+UnlockExperimentalVMOptions
+                -XX:+UseCGroupMemoryLimitForHeap
+            - name: NEXUS_SECURITY_RANDOMPASSWORD
+              value: "false"
+          ports:
+            - containerPort: 5003
+              name: nexus-docker-g
+            - containerPort: 8081
+              name: nexus-http
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 6
+          volumeMounts:
+            - mountPath: /nexus-data
+              name: sonatype-nexus-data
+            - mountPath: /nexus-data/backup
+              name: sonatype-nexus-backup
+          resources: {{ tanzu_app_pipeline.artifact_repo.resources }}
+      securityContext:
+        runAsUser: 200
+        fsGroup: 2000
+      volumes:
+        - name: sonatype-nexus-data
+          persistentVolumeClaim:
+            claimName: sonatype-nexus-data
+        - name: sonatype-nexus-backup
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ tanzu_app_pipeline.artifact_repo.resource_name }}
+  namespace: {{ tanzu_app_pipeline.namespace }}
+  labels:
+    app.kubernetes.io/name: sonatype-nexus
+    fullname: sonatype-nexus
+    release: sonatype-nexus
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_app_pipeline.module }}"
+    rpk.resource: "pipeline-sonatype-nexus-svc"
+spec:
+  ports:
+    - port: 8081
+      name: {{ tanzu_app_pipeline.artifact_repo.resource_name }}
+      protocol: TCP
+      targetPort: 8081
+  selector:
+    app.kubernetes.io/name: sonatype-nexus
+    release: sonatype-nexus
+  type: ClusterIP
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ tanzu_app_pipeline.artifact_repo.resource_name }}
+  namespace: {{ tanzu_app_pipeline.namespace }}
+  labels:
+    app.kubernetes.io/name: sonatype-nexus
+    fullname: sonatype-nexus
+    release: sonatype-nexus
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_app_pipeline.module }}"
+    rpk.resource: "pipeline-sonatype-nexus-ingress"
+  annotations:
+    external-dns.alpha.kubernetes.io/target: "{{ tanzu_ingress.dns }}"
+spec:
+  rules:
+    - host: {{ tanzu_app_pipeline.artifact_repo.dns }}
+      http:
+        paths:
+          - backend:
+              serviceName: {{ tanzu_app_pipeline.artifact_repo.resource_name }}
+              servicePort: 8081
+            path: /

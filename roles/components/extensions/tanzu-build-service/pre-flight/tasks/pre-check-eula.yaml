@@ -1,0 +1,31 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- debug:
+    msg: "checking eula for {{ item.name }}"
+
+- name: "retrieve releases for {{ item.name }}"
+  uri:
+    url:              "{{ item._links.releases.href }}"
+    method:           "GET"
+    status_code:      [200]
+    validate_certs: false
+  register: _releases
+
+- name: "retrieve product info for {{ item.name }}"
+  uri:
+    url:              "{{ _releases.json.releases[0]._links.product_files.href }}"
+    method:           "GET"
+    status_code:      [200]
+    validate_certs: false
+  register: _product_files
+
+- name: "initialize retry_count"
+  set_fact:
+    _retry_count: 0
+
+- name: "check eula acceptance"
+  include_tasks: "check-eula.yaml"
+  vars:
+    _product_name: "{{ item.name }}"
+    _product_url:  "{{ _product_files.json.product_files[0]._links.download.href }}"

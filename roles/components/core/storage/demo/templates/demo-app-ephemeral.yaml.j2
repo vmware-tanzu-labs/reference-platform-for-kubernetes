@@ -1,0 +1,35 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ tanzu_storage.ephemeral.name }}
+  namespace: "{{ tanzu_storage.namespace }}"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: {{ tanzu_storage.ephemeral.name }}
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: demo-storage-app-ephemeral
+  namespace: "{{ tanzu_storage.namespace }}"
+  labels:
+    app.kubernetes.io/name: demo-storage-app-ephemeral
+spec:
+  containers:
+    - name: my-demo
+      image: busybox
+      volumeMounts:
+        - mountPath: "/data"
+          name: my-csi-volume
+      command: ["sleep", "3600"]
+  volumes:
+    - name: my-csi-volume
+      persistentVolumeClaim:
+        claimName: {{ tanzu_storage.ephemeral.name }}

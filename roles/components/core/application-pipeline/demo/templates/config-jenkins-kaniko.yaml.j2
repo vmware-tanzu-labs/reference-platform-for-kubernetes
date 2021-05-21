@@ -1,0 +1,27 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: docker-config
+  namespace: {{ tanzu_app_pipeline.namespace }}
+data:
+  # echo -n username:docker-access-token | base64
+  ## consideration to use internal registry
+  ##  {{ tanzu_container_registry.core.dns }}
+  ## {{ tanzu_container_registry.registry.resource_name }}
+  ##  https://index.docker.io/v1/
+  config.json: |-
+    {
+        "auths": {
+            "{{ tanzu_container_registry.core.dns }}": {
+                "auth": "{{ (tanzu_container_registry.admin_username + ':' + tanzu_container_registry.admin_password) | b64encode }}"
+            }
+        },
+        "HttpHeaders": {
+            "User-Agent": "Docker-Client/18.09.7 (linux)"
+        }
+    }
+
+

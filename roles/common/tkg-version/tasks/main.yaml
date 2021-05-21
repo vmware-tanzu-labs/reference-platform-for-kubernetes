@@ -1,0 +1,26 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "get the tkg metadata configmap"
+  k8s_info:
+    kind:        "ConfigMap"
+    context:     "{{ tanzu_kubectl_context }}"
+    api_version: "v1"
+    name:        "tkg-metadata"
+    namespace:   "tkg-system-public"
+  register: _tkg_metadata
+
+- name: "assume cluster is not a tkg cluster"
+  set_fact:
+    _tkg_cluster: false
+
+- name: "check cluster is a tkg cluster"
+  set_fact:
+    _tkg_cluster: true
+  when: (_tkg_metadata.resources | length) > 0
+
+- name: "set fact for tkg version"
+  set_fact:
+    _tkg_release: "{{ (_tkg_metadata.resources[0].data['metadata.yaml'] | from_yaml).cluster.tkgVersion | regex_replace ('v') }}"
+  when:
+    - _tkg_cluster | bool

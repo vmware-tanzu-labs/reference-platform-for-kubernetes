@@ -1,0 +1,147 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ tanzu_storage.vmware.config_job.vars_secret }}
+  namespace: {{ tanzu_storage.namespace }}
+data:
+  vmware_storage_classes_yaml: {{ _vmware_storage_classes | to_yaml | b64encode }}
+  vcenter_server: {{ vcenter_server | b64encode }}
+  vcenter_username: {{ vcenter_username | b64encode }}
+  vcenter_password: {{ vcenter_password | b64encode }}
+  vcenter_tag_category: {{ tanzu_storage.vmware.vcenter_tag_category | b64encode }}
+  vcenter_tag_description: {{ tanzu_storage.vmware.vcenter_tag_description | b64encode }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ tanzu_storage.vmware.config_job.playbook_config_map }}
+  namespace: {{ tanzu_storage.namespace }}
+data:
+  site.yaml: |
+{% raw %}
+    ---
+    - hosts: localhost
+      gather_facts: false
+      connection: local
+      vars:
+        vmware_storage_classes:  "{{ lookup('env', 'vmware_storage_classes_yaml') | from_yaml }}"
+        vcenter_server:          "{{ lookup('env', 'vcenter_server') }}"
+        vcenter_username:        "{{ lookup('env', 'vcenter_username') }}"
+        vcenter_password:        "{{ lookup('env', 'vcenter_password') }}"
+        vcenter_tag_category:    "{{ lookup('env', 'vcenter_tag_category') }}"
+        vcenter_tag_description: "{{ lookup('env', 'vcenter_tag_description') }}"
+      tasks:
+        - name: "ensure the storage class tag category exists in vcenter"
+          community.vmware.vmware_category:
+            hostname:             "{{ vcenter_server }}"
+            username:             "{{ vcenter_username }}"
+            password:             "{{ vcenter_password }}"
+            validate_certs:       false
+            category_name:        "{{ vcenter_tag_category }}"
+            category_description: "{{ vcenter_tag_description }}"
+            category_cardinality: "multiple"
+            state:                "present"
+          register: _vmware_tag_category_info
+
+        - name: "view tag category info"
+          debug:
+            var:       _vmware_tag_category_info
+            verbosity: 1
+
+        - name: "get info about all tags"
+          community.vmware.vmware_tag_info:
+            hostname:       "{{ vcenter_server }}"
+            username:       "{{ vcenter_username }}"
+            password:       "{{ vcenter_password }}"
+            validate_certs: false
+          register: _vmware_tag_info
+
+        - name: "view tag info"
+          debug:
+            var:       _vmware_tag_info
+            verbosity: 1
+
+        - name: "ensure storage class tags exist in vcenter"
+          community.vmware.vmware_tag:
+            hostname:        "{{ vcenter_server }}"
+            username:        "{{ vcenter_username }}"
+            password:        "{{ vcenter_password }}"
+            validate_certs:  false
+            category_id:     "{{ _vmware_tag_category_info.category_results.category_id }}"
+            tag_name:        "{{ item.name }}"
+            tag_description: "Tanzu Storage Class: {{ item.name }}"
+          loop: "{{ vmware_storage_classes }}"
+
+        - name: "apply storage class tags to datastores"
+          community.vmware.vmware_tag_manager:
+            hostname:       "{{ vcenter_server }}"
+            username:       "{{ vcenter_username }}"
+            password:       "{{ vcenter_password }}"
+            validate_certs: false
+            tag_names:      ["{{ item.0.name }}"]
+            object_name:    "{{ item.1 }}"
+            object_type:    "Datastore"
+            state:          "present"
+          with_subelements:
+            - "{{ vmware_storage_classes }}"
+            - datastores
+
+        - name: "ensure the storage policies exist"
+          community.vmware.vmware_vm_storage_policy:
+            hostname:       "{{ vcenter_server }}"
+            username:       "{{ vcenter_username }}"
+            password:       "{{ vcenter_password }}"
+            validate_certs: false
+            name:           "{{ item.name }}"
+            description:    "Tanzu Storage Policy: {{ item.name }}"
+            tag_category:   "{{ vcenter_tag_category }}"
+            tag_name:       "{{ item.name }}"
+            tag_affinity:   true
+            state:          "present"
+          loop: "{{ vmware_storage_classes }}"
+{% endraw %}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ tanzu_storage.vmware.config_job.name }}
+  namespace: {{ tanzu_storage.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_storage.vmware.config_job.name }}
+spec:
+  activeDeadlineSeconds: 600
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ tanzu_storage.vmware.config_job.name }}
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+        runAsNonRoot: true
+      containers:
+        - image: projects.registry.vmware.com/rpk/rpk-job-runner:v1.0.11
+          name: rpk-job-runner
+          envFrom:
+            - secretRef:
+                name: {{ tanzu_storage.vmware.config_job.vars_secret }}
+          volumeMounts:
+            - mountPath: /ansible/site.yaml
+              name: {{ tanzu_storage.vmware.config_job.playbook_config_map }}
+              readOnly: true
+              subPath: site.yaml
+            - mountPath: /.ansible
+              name: ansible-tmp
+              readOnly: false
+          resources: {{ tanzu_storage.vmware.config_job.resources }}
+      volumes:
+        - name: {{ tanzu_storage.vmware.config_job.playbook_config_map }}
+          configMap:
+            name: {{ tanzu_storage.vmware.config_job.playbook_config_map }}
+        - name: ansible-tmp
+          emptyDir: {}

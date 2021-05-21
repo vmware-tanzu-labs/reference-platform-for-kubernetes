@@ -1,0 +1,83 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "gitea-create-user"
+  namespace: "{{ tanzu_app_pipeline.namespace }}"
+  labels:
+    app.kubernetes.io/name: gitea-create-user-job
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gitea-create-user-job
+    spec:
+      restartPolicy: Never
+#      initContainers:
+#        - name: init
+#          image: gitea/gitea:1.11.5
+#          imagePullPolicy: IfNotPresent
+#          env:
+#            - name: MARIADB_PASSWORD
+#              valueFrom:
+#                secretKeyRef:
+#                  name: {{ tanzu_app_pipeline.git.resource_name }}-mariadb
+#                  key: mariadb-password
+#            - name: SCRIPT
+#              value: &script |-
+#                mkdir -p /datatmp/gitea/conf
+#                if [ ! -f /datatmp/gitea/conf/app.ini ]; then
+#                  sed "s/MARIADB_PASSWORD/${MARIADB_PASSWORD}/g" < /etc/gitea/app.ini > /datatmp/gitea/conf/app.ini
+#                fi
+#          command: ["/bin/sh",'-c', *script]
+#          volumeMounts:
+#            - name: gitea-config
+#              mountPath: /etc/gitea
+#            - name: gitea-data
+#              mountPath: /datatmp
+#          resources:
+#            limits:
+#              cpu: 25m
+#              memory: 32Mi
+#            requests:
+#              cpu: 25m
+#              memory: 32Mi
+      containers:
+        - image: gitea/gitea:1.11.5
+          name: create-user
+          env:
+            - name: MARIADB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ tanzu_app_pipeline.git.resource_name }}-mariadb
+                  key: mariadb-password
+            - name: USER_SCRIPT
+              value: &userscript |-
+                mkdir -p /data/gitea/conf && chmod 0777 /data/gitea/conf
+                if [ ! -f /data/gitea/conf/app.ini ]; then
+                  sed "s/MARIADB_PASSWORD/${MARIADB_PASSWORD}/g" < /etc/gitea/app.ini > /data/gitea/conf/app.ini
+                  chmod 777 /data/gitea/conf/app.ini
+                fi
+                su git -c "gitea admin create-user --must-change-password=false --username={{ tanzu_app_pipeline.git.username }} --password={{ tanzu_app_pipeline.git.password }} --email={{ tanzu_app_pipeline.git.email }} --admin"
+          command: ["/bin/sh", '-c', *userscript]
+          resources:
+            limits:
+              cpu: 25m
+              memory: 32Mi
+            requests:
+              cpu: 25m
+              memory: 32Mi
+          volumeMounts:
+            - name: gitea-config
+              mountPath: /etc/gitea
+            - name: gitea-data
+              mountPath: /data
+      volumes:
+        - name: gitea-config
+          configMap:
+            name: {{ tanzu_app_pipeline.git.resource_name }}-gitea
+        - name: gitea-data
+          emptyDir: {}

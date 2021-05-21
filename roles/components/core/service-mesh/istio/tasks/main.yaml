@@ -1,0 +1,61 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# NAMESPACE
+#
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_mesh.staging_dir }}"
+
+- name: "create required istio namespaces"
+  include_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_mesh.namespace }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_mesh.staging_dir }}/tanzu-namespace.yaml"
+
+#
+# RESOURCE DEFIINITIONS
+#
+- name: "ensure istio operator exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "istio operator"
+    manifest_template:    "istio-operator.yaml.j2"
+    manifest_file:        "istio-operator.yaml"
+    manifest_staging_dir: "{{ tanzu_mesh.staging_dir }}"
+
+- name: "ensure istio operator resource definition (profile) exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "istio operator resource definition (profile)"
+    manifest_template:    "istio-profile.yaml.j2"
+    manifest_file:        "istio-profile.yaml"
+    manifest_staging_dir: "{{ tanzu_mesh.staging_dir }}"
+
+#
+# ENSURE GATEWAYS
+#
+- name: "wait until the gateways are available"
+  k8s_info:
+    kind:      "Deployment"
+    namespace: "{{ tanzu_mesh.namespace }}"
+    context:   "{{ tanzu_kubectl_context }}"
+    label_selectors:
+      - "app.kubernetes.io/name = istio"
+      - "component = {{ item }}"
+  register: gateway_status
+  until:
+    - gateway_status.resources[0].status.readyReplicas is defined
+    - gateway_status.resources[0].spec.replicas == gateway_status.resources[0].status.readyReplicas
+  retries: 100
+  delay:   10
+  with_items:
+    - "ingress-gateway"
+    - "egress-gateway"

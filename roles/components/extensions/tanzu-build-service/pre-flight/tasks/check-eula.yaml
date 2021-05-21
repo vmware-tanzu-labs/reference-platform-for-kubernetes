@@ -1,0 +1,37 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+
+- name: "increase the retry count"
+  set_fact:
+    _retry_count: "{{ 0 if retry_count is undefined else retry_count | int + 1 }}"
+
+- name: "check eula acceptance for {{ _product_name }}"
+  uri:
+    url:              "{{ _product_url }}"
+    method:           "GET"
+    force_basic_auth: true
+    headers:
+      Authorization: "Token {{ tanzu_network_legacy_api_token }}"
+    status_code:      [200, 451, 404] ## possible return value 401, 403 ( user have no access) , 404 ( safe to ignore ), 451 ( user has not accept eula )
+    validate_certs: false
+  register: _eula_result
+
+- set_fact:
+    _retry_count: 10
+  when: _eula_result.status == 200 or _eula_result.status == 404
+
+- meta: end_play
+  when: _eula_result.status == '451' and (_retry_count | int  == 10) #  user has not accept the EULA after time lapsed ( 300 seconds )
+
+- name: "waiting for user to accept eula"
+  block:
+    - debug:
+        msg: "eula not accepted for {{ _product_name }} \nPlease accept tanzu build service eula at : \n 1. https://network.tanzu.vmware.com/products/tanzu-buildpacks-suite  \n 2. https://network.tanzu.vmware.com/products/tanzu-stacks-suite \n 3.https://network.tanzu.vmware.com/products/build-service/ \n 4.https://network.tanzu.vmware.com/products/tbs-dependencies/ \nrpk will resume execution in 30 seconds"
+
+    - pause:
+        seconds: 30
+
+    - name: "check eula acceptance"
+      include_tasks: "check-eula.yaml"
+  when: (_retry_count | int < 10 )

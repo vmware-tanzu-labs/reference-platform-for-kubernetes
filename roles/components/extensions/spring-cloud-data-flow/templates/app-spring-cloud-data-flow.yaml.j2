@@ -1,0 +1,298 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: "scdf-server"
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data-flow-service-config"
+  name: scdf-server-btd9992d4k
+  namespace: {{ tanzu_spring_cloud_data_flow.namespace }}
+data:
+  application-database.yaml: |
+    spring:
+      datasource:
+        url: jdbc:postgresql://postgresql:5432/dataflow
+        username: postgres
+        password: ${database-password}
+        driverClassName: org.postgresql.Driver
+        testOnBorrow: true
+        validationQuery: "SELECT 1"
+  application-monitoring.yaml: |
+    spring:
+      cloud:
+        dataflow:
+          applicationProperties:
+            stream:
+              management:
+                metrics:
+                  export:
+                    prometheus:
+                      enabled: true
+                      rsocket:
+                        enabled: true
+                        host: scdf-prometheus-proxy
+                        port: 7001
+            task:
+              management:
+                metrics:
+                  export:
+                    prometheus:
+                      enabled: true
+                      rsocket:
+                        enabled: true
+                        host: scdf-prometheus-proxy
+                        port: 7001
+          grafana-info:
+            url: http://localhost:3000
+  application.yaml: |
+    server:
+      port: 8080
+    spring:
+      cloud:
+        dataflow:
+          container:
+            registry-configurations:
+              tanzu-net:
+                registry-host: registry.pivotal.io
+                authorization-type: dockeroauth2
+                extra:
+                  "registryAuthUri": https://registry.pivotal.io/service/token?service=harbor-registry&scope=repository:{repository}:pull
+          server:
+            uri: http://${SCDF_SERVER_SERVICE_HOST}:${SCDF_SERVER_SERVICE_PORT}
+          features:
+            schedules-enabled: true
+          task:
+            # composedTaskRunnerUri: docker://registry.pivotal.io/p-scdf-for-kubernetes/spring-cloud-dataflow-composed-task-runner@sha256:e41c95e2af62523419555be5637d71b3ebb677b039009f7d24f9d5d6995f7ef9
+            composedTaskRunnerUri: docker://{{ tanzu_container_registry.core.dns +'/'+ tanzu_spring_cloud_data_flow.registry.project.project_name + '/spring-cloud-dataflow-composed-task-runner:' + tanzu_spring_cloud_data_flow.registry.destination_tag }}
+            platform:
+              kubernetes:
+                accounts:
+                  default:
+                    imagePullSecret: scdf-image-regcred
+                    limits:
+                      memory: 512Mi
+                      cpu: 400m
+                    requests:
+                      memory: 512Mi
+                      cpu: 200m
+          security:
+            authorization:
+              permit-all-paths: "/management/health,/management/info,/authenticate,/security/info,/assets/**,/dashboard/logout-success-oauth.html,/favicon.ico"
+        skipper:
+          client:
+            serverUri: http://${SKIPPER_SERVICE_HOST}:${SKIPPER_SERVICE_PORT}/api
+    maven:
+      remote-repositories:
+        repo1:
+          url: https://repo.spring.io/libs-snapshot
+  bootstrap.yaml: |
+    spring:
+      cloud:
+        config:
+          enabled: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/name: "scdf-server"
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data-flow-service-account"
+  name: scdf-data-flow
+  namespace:  {{ tanzu_spring_cloud_data_flow.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/name: "scdf-server"
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data-flow-role"
+  name: scdf-role
+  namespace:  {{ tanzu_spring_cloud_data_flow.namespace }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  - pods/log
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  - jobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - watch
+  - update
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: "scdf-server"
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data-flow-role-bindign"
+  name: scdf-rb
+  namespace:  {{ tanzu_spring_cloud_data_flow.namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: scdf-role
+subjects:
+- kind: ServiceAccount
+  name: scdf-data-flow
+  namespace: {{ tanzu_spring_cloud_data_flow.namespace }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: "scdf-server"
+    spring-deployment-id: scdf
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data-flow-service"
+  name: scdf-server
+  namespace:  {{ tanzu_spring_cloud_data_flow.namespace }}
+spec:
+  ports:
+  - port: 80
+    targetPort: 8080
+  selector:
+    app.kubernetes.io/name: "scdf-server"
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: "scdf-server"
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data-flow-deployment"
+  name: scdf-server
+  namespace: {{ tanzu_spring_cloud_data_flow.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "scdf-server"
+  template:
+    metadata:
+      namespace: {{ tanzu_spring_cloud_data_flow.namespace }}
+      labels:
+        app.kubernetes.io/name: "scdf-server"
+        rpk.heritage: "true"
+        rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    spec:
+      containers:
+      - env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: database,monitoring
+        - name: SPRING_CONFIG_ADDITIONAL_LOCATION
+          value: /workspace/runtime/config/
+        - name: KUBERNETES_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: SPRING_CLOUD_KUBERNETES_CONFIG_ENABLE_API
+          value: "false"
+        - name: SPRING_CLOUD_KUBERNETES_SECRETS_PATHS
+          value: /workspace/runtime/secrets
+        # image: registry.pivotal.io/p-scdf-for-kubernetes/spring-cloud-dataflow-pro-server@sha256:fba425ef984e600dd4278e2013fae8a51cf0be4089c405cc6c06245871305089
+        image: {{ tanzu_container_registry.core.dns +'/'+ tanzu_spring_cloud_data_flow.registry.project.project_name + '/spring-cloud-dataflow-pro-server:' + tanzu_spring_cloud_data_flow.registry.destination_tag }}
+        livenessProbe:
+          httpGet:
+            path: /management/health
+            port: 8080
+          initialDelaySeconds: 90
+          periodSeconds: 30
+        name: scdf-server
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          httpGet:
+            path: /management/info
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 15
+        resources:
+          limits:
+            cpu: 1
+            memory: 768Mi
+          requests:
+            cpu: 500m
+            memory: 768Mi
+        volumeMounts:
+        - mountPath: /workspace/runtime/secrets/database
+          name: database
+          readOnly: true
+        - mountPath: /workspace/runtime/secrets/dockerconfig
+          name: dockerconfig
+          readOnly: true
+        - mountPath: /workspace/runtime/config
+          name: config
+          readOnly: true
+      imagePullSecrets:
+      - name: scdf-image-regcred
+      serviceAccountName: scdf-data-flow
+      volumes:
+      - name: database
+        secret:
+          items:
+          - key: postgresql-password
+            path: database-password
+          secretName: postgresql
+      - name: dockerconfig
+        secret:
+          secretName: scdf-image-regcred
+      - configMap:
+          name: scdf-server-btd9992d4k
+        name: config
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: scdf-ingress
+  namespace: {{ tanzu_spring_cloud_data_flow.namespace }}
+  labels:
+    app.kubernetes.io/name: scdf-ingress
+  annotations:
+    external-dns.alpha.kubernetes.io/target: "{{ tanzu_ingress.dns }}"
+spec:
+  rules:
+    - host: {{ tanzu_spring_cloud_data_flow.dns }}
+      http:
+        paths:
+          - path: "/"
+            backend:
+              serviceName: scdf-server
+              servicePort: 80

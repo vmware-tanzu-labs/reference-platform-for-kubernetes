@@ -1,0 +1,16 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+sonobuoy-config:
+  driver: Job
+  plugin-name: rpk-autoscaling
+  result-format: manual
+spec:
+  image: cloudnativereadiness/rpk-autoscaling-validate:0.1
+  name: plugin
+  resources: {}
+  # mountPath must match resultsDir build arg for docker image
+  volumeMounts:
+    - mountPath: /tmp/results
+      name: results
+

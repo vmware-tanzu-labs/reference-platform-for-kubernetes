@@ -1,0 +1,57 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sPSPAllowedUsers
+metadata:
+  name: psp-pods-allowed-user-ranges
+spec:
+  match:
+    # TODO: excluded namespaces should be dynamic and not hard-coded
+    excludedNamespaces:
+      # NOTE: don't include kube-system and admission-control
+      - "kube-system"
+      - "tanzu-admission"
+      # other namespaces we deploy
+      - "tanzu-dashboard"
+      - "tanzu-storage"
+      - "tanzu-ingress"
+      - "tanzu-identity"
+      - "tanzu-networking"
+      - "tanzu-monitoring"
+      - "tanzu-mesh"
+      - "tanzu-logging"
+      - "tanzu-security"
+      - "tanzu-secrets"
+      - "tanzu-container-registry"
+      - "tanzu-app-stack-department"
+      - "tanzu-app-stack-employee"
+      - "tanzu-app-stack-gateway"
+      - "tanzu-app-stack-mongodb"
+      - "tanzu-app-stack-monitoring"
+      - "tanzu-app-stack-organization"
+      - "tanzu-spring-cloud-gateway"
+      - "tanzu-autoscaling"
+      - "tanzu-service-mesh"
+      - "vmware-system-tsm"
+      - "istio-system"
+      - "build-service" ## Tanzu build service hardcoded some of the pods to search for this namespace
+      - "kpack"
+      - "tanzu-spring-cloud-data-flow"
+      ## KIND Specific
+      - "local-path-provisioner"
+      - "local-path-storage"
+      - "tanzu-app-pipeline"
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+  parameters:
+    runAsUser:
+      rule: MustRunAs
+      ranges:
+        - min: 100
+          max: 200
+        - min: 1000
+          max: 2000
+        - min: 65532
+          max: 65534

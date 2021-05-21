@@ -1,0 +1,239 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# NAMESPACES
+#
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_container_registry.staging_dir }}"
+
+- name: "create namespace"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_container_registry.namespace }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_container_registry.staging_dir }}/tanzu-namespace.yaml"
+
+#
+# POD SECURITY POLICIES
+#
+- name: "ensure harbor pod security policy exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "harbor pod security policy"
+    manifest_template:    "harbor-podsecuritypolicy.yaml.j2"
+    manifest_file:        "harbor-podsecuritypolicy.yaml"
+    manifest_staging_dir: "{{ tanzu_container_registry.staging_dir }}"
+
+#
+# INGRESS
+#
+# NOTE: we must create ingress early so external-dns propogates records for letsencrypt challenges
+- name: "ensure harbor user portal and api services and ingresses exist"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "harbor user portal and api services and ingresses"
+    manifest_template:    "harbor-web-ingress.yaml.j2"
+    manifest_file:        "harbor-web-ingress.yaml"
+    manifest_staging_dir: "{{ tanzu_container_registry.staging_dir }}"
+
+#
+# SSL
+#
+- name: "add tls certificate for core"
+  import_role:
+    name: "common/tls-certificate"
+  vars:
+    fqdn:         "{{ tanzu_container_registry.core.dns }}"
+    namespace:    "{{ tanzu_container_registry.namespace }}"
+    secret:       "{{ tanzu_container_registry.core.ingress_tls_name }}"
+    tls_provider: "{{ tanzu_container_registry.core.tls_provider }}"
+    dns:
+      - "{{ tanzu_container_registry.core.dns }}"
+    ip: []
+
+- name: "add tls certificate for notary"
+  import_role:
+    name: "common/tls-certificate"
+  vars:
+    fqdn:         "{{ tanzu_container_registry.notary.dns }}"
+    namespace:    "{{ tanzu_container_registry.namespace }}"
+    secret:       "{{ tanzu_container_registry.notary.ingress_tls_name }}"
+    tls_provider: "{{ tanzu_container_registry.notary.tls_provider }}"
+    dns:
+      - "{{ tanzu_container_registry.notary.dns }}"
+    ip: []
+
+- name: "add tls internal certificate for {{ item.resource_name }}"
+  include_role:
+    name: "common/tls-certificate"
+  vars:
+    fqdn:         "{{ item.resource_name }}"
+    namespace:    "{{ tanzu_container_registry.namespace }}"
+    secret:       "{{ item.tls_internal_name }}"
+    tls_provider: "ca"
+    dns:
+      - "localhost"
+      - "localhost.localdomain"
+      - "{{ item.resource_name }}"
+      - "{{ item.resource_name }}.{{ tanzu_container_registry.namespace }}"
+      - "{{ item.resource_name }}.{{ tanzu_container_registry.namespace }}.svc"
+      - "{{ item.resource_name }}.{{ tanzu_container_registry.namespace }}.svc.cluster.local"
+    ip:
+      - "127.0.0.1"
+  with_items:
+    - "{{ tanzu_container_registry.core }}"
+    - "{{ tanzu_container_registry.jobservice }}"
+    - "{{ tanzu_container_registry.clair }}"
+    - "{{ tanzu_container_registry.portal }}"
+    - "{{ tanzu_container_registry.registry }}"
+    - "{{ tanzu_container_registry.trivy }}"
+    - "{{ tanzu_container_registry.notary.signer }}"
+
+- name: "wait until the certificate secrets are available"
+  k8s_info:
+    kind:      "Secret"
+    namespace: "{{ tanzu_container_registry.namespace }}"
+    context:   "{{ tanzu_kubectl_context }}"
+    name:      "{{ item }}"
+  register: cert_secret_status
+  until:
+    - cert_secret_status.resources[0] is defined
+    - (cert_secret_status.resources[0] | length) > 0
+  retries: 50
+  delay:   10
+  with_items:
+    - "{{ tanzu_container_registry.core.ingress_tls_name }}"
+    - "{{ tanzu_container_registry.notary.ingress_tls_name }}"
+
+#
+# CONFIGURATION
+#
+- name: "ensure harbor configurations exist"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "harbor configurations and secrets"
+    manifest_template:    "harbor-config.yaml.j2"
+    manifest_file:        "harbor-config.yaml"
+    manifest_staging_dir: "{{ tanzu_container_registry.staging_dir }}"
+
+#
+# PERSISTENCE
+#
+- name: "ensure harbor persistance layer components exist"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "harbor persistence components"
+    manifest_template:    "harbor-persistence.yaml.j2"
+    manifest_file:        "harbor-persistence.yaml"
+    manifest_staging_dir: "{{ tanzu_container_registry.staging_dir }}"
+
+- name: "wait until the redis key value store is available"
+  k8s_info:
+    kind:      "StatefulSet"
+    namespace: "{{ tanzu_container_registry.namespace }}"
+    context:   "{{ tanzu_kubectl_context }}"
+    label_selectors:
+      - app.kubernetes.io/name = harbor
+      - component = redis
+  register: harbor_redis_status
+  until:
+    - harbor_redis_status.resources[0].status.readyReplicas is defined
+    - harbor_redis_status.resources[0].spec.replicas == harbor_redis_status.resources[0].status.readyReplicas
+  retries: 100
+  delay:   10
+
+- name: "wait until the postgres database is available"
+  k8s_info:
+    kind:      "StatefulSet"
+    namespace: "{{ tanzu_container_registry.namespace }}"
+    context:   "{{ tanzu_kubectl_context }}"
+    label_selectors:
+      - app.kubernetes.io/name = harbor
+      - component = database
+  register: harbor_db_status
+  until:
+    - harbor_db_status.resources[0].status.readyReplicas is defined
+    - harbor_db_status.resources[0].spec.replicas == harbor_db_status.resources[0].status.readyReplicas
+  retries: 100
+  delay:   10
+
+#
+# CORE API
+#
+- name: "get the ingress ip"
+  import_role:
+    name: "common/ingress-ip"
+
+- name: "ensure dns resolvability for core"
+  import_role:
+    name: "common/etc-hosts"
+  vars:
+    ip:   "{{ ingress_ip }}"
+    fqdn: "{{ tanzu_container_registry.core.dns }}"
+
+- name: "ensure harbor core api exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "harbor core api"
+    manifest_template:    "harbor-api.yaml.j2"
+    manifest_file:        "harbor-api.yaml"
+    manifest_staging_dir: "{{ tanzu_container_registry.staging_dir }}"
+
+#
+# HARBOR APP COMPONENTS
+#
+- name: "ensure dns resolvability for notary"
+  import_role:
+    name: "common/etc-hosts"
+  vars:
+    ip:   "{{ ingress_ip }}"
+    fqdn: "{{ tanzu_container_registry.notary.dns }}"
+
+- name: "ensure harbor application components exist"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "harbor application components"
+    manifest_template:    "harbor-app.yaml.j2"
+    manifest_file:        "harbor-app.yaml"
+    manifest_staging_dir: "{{ tanzu_container_registry.staging_dir }}"
+
+#
+# HARBOR USER PORTAL AND API COMPONENTS
+#
+- name: "ensure harbor user portal and api components exist"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "harbor user portal and api components"
+    manifest_template:    "harbor-web.yaml.j2"
+    manifest_file:        "harbor-web.yaml"
+    manifest_staging_dir: "{{ tanzu_container_registry.staging_dir }}"
+
+#
+# ENSURE REGISTRY
+#
+- name: "wait until the registry is available"
+  k8s_info:
+    kind:      "Deployment"
+    namespace: "{{ tanzu_container_registry.namespace }}"
+    context:   "{{ tanzu_kubectl_context }}"
+    label_selectors:
+      - app.kubernetes.io/name = harbor
+      - component = registry
+  register: harbor_registry_status
+  until:
+    - harbor_registry_status.resources[0].status.readyReplicas is defined
+    - harbor_registry_status.resources[0].spec.replicas == harbor_registry_status.resources[0].status.readyReplicas
+  retries: 50
+  delay:   10

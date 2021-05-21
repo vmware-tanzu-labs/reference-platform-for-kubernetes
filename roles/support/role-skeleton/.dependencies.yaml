@@ -1,0 +1,15 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+dependencies: []
+  # NOTE: all dependencies that this role requires need to be defined here (ordered lowest-highest priority)
+  #       child dependencies will NOT be resolved
+  # EXAMPLE:
+  # - component: "storage"
+  #   priority:  100
+  # - component: "security"
+  #   priority:  200
+  # - component: "dns"
+  #   priority:  300
+  # - component: "ingress"
+  #   priority:  400

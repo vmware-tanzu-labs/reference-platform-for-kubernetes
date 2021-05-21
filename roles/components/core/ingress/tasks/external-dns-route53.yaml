@@ -1,0 +1,26 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure the aws route53 dns zone exists"
+  route53_zone:
+    state:          "present"
+    zone:           "{{ tanzu_ingress_domain }}"
+    comment:        "aws route53 zone for tanzu cluster {{ tanzu_cluster_name }}"
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+  register: _dns_zone
+  when: _dns_zone is not defined
+
+- name: "ensure route53 external-dns is deployed"
+  include_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "{{ manifest.description }}"
+    manifest_template:    "{{ manifest.template }}"
+    manifest_staging_dir: "{{ tanzu_ingress.staging_dir }}"
+  with_items:
+    - description: "external-dns route53 provider"
+      template:    "app-external-dns-route53.yaml.j2"
+  loop_control:
+    loop_var: "manifest"
+    label:    "{{ manifest.template }}"

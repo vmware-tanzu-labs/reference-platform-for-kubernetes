@@ -1,0 +1,18 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "check if the registry exists"
+  uri:
+    url:              "https://{{ tanzu_application_catalog.registry_endpoint }}/api/v2.0/registries?name={{ registry_name }}"
+    url_username:     "{{ tanzu_container_registry.admin_username }}"
+    url_password:     "{{ tanzu_container_registry.admin_password }}"
+    method:           "GET"
+    follow_redirects: true
+    force_basic_auth: true
+    validate_certs:   false
+  register: _get_registry_response
+
+- name: "get registry id if it exists"
+  set_fact:
+    _harbor_registry_id: "{{ _get_registry_response.json[0].id }}"
+  when: _get_registry_response.json

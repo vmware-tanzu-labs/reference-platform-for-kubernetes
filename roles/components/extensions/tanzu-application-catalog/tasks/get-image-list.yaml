@@ -1,0 +1,47 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "set the image list when predefined"
+  set_fact:
+    _tac_image_list: "{{ tanzu_application_catalog.app_list }}"
+  when: (tanzu_application_catalog.app_list | length) > 0
+
+- name: "set the image list when undefined (pull list from tac)"
+  when: (tanzu_application_catalog.app_list | length) == 0
+  block:
+    - name: "login to tac"
+      shell: "tac login --api-token {{ tanzu_application_catalog_api_token }} --context-name {{ tanzu_kubectl_context }} --set-default y"
+      changed_when: false
+      tags:
+        - skip_ansible_lint
+
+    - name: "list tac artifacts"
+      shell: "tac get apps | python -m json.tool"
+      changed_when: false
+      tags:
+        - skip_ansible_lint
+      register: _tac_artifacts
+
+    - name: "set the _tac_image_list"
+      set_fact:
+        _tac_image_list: []
+
+    - name: "add images to _tac_image_list"
+      set_fact:
+        _tac_image_list: "{{ _tac_image_list + [{'name': ('tac-' + name + '-' + version), 'image': image, 'tag': tag}] }}"
+      with_subelements:
+        - "{{ _tac_artifacts.stdout | from_json }}"
+        - "assets"
+      vars:
+        name:    "{{ tanzu_application_catalog.override_map[item.1.bitnami_app_id]| default(item.1.bitnami_app_id) }}"
+        # TODO: the following returns 'tac-for-tanzu-advanced-repo'.  investigate if this is dynamic at some point
+        # image: "{{ item.1.labels.registry + '/containers/' + item.1.bitnami_app_id }}"
+        image:   "{{ 'tac-for-tanzu-advanced/containers/' + name }}"
+        version: "{{ item.1.version | default('latest') }}"
+        tag:     "{latest,{{ version }}}"
+      when:
+        - (item.1.status | default('') | lower) == 'released'
+
+    - name: "ensure the _tac_image_list only has unique images"
+      set_fact:
+        _tac_image_list: "{{ _tac_image_list | list | unique }}"

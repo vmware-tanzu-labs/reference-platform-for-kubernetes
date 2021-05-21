@@ -1,0 +1,130 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# MANIFEST DIRECTORIES
+#
+- name: "ensure manifest staging directories exist"
+  include_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_app_stack.staging_dir }}/{{ item }}"
+  with_items:
+    - "db"
+    - "monitoring"
+    - "app"
+    - "app/department"
+    - "app/employee"
+    - "app/gateway"
+    - "app/organization"
+
+#
+# BUILD IMAGES
+#
+- name:         "build images"
+  import_tasks: "build-images.yaml"
+  when:         (tanzu_app_stack.build_images | bool)
+
+#
+# NAMESPACES
+#
+- name:         "create namespaces"
+  include_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ item.name }}"
+    namespace_template_file: "{{ item.template }}"
+    namespace_file:          "{{ item.file }}"
+  with_items:
+    - name:      "{{ tanzu_app_stack.department.namespace }}"
+      template:  "app/department/tanzu-namespace.yaml.j2"
+      file:      "{{ tanzu_app_stack.staging_dir }}/app/department/tanzu-namespace.yaml"
+    - name:      "{{ tanzu_app_stack.employee.namespace }}"
+      template:  "app/employee/tanzu-namespace.yaml.j2"
+      file:      "{{ tanzu_app_stack.staging_dir }}/app/employee/tanzu-namespace.yaml"
+    - name:      "{{ tanzu_app_stack.gateway.namespace }}"
+      template:  "app/gateway/tanzu-namespace.yaml.j2"
+      file:      "{{ tanzu_app_stack.staging_dir }}/app/gateway/tanzu-namespace.yaml"
+    - name:      "{{ tanzu_app_stack.organization.namespace }}"
+      template:  "app/organization/tanzu-namespace.yaml.j2"
+      file:      "{{ tanzu_app_stack.staging_dir }}/app/organization/tanzu-namespace.yaml"
+    - name:      "{{ tanzu_app_stack.mongodb.namespace }}"
+      template:  "db/tanzu-namespace.yaml.j2"
+      file:      "{{ tanzu_app_stack.staging_dir }}/db/tanzu-namespace.yaml"
+    - name:      "{{ tanzu_app_stack.monitoring.namespace }}"
+      template:  "monitoring/tanzu-namespace.yaml.j2"
+      file:      "{{ tanzu_app_stack.staging_dir }}/monitoring/tanzu-namespace.yaml"
+
+#
+# HASHICORP VAULT
+#
+- when: (tanzu_app_stack.vault.enabled | bool)
+  block:
+    - name: "get the vault secrets"
+      import_role:
+        name: "common/vault-secrets"
+
+    - name: "fail if missing hashicorp_vault_root_token"
+      fail:
+        msg: "missing hashicorp_vault_root_token"
+      when:
+        - (hashicorp_vault_root_token is undefined) or
+          (hashicorp_vault_root_token == None) or
+          (hashicorp_vault_root_token == "")
+
+    - name: "fail if missing hashicorp_vault_unseal_keys"
+      fail:
+        msg: "missing hashicorp_vault_unseal_keys"
+      when:
+        - (hashicorp_vault_unseal_keys is undefined) or
+          (hashicorp_vault_unseal_keys == None) or
+          (hashicorp_vault_unseal_keys == "")
+
+    - name: "ensure vault config job exists"
+      import_role:
+        name: "common/manifest-file"
+      vars:
+        manifest_description: "vault config job"
+        manifest_template:    "db/mongodb-secret-job.yaml.j2"
+        manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}"
+
+#
+# MONGODB
+#
+- name:         "install mongodb"
+  import_tasks: "mongodb.yaml"
+
+#
+# RBAC
+#   NOTE: the following creates a cluster role to be used by individual microservices in each
+#         namespace
+#
+- name: "ensure application stack cluster role exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "application stack cluster role"
+    manifest_template:    "app/cluster-role.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}"
+
+#
+# APPS
+#
+- name:         "install department app"
+  import_tasks: "department.yaml"
+
+- name:         "install organization app"
+  import_tasks: "organization.yaml"
+
+- name:         "install employee app"
+  import_tasks: "employee.yaml"
+
+- name:         "install gateway app"
+  import_tasks: "gateway.yaml"
+
+#
+# MONITORING
+#
+- name:         "configure monitoring"
+  import_tasks: "monitoring.yaml"
+  when:         (tanzu_app_stack.monitoring.enabled | bool)

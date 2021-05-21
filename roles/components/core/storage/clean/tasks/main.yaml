@@ -1,0 +1,99 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure the namespace is removed"
+  import_role:
+    name: "common/namespace/clean"
+  vars:
+    namespace: "{{ tanzu_storage.namespace }}"
+
+- name: "ensure the storage classes are removed"
+  k8s:
+    state:       "absent"
+    context:     "{{ tanzu_kubectl_context }}"
+    kind:        "StorageClass"
+    name:        "{{ item.name }}"
+    api_version: "storage.k8s.io/v1"
+  with_items:
+    - "{{ tanzu_storage_classes_aws | default({}) }}"
+    - "{{ tanzu_storage_classes_vmware | default({}) }}"
+    - "{{ tanzu_storage_classes_azure | default({}) }}"
+    - "{{ tanzu_storage.vmware.storage_classes | default({}) }}"
+    - "{{ tanzu_storage.aws.storage_classes | default({}) }}"
+    - "{{ tanzu_storage.azure.storage_classes | default({}) }}"
+    - name: "{{ tanzu_storage.ephemeral.name }}"
+  when: item.name is defined
+
+- name: "ensure the cluster-wide rbac resources are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "{{ item.kind }}"
+    name:    "{{ item.name }}"
+  with_items:
+    - name: "{{ tanzu_storage.ephemeral.csi_attacher.resource_name }}"
+      kind: "ClusterRole"
+    - name: "{{ tanzu_storage.ephemeral.csi_attacher.resource_name }}"
+      kind: "ClusterRoleBinding"
+    - name: "{{ tanzu_storage.ephemeral.csi_provisioner.resource_name }}"
+      kind: "ClusterRole"
+    - name: "{{ tanzu_storage.ephemeral.csi_provisioner.resource_name }}"
+      kind: "ClusterRoleBinding"
+    - name: "{{ tanzu_storage.ephemeral.csi_resizer.resource_name }}"
+      kind: "ClusterRole"
+    - name: "{{ tanzu_storage.ephemeral.csi_resizer.resource_name }}"
+      kind: "ClusterRoleBinding"
+    - name: "{{ tanzu_storage.ephemeral.csi_snapshotter.resource_name }}"
+      kind: "ClusterRole"
+    - name: "{{ tanzu_storage.ephemeral.csi_snapshotter.resource_name }}"
+      kind: "ClusterRoleBinding"
+    - name: "{{ tanzu_storage.ephemeral.csi_snapshot_controller.resource_name }}"
+      kind: "ClusterRole"
+    - name: "{{ tanzu_storage.ephemeral.csi_snapshot_controller.resource_name }}"
+      kind: "ClusterRoleBinding"
+
+- name: "ensure the custom resource definitions are removed"
+  k8s:
+    state:       "absent"
+    context:     "{{ tanzu_kubectl_context }}"
+    kind:        "CustomResourceDefinition"
+    name:        "{{ item }}"
+    api_version: "apiextensions.k8s.io/v1"
+  with_items:
+    - volumesnapshotclasses.snapshot.storage.k8s.io
+    - volumesnapshotcontents.snapshot.storage.k8s.io
+    - volumesnapshots.snapshot.storage.k8s.io
+
+- name: "check csi driver api version"
+  k8s_info:
+    context:     "{{ tanzu_kubectl_context }}"
+    kind:        "CSIDriver"
+    name:        "hostpath.csi.k8s.io"
+    api_version: "storage.k8s.io/v1"
+  register: _csi_driver_v1
+
+- name: "ensure the csi driver definition is removed"
+  k8s:
+    state:       "absent"
+    context:     "{{ tanzu_kubectl_context }}"
+    kind:        "CSIDriver"
+    name:        "hostpath.csi.k8s.io"
+    api_version: "storage.k8s.io/v1"
+  when: _csi_driver_v1.resources | length > 0
+
+- name: "check csi driver api version"
+  k8s_info:
+    context:     "{{ tanzu_kubectl_context }}"
+    kind:        "CSIDriver"
+    name:        "hostpath.csi.k8s.io"
+    api_version: "storage.k8s.io/v1beta1"
+  register: _csi_driver_v1beta1
+
+- name: "ensure the csi driver definition is removed"
+  k8s:
+    state:       "absent"
+    context:     "{{ tanzu_kubectl_context }}"
+    kind:        "CSIDriver"
+    name:        "hostpath.csi.k8s.io"
+    api_version: "storage.k8s.io/v1beta1"
+  when: _csi_driver_v1beta1.resources | length > 0

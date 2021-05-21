@@ -1,0 +1,48 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure {{ name }} job completed successfully"
+  k8s_info:
+    api_version: "batch/v1"
+    kind:        "Job"
+    namespace:   "{{ namespace }}"
+    name:        "{{ name }}"
+    context:     "{{ tanzu_kubectl_context }}"
+  register:    _job
+  until:
+    - (_job.resources[0].status.succeeded | default("False") | bool) or
+      (_job.resources[0].status.failed | default("False") | bool)
+  retries:     "{{ retries | default('30') }}"
+  delay:       "{{ delay | default('1') }}"
+  failed_when: false
+
+- name: "error if {{ name }} job does not exist"
+  fail:
+    msg: "the job named {{ name }} does not exist"
+  when: _job.resources | length == 0
+
+- when:
+    - (_job.resources[0].status.failed | default("False") | bool)
+    - (not ignore_failure | default("False") | bool)
+  block:
+    - name: "print job results error if {{ name }} job failed"
+      debug:
+        var: _job
+        verbosity: 0
+
+    - name: "error if {{ name }} job failed"
+      fail:
+        msg: "job {{ name }} in {{ namespace }} failed to run"
+
+- when:
+    - (not _job.resources[0].status.succeeded | default("False") | bool)
+    - (not ignore_failure | default("False") | bool)
+  block:
+    - name: "print job results error if {{ name }} job failed"
+      debug:
+        var: _job
+        verbosity: 0
+
+    - name: "error if {{ name }} job is not succeeded"
+      fail:
+        msg: "job {{ name }} in {{ namespace }} failed to run"

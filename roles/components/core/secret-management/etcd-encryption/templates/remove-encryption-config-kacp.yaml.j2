@@ -1,0 +1,16 @@
+#@ load("@ytt:overlay", "overlay")
+
+#@ def is_encryption_config(i, left, right):
+#@   path = dict(left)["path"]
+#@   return path == "{{ tanzu_secrets.etcd_encryption_conf_path }}"
+#@ end
+
+#@overlay/match by=overlay.subset({"kind":"KubeadmControlPlane"})
+---
+spec:
+  kubeadmConfigSpec:
+    #@overlay/match missing_ok=True
+    files:
+    #@overlay/match by=is_encryption_config
+    #@overlay/remove
+    - (this value is ignored)

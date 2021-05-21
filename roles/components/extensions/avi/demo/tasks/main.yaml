@@ -1,0 +1,33 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ avi.staging_dir }}"
+
+- name: "ensure nginx demo app exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "nginx demo app"
+    manifest_template:    "app-nginx.yaml.j2"
+    manifest_staging_dir: "{{ avi.staging_dir }}"
+
+- name: "print the dashboard access information"
+  debug:
+    msg: "You can access the Avi Dashboard at URL https://{{ avi.controller.vip }}"
+    verbosity: 0
+  when: avi.controller.ha_mode | bool
+
+- name: "print the dashboard access information"
+  debug:
+    msg: "You can access the Avi Dashboard at URL https://{{ avi.controller.networks[0].ip }}"
+    verbosity: 0
+  when: not avi.controller.ha_mode | bool
+
+- name: "print the demo nginx app access information"
+  debug:
+    msg: "You can access the Nginx Demo App at URL http://{{ tanzu_load_balancer_start_ip }}"
+    verbosity: 0

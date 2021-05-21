@@ -1,0 +1,42 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: jenkins-role-binding
+  namespace: {{ tanzu_app_pipeline.ci.demo.prod_namespace }}
+subjects:
+  - kind: ServiceAccount
+    name: jenkins
+    namespace: {{ tanzu_app_pipeline.namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: jenkins-role
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jenkins-role
+  namespace: {{ tanzu_app_pipeline.ci.demo.prod_namespace }}
+rules:
+  - apiGroups:
+      - "*"
+    resources:
+      - secrets
+      - pod
+      - pods
+      - deployments
+      - ingresses
+      - configmaps
+      - statefulsets
+      - services
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch

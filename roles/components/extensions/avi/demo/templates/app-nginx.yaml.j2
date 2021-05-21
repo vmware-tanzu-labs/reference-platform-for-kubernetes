@@ -1,0 +1,38 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-deployment
+  namespace: avi-system
+spec:
+  selector:
+    matchLabels:
+      app: products
+      department: sales
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: products
+        department: sales
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-lb-service
+  namespace: avi-system
+spec:
+  type: LoadBalancer
+  selector:
+    app: products
+    department: sales
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80

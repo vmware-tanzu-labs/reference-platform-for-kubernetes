@@ -1,0 +1,99 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# SOURCE CODE
+#
+- name: "ensure git staging directories exist"
+  include_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_app_stack.staging_dir }}/{{ item }}"
+  with_items:
+    - "files"
+    - "files/git"
+
+- name: "clone source code from the git repo"
+  become: false
+  git:
+    repo: "{{ tanzu_app_stack.git_repo }}"
+    dest: "{{ tanzu_app_stack.git_repo_dir }}"
+  tags:
+    - skip_ansible_lint
+
+#
+# BUILD AND PUSH IMAGES
+#
+- name: "login to docker registry"
+  docker_login:
+    registry_url: "{{ tanzu_app_stack.remote_image_repo }}"
+    username:     "{{ tanzu_app_stack.remote_image_username }}"
+    password:     "{{ tanzu_app_stack.remote_image_password }}"
+
+- name: "build department image from dockerfile"
+  docker_image:
+    debug: true
+    state: "present"
+    name:  "{{ tanzu_app_stack.department.local_image }}:{{ tanzu_app_stack.department.local_image_tag }}"
+    build:
+      path: "{{ tanzu_app_stack.git_repo_dir }}/{{ tanzu_app_stack.department.git_path }}"
+
+- name: "tag and push department image"
+  docker_image:
+    debug:      true
+    push:       true
+    name:       "{{ tanzu_app_stack.department.local_image }}:{{ tanzu_app_stack.department.local_image_tag }}"
+    repository: "{{ tanzu_app_stack.department.remote_image }}:{{ tanzu_app_stack.department.remote_image_tag }}"
+    source:     "local"
+  when: (tanzu_app_stack.push_images | bool)
+
+- name: "build gateway image from dockerfile"
+  docker_image:
+    debug: true
+    state: "present"
+    name:  "{{ tanzu_app_stack.gateway.local_image }}:{{ tanzu_app_stack.gateway.local_image_tag }}"
+    build:
+      path: "{{ tanzu_app_stack.git_repo_dir }}/{{ tanzu_app_stack.gateway.git_path }}"
+
+- name: "tag and push gateway image"
+  docker_image:
+    debug:      true
+    push:       true
+    name:       "{{ tanzu_app_stack.gateway.local_image }}:{{ tanzu_app_stack.gateway.local_image_tag }}"
+    repository: "{{ tanzu_app_stack.gateway.remote_image }}:{{ tanzu_app_stack.gateway.remote_image_tag }}"
+    source:     "local"
+  when: (tanzu_app_stack.push_images | bool)
+
+- name: "build organization service image from dockerfile"
+  docker_image:
+    debug: true
+    state: "present"
+    name:  "{{ tanzu_app_stack.organization.local_image }}:{{ tanzu_app_stack.organization.local_image_tag }}"
+    build:
+      path: "{{ tanzu_app_stack.git_repo_dir }}/{{ tanzu_app_stack.organization.git_path }}"
+
+- name: "tag and push organization image"
+  docker_image:
+    debug:      true
+    push:       true
+    name:       "{{ tanzu_app_stack.organization.local_image }}:{{ tanzu_app_stack.organization.local_image_tag }}"
+    repository: "{{ tanzu_app_stack.organization.remote_image }}:{{ tanzu_app_stack.organization.remote_image_tag }}"
+    source:     "local"
+  when: (tanzu_app_stack.push_images | bool)
+
+- name: "build employee image from dockerfile"
+  docker_image:
+    debug: true
+    state: "present"
+    name:  "{{ tanzu_app_stack.employee.local_image }}:{{ tanzu_app_stack.employee.local_image_tag }}"
+    build:
+      path: "{{ tanzu_app_stack.git_repo_dir }}/{{ tanzu_app_stack.employee.git_path }}"
+
+- name: "tag and push employee image"
+  docker_image:
+    debug:      true
+    push:       true
+    name:       "{{ tanzu_app_stack.employee.local_image }}:{{ tanzu_app_stack.employee.local_image_tag }}"
+    repository: "{{ tanzu_app_stack.employee.remote_image }}:{{ tanzu_app_stack.employee.remote_image_tag }}"
+    source:     "local"
+  when: (tanzu_app_stack.push_images | bool)

@@ -1,0 +1,148 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_app_pipeline:
+  # common vars
+  namespace:   "tanzu-app-pipeline"
+  staging_dir: "{{ rpk_staging_dir }}/tanzu-app-pipeline"
+  module:      "app-pipepline"
+  default_resources:
+    requests:
+      cpu:    "25m"
+      memory: "64Mi"
+    limits:
+      cpu:    "25m"
+      memory: "64Mi"
+
+  # gitea
+  git:
+    resource_name: "gitea"
+    username:      "rpk"
+    password:      "tanzu"
+    email:         "rpk@{{ tanzu_ingress_domain }}"
+    ssh:
+      dns: "tunnel.{{ tanzu_ingress_domain }}"
+    http:
+      dns: "git.{{ tanzu_ingress_domain }}"
+    database:
+      password: "cnBrcGFzc3dvcmQ="  # echo -n 'rpkpassword' | base64
+    image:     "projects.registry.vmware.com/rpk/gitea"
+    image_tag: "1.11.5"
+    resources:
+      requests:
+        cpu:    "50m"
+        memory: "64Mi"
+      limits:
+        cpu:    "100m"
+        memory: "128Mi"
+
+    demo:
+      empty_repo_name: "gitea-demo"
+      pipeline:
+        clone_addr: "https://github.com/robinfoe/software-supply-chain.git"
+        repo_name:  "software-supply"
+      app:
+        clone_addr: "https://github.com/robinfoe/bookstore-ms.git"
+        repo_name:  "bookstore-ms"
+
+  # sonatype nexus
+  artifact_repo:
+    resource_name: "sonatype-nexus"
+    dns:           "artifacts.{{ tanzu_ingress_domain }}"
+    username:      "admin"
+    password:      "admin123"  # this is for info only and doesn't change the actual password
+    image:         "projects.registry.vmware.com/rpk/sonatype-nexus3"
+    image_tag:     "3.20.1"
+    resources:
+      requests:
+        cpu:    "500m"
+        memory: "1Gi"
+      limits:
+        cpu:    "1000m"
+        memory: "2Gi"
+
+  # sonarqube
+  code_analyzer:
+    resource_name:  "sonarqube"
+    dns:            "code-analyzer.{{ tanzu_ingress_domain }}"
+    image:          "projects.registry.vmware.com/rpk/sonarqube"
+    image_tag:      "7.9.2-community"
+    init_image:     "projects.registry.vmware.com/rpk/busybox"
+    init_image_tag: "1.31"
+    resources:
+      requests:
+        cpu:    "500m"
+        memory: "1Gi"
+      limits:
+        cpu:    "1000m"
+        memory: "2Gi"
+
+    # sonarqube database
+    database:
+      password:       "c29uYXJQYXNz"
+      image:          "projects.registry.vmware.com/rpk/postgresql"
+      image_tag:      "11.6.0-debian-10-r0"
+      init_image:     "projects.registry.vmware.com/rpk/minideb"
+      init_image_tag: "stretch"
+      resources:
+        requests:
+          cpu:    "100m"
+          memory: "256Mi"
+        limits:
+          cpu:    "200m"
+          memory: "512Mi"
+
+  # jenkins
+  ci:
+    resource_name:     "jenkins"
+    username:          "admin"
+    password:          "tanzu"
+    dns:               "ci.{{ tanzu_ingress_domain }}"
+    image:             "projects.registry.vmware.com/rpk/jenkins"
+    image_tag:         "lts"
+    sidecar_image:     "projects.registry.vmware.com/rpk/kiwigrid-k8s-sidecar"
+    sidecar_image_tag: "0.1.144"
+    resources:
+      limits:
+        cpu:    "1000m"
+        memory: "2Gi"
+      requests:
+        cpu:    "500m"
+        memory: "1Gi"
+    init_resources:
+      limits:
+        cpu:    "200m"
+        memory: "256Mi"
+      requests:
+        cpu:    "100m"
+        memory: "128Mi"
+
+    demo:
+      sit_namespace:  "tanzu-app-pipeline-sit"
+      prod_namespace: "tanzu-app-pipeline-prod"
+
+  # mariadb
+  mariadb:
+    resource_name: "mariadb"
+    image:         "projects.registry.vmware.com/rpk/mariadb"
+    image_tag:     "10.3.20-debian-9-r19"
+    resources:
+      requests:
+        cpu:    "50m"
+        memory: "64Mi"
+      limits:
+        cpu:    "100m"
+        memory: "128Mi"
+
+  # memcached
+  memcached:
+    resource_name: "memcached"
+    image:         "projects.registry.vmware.com/rpk/memcached"
+    image_tag:     "1.5.19-alpine"
+    resources:
+      requests:
+        cpu:    "100m"
+        memory: "512Mi"
+      limits:
+        cpu:    "200m"
+        memory: "1Gi"

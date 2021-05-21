@@ -1,0 +1,85 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: employee
+  namespace: {{ tanzu_app_stack.employee.namespace }}
+  labels:
+    app.kubernetes.io/name: "{{ tanzu_app_stack.employee.resource_name }}"
+spec:
+  replicas: {{ tanzu_app_stack.employee.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "{{ tanzu_app_stack.employee.resource_name }}"
+  template:
+    metadata:
+      namespace: {{ tanzu_app_stack.employee.namespace }}
+{% if tanzu_app_stack.vault.enabled %}
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/agent-inject-status: "update"
+        vault.hashicorp.com/role: "{{ tanzu_app_stack.employee.namespace }}"
+        vault.hashicorp.com/agent-inject-secret-mongodb.properties: "tanzu/application-stack/mongodb"
+        vault.hashicorp.com/agent-inject-template-mongodb.properties: |{% raw %}
+          {{- with secret "tanzu/application-stack/mongodb" -}}
+            spring.data.mongodb.username: {{ .Data.data.username }}
+            spring.data.mongodb.password: {{ .Data.data.password }}
+          {{- end -}}
+{% endraw %}
+{% endif %}
+      labels:
+        app.kubernetes.io/name: "{{ tanzu_app_stack.employee.resource_name }}"
+    spec:
+      securityContext:
+        runAsUser: 1001
+      containers:
+        - name: employee
+          image: {{ tanzu_app_stack.employee.remote_image }}:{{ tanzu_app_stack.employee.remote_image_tag }}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          resources: {{ tanzu_app_stack.employee.resources }}
+          readinessProbe:
+            httpGet:
+              port: 8080
+              path: /actuator/health
+            initialDelaySeconds: 25
+            timeoutSeconds: 10
+            periodSeconds: 60
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              port: 8080
+              path: /actuator/info
+            initialDelaySeconds: 25
+            timeoutSeconds: 10
+            periodSeconds: 60
+            failureThreshold: 10
+{% if not tanzu_app_stack.vault.enabled %}
+          volumeMounts:
+            - name: mongodb
+              mountPath: /etc/secretspot
+      volumes:
+        - name: mongodb
+          secret:
+            secretName: employee
+{% endif %}
+      serviceAccountName: {{ tanzu_app_stack.service_account }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: employee
+  namespace: {{ tanzu_app_stack.employee.namespace }}
+  labels:
+    app.kubernetes.io/name: "{{ tanzu_app_stack.employee.resource_name }}"
+spec:
+  ports:
+    - name: web
+      port: 8080
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: "{{ tanzu_app_stack.employee.resource_name }}"
+  type: NodePort

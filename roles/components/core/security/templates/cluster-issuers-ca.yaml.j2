@@ -1,0 +1,36 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+{% if (tanzu_security.ca.tls_root_ca_cert == "") and (tanzu_security.ca.tls_root_ca_key == "") %}
+---
+apiVersion: cert-manager.io/v1alpha2
+kind: Certificate
+metadata:
+  name: root-ca
+  namespace: "{{ tanzu_security.namespace }}"
+spec:
+  secretName: ca-keypair
+  commonName: ca
+  isCA: true
+  issuerRef:
+    name: self
+    kind: ClusterIssuer
+{% else %}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ca-keypair
+  namespace: "{{ tanzu_security.namespace }}"
+data:
+  tls.crt: "{{ tanzu_security.ca.tls_root_ca_cert }}"
+  tls.key: "{{ tanzu_security.ca.tls_root_ca_key }}"
+{% endif %}
+---
+apiVersion: cert-manager.io/v1alpha2
+kind: ClusterIssuer
+metadata:
+  name: ca
+  namespace: "{{ tanzu_security.namespace }}"
+spec:
+  ca:
+    secretName: ca-keypair

@@ -1,0 +1,117 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_monitoring:
+  namespace:   "tanzu-monitoring"
+  staging_dir: "{{ rpk_staging_dir }}/tanzu-monitoring"
+
+  operator:
+    image:     "quay.io/coreos/prometheus-operator"
+    image_tag: "v0.40.0"
+    replicas:  1
+    resources:
+      requests:
+        cpu:    "50m"
+        memory: "64Mi"
+      limits:
+        cpu:    "50m"
+        memory: "128Mi"
+
+  prometheus:
+    dns:       "monitor.{{ tanzu_ingress_domain }}"
+    tls:
+      secret:   "monitoring-prometheus-tls"
+      provider: "{{ tanzu_default_tls_provider }}"
+    image:     "quay.io/prometheus/prometheus"
+    image_tag: "v2.17.2"
+    replicas:  2
+    resources:
+      requests:
+        cpu:    "200m"
+        memory: "512Mi"
+      limits:
+        cpu:    "400m"
+        memory: "2048Mi"
+
+  alertmanager:
+    dns:                "alerts.{{ tanzu_ingress_domain }}"
+    tls:
+      secret:   "monitoring-alertmanager-tls"
+      provider: "{{ tanzu_default_tls_provider }}"
+    image:              "quay.io/prometheus/alertmanager"
+    image_tag:          "v0.20.0"
+    slack_url:          ""
+    watchdog_slack_url: ""
+    critical_slack_url: ""
+    replicas:           3
+    resources:
+      requests:
+        cpu:    "50m"
+        memory: "100Mi"
+      limits:
+        cpu:    "50m"
+        memory: "100Mi"
+
+  grafana:
+    admin_username: "admin"  # this is for info only and does not change admin username
+    admin_password: "admin"  # this is for info only and does not change admin password
+    dns:            "metrics.{{ tanzu_ingress_domain }}"
+    tls:
+      secret:   "monitoring-grafana-tls"
+      provider: "{{ tanzu_default_tls_provider }}"
+    image:          "projects.registry.vmware.com/rpk/grafana"
+    image_tag:      "6.6.0"
+    replicas:       1
+    resources:
+      requests:
+        cpu:    "100m"
+        memory: "64Mi"
+      limits:
+        cpu:    "200m"
+        memory: "128Mi"
+
+  adapter:
+    image:     "projects.registry.vmware.com/rpk/k8s-prometheus-adapter"
+    image_tag: "v0.7.0"
+    replicas:  1
+    resources:
+      requests:
+        cpu:    "25m"
+        memory: "64Mi"
+      limits:
+        cpu:    "50m"
+        memory: "64Mi"
+
+  kube_state_metrics:
+    image:     "quay.io/coreos/kube-state-metrics"
+    image_tag: "v1.9.5"
+    replicas:  1
+    resources:
+      requests:
+        cpu:    "25m"
+        memory: "64Mi"
+      limits:
+        cpu:    "50m"
+        memory: "64Mi"
+
+  node_exporter:
+    image:     "quay.io/prometheus/node-exporter"
+    image_tag: "v0.18.1"
+    resources:
+      requests:
+        cpu:    "50m"
+        memory: "64Mi"
+      limits:
+        cpu:    "100m"
+        memory: "128Mi"
+
+  rbac_proxy:
+    image:     "quay.io/coreos/kube-rbac-proxy"
+    image_tag: "v0.4.1"
+    resources:
+      requests:
+        cpu:    "10m"
+        memory: "16Mi"
+      limits:
+        cpu:    "20m"
+        memory: "32Mi"

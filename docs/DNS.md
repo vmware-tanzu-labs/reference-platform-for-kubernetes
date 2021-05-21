@@ -1,0 +1,13 @@
+# Choosing the Appropriate DNS Solution
+
+You will need to identify a domain or subdomain that will host all of the DNS records for your cluster's ingress and service definitions.  This option needs to be set as the `tanzu_ingress_domain`.
+
+We provide several supported options for DNS within the project.  Use the table below to help you choose and configure the appropriate DNS solution for your cluster.  This option needs to be set as the `tanzu_dns_provider`.
+
+| DNS Solution | `tanzu_dns_provider` Setting | Description | Use-Case | Instructions |
+| --- | --- | --- | --- | --- |
+| route53 | route53 | AWS' Route53 DNS Service via external-dns in-cluster pod. An external-dns pod queries ingress and service definitions and updates your route53 domain records automatically. | 1.) I own a domain and have delegated it to Route53.  This is currently our default DNS option. | [Route53 Instructrions](dns/route53.md) |
+| internal | internal | A bind server is deployed in your cluster and ingress and service records get injected as records via external-dns. **NOTE: If you are using this option on AWS, you must be running Kubernetes version 1.19+, because UDP Network Load Balancer support was not enabled until version 1.19.** | 1.) I do not own a real domain and want to test as a lab environment<br/>2.) I own a domain, but it is not serviced by Route53 | [Internal DNS Instructions](dns/internal.md) |
+| xip.io | xip.io | A dynamic DNS service. May encounter issues in restricted network environments. | 1.) I do not own a real domain and want to test as a lab environment<br/>2.) I own a domain, but it is not serviced by Route53<br/>3.) I do not want to run an in-cluster DNS service | [xip.io Instructions](dns/xip.io.md) |
+| dnsmasq | local | Uses a local dnsmasq container to serve an auto-generated hostfile. | 1.) I do not own a real domain and want to test as a lab environment<br/>2.) I own a domain, but it is not serviced by Route53<br/>3.) I do not want to run an in-cluster DNS service<br/>4.) I can not reach xip.io from my network | [dnsmasq Instructions](dns/dnsmasq.md) |
+| NetworkManager | local | Uses a Linux system with NetworkManager's built-in dnsmasq service | 1.) I do not own a real domain and want to test as a lab environment<br/>2.) I own a domain, but it is not serviced by Route53<br/>3.) I do not want to run an in-cluster DNS service<br/>4.) I can not reach xip.io from my network<br/>5.) I do not want to run a local dnsmasq container<br/>6.) I do not have a container run-time installed on my Linux system | [NetworkManager Instructions](dns/NetworkManager.md) |

@@ -1,0 +1,10 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+rpk_components:
+{% for component in _rpk_components %}
+{% if profile in component.profiles %}
+  - name:    "{{ component.name }}"
+    enabled: {{ component.enabled | bool | lower }}
+{% endif %}
+{% endfor %}

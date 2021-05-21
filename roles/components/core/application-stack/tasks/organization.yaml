@@ -1,0 +1,42 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure application stack (organization) rbac exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "application stack (organization) rbac"
+    manifest_template:    "app/organization/organization-rbac.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}"
+
+- name: "ensure application stack (organization) config map exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "application stack (organization) config map"
+    manifest_template:    "app/organization/organization-configmap.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}"
+
+- name: "ensure application stack (organization) secret exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "application stack (organization) secret"
+    manifest_template:    "app/organization/organization-secret.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}"
+
+- name: "ensure application stack (organization) deployment exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "application stack (organization) deployment"
+    manifest_template:    "app/organization/organization-deployment.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}"
+
+- name: "ensure application stack (organization) hpa exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "application stack (organization) hpa"
+    manifest_template:    "app/organization/organization-hpa.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_app_stack.staging_dir }}"

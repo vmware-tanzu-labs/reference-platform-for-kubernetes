@@ -1,0 +1,179 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: {{ tanzu_sql.namespace }}/postgres-operator-serving-cert
+  creationTimestamp: null
+  name: postgres-operator-mutating-webhook-configuration
+  namespace: {{ tanzu_sql.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_sql.module }}"
+    rpk.resource: "postgres-mutating-webhook"
+webhooks:
+  - clientConfig:
+      # unset, will be set by cert-manager
+      # see cert-manager.io/inject-ca-from annotation above
+      caBundle: ""
+      service:
+        name: postgres-operator-webhook-service
+        namespace: {{ tanzu_sql.namespace }}
+        path: /mutate-postgres-pivotal-io-v1-postgresinstance
+    failurePolicy: Fail
+    name: mpostgresinstance.kb.io
+    rules:
+      - apiGroups:
+          - postgres.pivotal.io
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - postgresinstances
+---
+# Source: postgres-operator/templates/postgres-operator-validating-webhook-configuration.yaml
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: ValidatingWebhookConfiguration
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: {{ tanzu_sql.namespace }}/postgres-operator-serving-cert
+  creationTimestamp: null
+  name: postgres-operator-validating-webhook-configuration
+  namespace: {{ tanzu_sql.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_sql.module }}"
+    rpk.resource: "postgres-validating-webhook"
+webhooks:
+  - clientConfig:
+      # unset, will be set by cert-manager
+      # see cert-manager.io/inject-ca-from annotation above
+      caBundle: ""
+      service:
+        name: postgres-operator-webhook-service
+        namespace: {{ tanzu_sql.namespace }}
+        path: /validate-postgres-pivotal-io-v1-postgresinstance
+    failurePolicy: Fail
+    name: vpostgresinstance.kb.io
+    rules:
+      - apiGroups:
+          - postgres.pivotal.io
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - postgresinstances
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-operator-webhook-service
+  namespace: {{ tanzu_sql.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_sql.module }}"
+    rpk.resource: "postgres-service-account"
+spec:
+  ports:
+    - port: 443
+      targetPort: 9443
+  selector:
+    app: postgres-operator
+---
+apiVersion: cert-manager.io/v1alpha2
+kind: Certificate
+metadata:
+  name: postgres-operator-serving-cert
+  namespace: {{ tanzu_sql.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_sql.module }}"
+    rpk.resource: "postgres-certificate"
+spec:
+  dnsNames:
+    - postgres-operator-webhook-service.default.svc
+    - postgres-operator-webhook-service.default.svc.cluster.local
+    - postgres-operator-webhook-service.{{ tanzu_sql.namespace }}.svc
+  issuerRef:
+    kind: Issuer
+    name: postgres-operator-selfsigned-issuer
+  secretName: postgres-operator-webhook-server-cert
+---
+# Source: postgres-operator/templates/postgres-operator-self-signed-issuer.yaml
+apiVersion: cert-manager.io/v1alpha2
+kind: Issuer
+metadata:
+  name: postgres-operator-selfsigned-issuer
+  namespace: {{ tanzu_sql.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_sql.module }}"
+    rpk.resource: "postgres-cert-issuer"
+spec:
+  selfSigned: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-operator
+  namespace: {{ tanzu_sql.namespace }}
+  labels:
+    app: postgres-operator
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_sql.module }}"
+    rpk.resource: "postgres-deployment"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-operator
+  template:
+    metadata:
+      labels:
+        app: postgres-operator
+    spec:
+      serviceAccountName: postgres-operator-service-account
+      containers:
+        - name: postgres-operator
+          image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_sql.registry.project.project_name + '/postgres-operator:' + tanzu_sql.registry.destination_tag }}
+          command: ["./manager", "--webhook-cert-directory", "/tmp/postgres-operator-webhook-server-cert-secret"]
+          imagePullPolicy: IfNotPresent
+          env:
+          - name: POSTGRES_IMAGE_REPO
+            value: {{ tanzu_container_registry.core.dns + '/'+ tanzu_sql.registry.project.project_name + '/postgres-instance' }}
+          - name: POSTGRES_IMAGE_TAG
+            value: {{ tanzu_sql.registry.destination_tag }}
+          - name: OPERATOR_IMAGE_REPO
+            value: {{ tanzu_container_registry.core.dns + '/'+ tanzu_sql.registry.project.project_name + '/postgres-operator' }}
+          - name: OPERATOR_IMAGE_TAG
+            value: {{ tanzu_sql.registry.destination_tag }}
+          - name: DOCKER_REGISTRY_SECRET_NAME
+            value: tanzu-sql-registry-secret
+          readinessProbe:
+            exec:
+              command:
+                - cat
+                - /tmp/operatorReady
+            initialDelaySeconds: 3
+            periodSeconds: 2
+          ports:
+            - containerPort: 9443
+              name: webhook-server
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /tmp/postgres-operator-webhook-server-cert-secret
+              name: postgres-operator-webhook-server-cert-secret
+              readOnly: true
+      imagePullSecrets:
+        - name: tanzu-sql-registry-secret
+      volumes:
+        - name: postgres-operator-webhook-server-cert-secret
+          secret:
+            defaultMode: 420
+            secretName: postgres-operator-webhook-server-cert

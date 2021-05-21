@@ -1,0 +1,41 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# NAMESPACE
+#
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_storage.staging_dir }}"
+
+- name: "create required storage namespaces"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_storage.namespace }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_storage.staging_dir }}/tanzu-namespace.yaml"
+
+#
+# CONFIGURE PROVIDERS / STORAGE
+#
+- name:         "configure storage for aws"
+  import_tasks: "aws.yaml"
+  when:         "tanzu_provider == 'aws'"
+
+- name:         "configure storage for azure"
+  import_tasks: "azure.yaml"
+  when:         "tanzu_provider == 'azure'"
+
+- name:         "configure storage for kind"
+  import_tasks: "kind.yaml"
+  when:         "tanzu_provider == 'kind'"
+
+- name:         "configure storage for vmware"
+  import_tasks: "vmware.yaml"
+  when:         "tanzu_provider == 'vmware'"
+
+- name:         "configure ephemeral storage"
+  import_tasks: "ephemeral.yaml"

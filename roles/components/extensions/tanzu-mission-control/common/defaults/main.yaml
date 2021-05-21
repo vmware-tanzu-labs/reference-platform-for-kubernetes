@@ -1,0 +1,10 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_mission_control:
+  namespace:        "vmware-system-tmc"
+  staging_dir:      "{{ rpk_staging_dir }}/tanzu_mission_control"
+  access_token_url: "https://console.cloud.vmware.com/csp/gateway/am/api/auth/api-tokens/authorize"
+  org_url:          "https://{{ tanzu_mission_control_org_name }}.tmc.cloud.vmware.com"
+  api_version:      "v1alpha1"
+  owner_label:      "tanzu-rpk.{{ tanzu_cluster_name }}"

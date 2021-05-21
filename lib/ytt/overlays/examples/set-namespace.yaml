@@ -1,0 +1,29 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# DO NOT DELETE: KEEP AS AN EXAMPLE
+#
+
+#@ load("@ytt:overlay", "overlay")
+#@ load("@ytt:data", "data")
+
+#
+# set namespace for all components
+#
+
+#@overlay/match by=overlay.all,expects="1+"
+---
+metadata:
+  #@overlay/match missing_ok=True
+  namespace: #@ component_values.namespace
+
+#@ for app_component in data.values.common_values.app_components:
+
+#@overlay/match by=overlay.subset({"kind":"ClusterRoleBinding"}),expects="1+"
+---
+subjects:
+  #@overlay/match by=overlay.all,expects="1+"
+  - namespace: #@ component_values.namespace
+
+#@ end

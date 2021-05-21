@@ -1,0 +1,18 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure jenkins exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "jenkins"
+    manifest_template:    "app-jenkins.yaml.j2"
+    manifest_file:        "app-jenkins.yaml"
+    manifest_staging_dir: "{{ tanzu_app_pipeline.staging_dir }}"
+
+- name: "ensure dns resolvability for jenkins"
+  import_role:
+    name: "common/etc-hosts"
+  vars:
+    ip:   "{{ ingress_ip }}"
+    fqdn: "{{ tanzu_app_pipeline.ci.dns }}"

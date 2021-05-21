@@ -1,0 +1,4 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+staging_dir: "{{ rpk_staging_dir }}/{{ component }}"

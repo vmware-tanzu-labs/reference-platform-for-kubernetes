@@ -1,0 +1,41 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "write {{ manifest_description | lower }} manifest file"
+  template:
+    src:  "{{ manifest_template }}"
+    dest: "{{ manifest_staging_dir }}/{{ manifest_template.split('.j2') | first | basename }}"
+    mode: "0440"
+  changed_when: false
+
+- name: "ensure {{ manifest_description | lower }} is present"
+  k8s:
+    state:        "present"
+    context:      "{{ tanzu_kubectl_context }}"
+    src:          "{{ manifest_staging_dir }}/{{ manifest_template.split('.j2') | first | basename }}"
+    wait:         true
+    wait_timeout: "{{ wait_for_wait_for_timeout | default(600) }}"
+  register: _resource_status
+
+#
+# TODO: logic is broken.  would be nice to be able to wait on specific resources
+#       which cannot be used with the 'wait: true' flag above (e.g. Jobs, StatefulSets)
+#
+# Process results and wait for the resource to be actually ready.
+#
+# - name: "ensure {{ manifest_description | lower }} resource is ready"
+#   include_tasks: "wait-for.yaml"
+#   with_items:
+#     - "{{ _resource_status }}"
+#   loop_control:
+#     loop_var: _wait_for
+#   when:
+#     - _resource_status.result.results is not defined
+
+# - name: "ensure {{ manifest_description | lower }} resources are ready"
+#   include_tasks: "wait-for.yaml"
+#   with_items: "{{ _resource_status.result.results }}"
+#   loop_control:
+#     loop_var: _wait_for
+#   when:
+#     - _resource_status.result.results is defined

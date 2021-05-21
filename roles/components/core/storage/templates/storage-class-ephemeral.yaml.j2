@@ -1,0 +1,11 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ tanzu_storage.ephemeral.name }}
+provisioner: {{ tanzu_storage.ephemeral.provisioner }}
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+volumeBindingMode: Immediate

@@ -1,0 +1,68 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# SNAPSHOT CONTROLLER
+#   NOTE: required for CSI
+#   NOTE: instructions at https://github.com/kubernetes-csi/csi-driver-host-path/blob/master/docs/deploy-1.17-and-later.md
+#
+- name: "ensure snapshot controller custom resource definitions exist"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "snapshot controller custom resource definitions"
+    manifest_template:    "crds-snapshot-controller.yaml.j2"
+    manifest_file:        "crds-snapshot-controller.yaml"
+    manifest_staging_dir: "{{ tanzu_storage.staging_dir }}"
+
+- name: "ensure snapshot controller rbac exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "snapshot controller rbac"
+    manifest_template:    "rbac-snapshot-controller.yaml.j2"
+    manifest_file:        "rbac-snapshot-controller.yaml"
+    manifest_staging_dir: "{{ tanzu_storage.staging_dir }}"
+
+- name: "ensure snapshot controller exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "snapshot controller"
+    manifest_template:    "app-snapshot-controller.yaml.j2"
+    manifest_file:        "app-snapshot-controller.yaml"
+    manifest_staging_dir: "{{ tanzu_storage.staging_dir }}"
+
+#
+# CSI
+#   NOTE: instructions at https://github.com/kubernetes-csi/csi-driver-host-path/blob/master/docs/deploy-1.17-and-later.md
+#
+- name: "ensure host path (ephemeral) csi rbac exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "host path (ephemeral) csi rbac"
+    manifest_template:    "rbac-csi-ephemeral.yaml.j2"
+    manifest_file:        "rbac-csi-ephemeral.yaml"
+    manifest_staging_dir: "{{ tanzu_storage.staging_dir }}"
+
+- name: "ensure host path (ephemeral) csi components exist"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "host path (ephemeral) csi components"
+    manifest_template:    "app-csi-ephemeral.yaml.j2"
+    manifest_file:        "app-csi-ephemeral.yaml"
+    manifest_staging_dir: "{{ tanzu_storage.staging_dir }}"
+
+#
+# STORAGE CLASS
+#
+- name: "ensure host path (ephemeral) storage class exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "host path (ephemeral) storage class"
+    manifest_template:    "storage-class-ephemeral.yaml.j2"
+    manifest_file:        "storage-class-ephemeral.yaml"
+    manifest_staging_dir: "{{ tanzu_storage.staging_dir }}"

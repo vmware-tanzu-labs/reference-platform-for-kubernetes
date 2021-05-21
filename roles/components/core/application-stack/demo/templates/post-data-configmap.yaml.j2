@@ -1,0 +1,27 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: post-data
+  namespace: {{ tanzu_app_stack.gateway.namespace }}
+data:
+  post-data.sh: |
+    #!/usr/local/bin/bash
+
+    set -x
+
+    export APP_DOMAIN=http://gateway
+    export APP_PREFIX={{ tanzu_app_stack.gateway.app_prefix }}
+
+    # add employee
+    curl -X POST "$APP_DOMAIN/$APP_PREFIX/employee" -H "accept: */*" -H "Content-Type: application/json" -d "{ \"age\": 25, \"departmentId\": 1, \"id\": \"1\", \"name\": \"Smith\", \"organizationId\": 1, \"position\": \"engineer\"}"
+    curl -X POST "$APP_DOMAIN/$APP_PREFIX/employee" -H "accept: */*" -H "Content-Type: application/json" -d "{ \"age\": 45, \"departmentId\": 1, \"id\": \"2\", \"name\": \"Johns\", \"organizationId\": 1, \"position\": \"manager\"}"
+
+    # add department
+    curl -X POST "$APP_DOMAIN/$APP_PREFIX/department" -H "accept: */*" -H "Content-Type: application/json" -d "{ \"employees\": [ { \"age\": 25, \"id\": 1, \"name\": \"Smith\", \"position\": \"engineer\" }, { \"age\": 45, \"id\": 2, \"name\": \"Johns\", \"position\": \"manager\" } ], \"id\": \"1\", \"name\": \"RD Dept.\", \"organizationId\": 1}"
+    curl -X POST "$APP_DOMAIN/$APP_PREFIX/department" -H "accept: */*" -H "Content-Type: application/json" -d "{ \"employees\": [ { \"age\": 45, \"id\": 2, \"name\": \"Johns\", \"position\": \"manager\" } ], \"id\": \"1\", \"name\": \"RD Dept.\", \"organizationId\": 1}"
+
+    # add organization
+    curl -X POST "$APP_DOMAIN/$APP_PREFIX/organization" -H "accept: */*" -H "Content-Type: application/json" -d "{ \"address\": \"Main Street\", \"departments\": [ { \"employees\": [ { \"age\": 25, \"id\": 1, \"name\": \"Smith\", \"position\": \"engineer\" } ], \"id\": 1, \"name\": \"Smith\" } ], \"employees\": [ { \"age\": 25, \"id\": 1, \"name\": \"Smith\", \"position\": \"engineer\" } ], \"id\": \"1\", \"name\": \"MegaCorp\"}"

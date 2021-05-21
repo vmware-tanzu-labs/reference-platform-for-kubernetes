@@ -1,0 +1,112 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ tanzu_ingress.external_dns.resource_name }}
+  name: {{ tanzu_ingress.external_dns.resource_name }}
+  namespace: {{ tanzu_ingress.namespace }}
+spec:
+  replicas: {{ tanzu_ingress.external_dns.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ tanzu_ingress.external_dns.resource_name }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ tanzu_ingress.external_dns.resource_name }}
+    spec:
+      securityContext:
+        fsGroup: 106
+      serviceAccountName: {{ tanzu_ingress.external_dns.resource_name }}
+      initContainers:
+        - name: {{ tanzu_ingress.bind.resource_name }}-init
+          image: {{ tanzu_ingress.bind_init.image }}:{{ tanzu_ingress.bind_init.image_tag }}
+          volumeMounts:
+            - name: bind-var-lib-bind
+              mountPath: /var/lib/bind
+              readOnly: false
+            - name: bind-configs
+              mountPath: /tmp/{{ tanzu_ingress_domain }}.db
+              subPath: {{ tanzu_ingress_domain }}.db
+          command:
+            - "sh"
+            - "-c"
+            - "cp -f /tmp/{{ tanzu_ingress_domain }}.db /var/lib/bind/{{ tanzu_ingress_domain }}.db && chmod 664 /var/lib/bind/{{ tanzu_ingress_domain }}.db"
+      containers:
+        - name: {{ tanzu_ingress.bind.resource_name }}
+          image: {{ tanzu_ingress.bind.image }}:{{ tanzu_ingress.bind.image_tag }}
+          ports:
+            - containerPort: 53
+              protocol: UDP
+              name: dns-udp
+            - containerPort: 53
+              protocol: TCP
+              name: dns-tcp
+            - containerPort: 953
+              protocol: TCP
+              name: dns-loopback
+          volumeMounts:
+            - name: bind-var-lib-bind
+              mountPath: /var/lib/bind
+              readOnly: false
+            - name: bind-configs
+              mountPath: /etc/bind/named.conf.local
+              subPath: named.conf.local
+            - name: bind-configs
+              mountPath: /etc/bind/named.conf.options
+              subPath: named.conf.options
+          resources: {{ tanzu_ingress.bind.resources | default(tanzu_ingress.default_resources) }}
+        - name: {{ tanzu_ingress.external_dns.resource_name }}
+          image: {{ tanzu_ingress.external_dns.image }}:{{ tanzu_ingress.external_dns.image_tag }}
+          args:
+            - --source=service
+            - --source=ingress
+            - --domain-filter={{ tanzu_ingress_domain }}
+            - --provider=rfc2136
+            - --rfc2136-host=127.0.0.1
+            - --rfc2136-port=53
+            - --rfc2136-insecure
+            - --rfc2136-zone={{ tanzu_ingress_domain }}
+            - --rfc2136-tsig-axfr
+            - --interval={{ tanzu_ingress.external_dns.sync_interval_seconds }}s
+            - --policy={{ tanzu_ingress.external_dns.delete_records | bool | ternary("sync", "upsert-only") }}
+            - --registry=txt
+            - --txt-owner-id=tanzu-dns-{{ tanzu_cluster_name }}
+            - --txt-prefix=ivy-tracker-record-
+          resources: {{ tanzu_ingress.external_dns.resources | default(tanzu_ingress.default_resources) }}
+      volumes:
+        - name: bind-var-lib-bind
+          emptyDir: {}
+        - name: bind-configs
+          configMap:
+            defaultMode: 0664
+            name: bind-configs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bind-udp
+  namespace: {{ tanzu_ingress.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_ingress.external_dns.resource_name }}
+  annotations:
+    # NOTE: this only works on 1.19.1+vmware.1+, but not prior
+    #       this annotation will be ignored on other cloud providers
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    # NOTE: this will force the service to use metallb in environments which
+    #       have multiple load balancers (e.g. v7wk8s w/o NSX-T)
+    metallb.universe.tf/address-pool: default
+spec:
+  selector:
+    app.kubernetes.io/name: {{ tanzu_ingress.external_dns.resource_name }}
+  type: LoadBalancer
+  ports:
+    - name: dns-udp
+      port: 53
+      protocol: UDP
+      targetPort: dns-udp

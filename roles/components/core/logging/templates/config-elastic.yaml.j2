@@ -1,0 +1,10 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+data:
+  elastic: "{{ tanzu_logging.elastic.password | b64encode }}"
+kind: Secret
+metadata:
+  name: elasticsearch-es-elastic-user
+  namespace: "{{ tanzu_logging.namespace }}"

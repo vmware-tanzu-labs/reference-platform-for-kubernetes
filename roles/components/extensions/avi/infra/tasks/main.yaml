@@ -1,0 +1,18 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# INSTALL CONTROLLER: VMWARE ONLY
+#
+- when: tanzu_provider == 'vmware'
+  block:
+    - name:         "install control plane"
+      import_tasks: "install-controllers.yaml"
+
+#
+# CREATE WORKLOAD: VMWARE ONLY
+#
+- when: tanzu_provider == 'vmware'
+  block:
+    - name:         "create avi workload domain"
+      import_tasks: "create-workload.yaml"

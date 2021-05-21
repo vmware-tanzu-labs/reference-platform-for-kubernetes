@@ -1,0 +1,37 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_spring_cloud_data_flow:
+  # common vars
+  namespace:   "tanzu-spring-cloud-data-flow"
+  staging_dir: "{{ rpk_staging_dir }}/tanzu-spring-cloud-data-flow"
+  module:      "spring-cloud-data-flow"
+  dns:         "spring-cloud-data-flow.{{ tanzu_ingress_domain }}"
+
+  security:
+    policy:
+      role:      "rpk-tanzu-spring-cloud-data-flow-cluster-role"
+      role_bind: "rpk-tanzu-spring-cloud-data-flow-cluster-role-binding"
+      name:      "rpk-tanzu-spring-cloud-data-flow-psp"
+
+  registry:
+    project:
+      project_name: "spring-cloud-data-flow"
+      metadata:
+        auto_scan: "false"
+        public:    "true"
+    source_url:      "registry.pivotal.io"
+    source_project:  "p-scdf-for-kubernetes"
+    destination_tag: "1.2.0"
+    migrate_images:  true
+    images:
+      - name: "spring-cloud-dataflow-pro-server"
+        tag:  "1.1.0_scdf-k8s-1.2.0"
+      - name: "spring-cloud-dataflow-composed-task-runner"
+        tag:  "2.7.0_scdf-k8s-1.2.0"
+      - name: "spring-cloud-skipper-server"
+        tag:  "2.6.0_scdf-k8s-1.2.0"
+
+  # use namespace operator or not
+  workload_tenancy:
+    enabled: false

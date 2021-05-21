@@ -1,0 +1,25 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "get provider documentation headings"
+  command: "grep '^#' /ansible/roles/support/build-docs/templates/built/{{ provider }}.md"
+  register: "headings"
+  tags:
+    - skip_ansible_lint
+
+- debug:
+    var:       "headings.stdout_lines"
+    verbosity: 1
+
+- name: "build table of conentents for {{ provider }}"
+  template:
+    src:  "toc/toc.md.j2"
+    dest: "/ansible/roles/support/build-docs/templates/built/{{ provider }}-toc.md"
+    mode: "0700"
+  tags:
+    - skip_ansible_lint
+
+# ensure we've cleaned out possible headings by setting to empty
+- name: "clear {{ provider }} headings"
+  set_fact:
+    headings: []

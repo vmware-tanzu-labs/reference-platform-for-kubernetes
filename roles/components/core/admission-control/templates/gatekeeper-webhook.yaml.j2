@@ -1,0 +1,57 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: ValidatingWebhookConfiguration
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: {{ tanzu_admission_control.namespace }}/gatekeeper-webhook-service
+  labels:
+    gatekeeper.sh/system: "yes"
+  name: gatekeeper-validating-webhook-configuration
+webhooks:
+  - clientConfig:
+      service:
+        name: gatekeeper-webhook-service
+        namespace: {{ tanzu_admission_control.namespace }}
+        path: /v1/admit
+    failurePolicy: Ignore
+    name: validation.gatekeeper.sh
+    namespaceSelector:
+      matchExpressions:
+        - key: control-plane
+          operator: DoesNotExist
+        - key: admission.gatekeeper.sh/ignore
+          operator: DoesNotExist
+    rules:
+      - apiGroups:
+          - '*'
+        apiVersions:
+          - '*'
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - '*'
+    sideEffects: None
+    timeoutSeconds: 5
+  - clientConfig:
+      service:
+        name: gatekeeper-webhook-service
+        namespace: {{ tanzu_admission_control.namespace }}
+        path: /v1/admitlabel
+    failurePolicy: Fail
+    name: check-ignore-label.gatekeeper.sh
+    rules:
+      - apiGroups:
+          - ""
+        apiVersions:
+          - '*'
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - namespaces
+        # scope: '*'
+    sideEffects: None
+    timeoutSeconds: 5

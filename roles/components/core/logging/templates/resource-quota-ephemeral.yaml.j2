@@ -1,0 +1,11 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: ephemeral-storage
+  namespace: "{{ tanzu_logging.namespace }}"
+spec:
+  hard:
+    limits.ephemeral-storage: 4Gi

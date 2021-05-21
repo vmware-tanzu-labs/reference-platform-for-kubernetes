@@ -1,0 +1,109 @@
+# {{ role_name }}
+
+A brief description of {{ role_name }} goes here.
+
+
+## Resource Sizing Requirements
+
+The following sizing requirements must be met for this role to operate properly.  Sizing includes additional [dependencies](#dependencies).
+
+| vCPU | Memory | Storage |
+| --- | --- | --- |
+| 500m | 1Gi | N/A - no persistent storage required |
+
+
+## Variables
+
+### Default Variables
+
+The following variables are defaulted in the `common/vars/main.yaml` file and require no additional user input.
+
+| Variable Name | Description | Default Value | Variable Type | Required |
+| --- | --- | --- | --- | --- |
+| {{ role_name }}.namespace | Namespace for {{ role_name }} components | "{{ role_name }}" | string | yes |
+| {{ role_name }}.staging_dir | Local directory to write the staging manfiests to | "{{ rpk_staging_dir }}/{{ role_name }}" | string | yes |
+| myvar | Modifies X, Y, Z for {{ role_name }} | "abc" | string | yes |
+
+### Additional Variables
+
+The following variables must be set for proper operation of the role.  Variables are generally set in the variables file
+at `build/inventory.yaml` of the root of this project.
+
+| Variable Name | Description | Default Value | Variable Type | Required |
+| --- | --- | --- | --- | --- |
+| tanzu_kubectl_context | Name of context to use for connection to Kubernetes | - | string | yes |
+
+## Dependencies
+
+Also see `.dependencies.yaml` to view role dependencies which are run when running the role
+independently.
+
+* dep1
+* dep2
+
+
+## Deploying
+
+**NOTE:** roles from `.dependencies.yaml` are also deployed.
+
+In order to deploy the role from a versioned image:
+
+```bash
+ROLE={{ role_name }} make deploy.role
+```
+
+If you've made changes to the role and need to verify your changes:
+
+```bash
+ROLE={{ role_name }} make deploy.test.role
+```
+
+
+## Demonstrating
+
+Once the role has run successfully, you should be able to demonstrate the role.
+
+Brief description of what the demonstration does here.
+
+In order to demonstrate the role:
+
+```bash
+ROLE={{ role_name }} make demo.role
+```
+
+Sample output:
+
+```bash
+...
+relevant sample output here
+```
+
+Accessing the service:
+
+```bash
+relevant sample output here (username, password, url, ip, etc)
+```
+
+
+## Cleaning
+
+To remove the role, from the root of the repo:
+
+**NOTE:** only this role is removed and not the role dependencies.
+
+```bash
+ROLE={{ role_name }} make clean.role
+```
+
+
+## Accessing the Service
+
+After the role has been deployed, you can access your service:
+
+* **URL:** `https://{{ service.dns }}.{{ tanzu_ingress_domain }}` (e.g. service.mydomain.com)
+* **Username:** `{{ service.admin_username }}` (default: admin)
+* **Password:** `{{ service.admin_password }}` (default: tanzu)
+
+
+## Author(s)
+[Author Name](mailto:myemail@email.com)

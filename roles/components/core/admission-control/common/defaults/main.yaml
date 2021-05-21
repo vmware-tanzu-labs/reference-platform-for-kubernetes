@@ -1,0 +1,53 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_admission_control:
+  namespace:   "tanzu-admission"
+  staging_dir: "{{ rpk_staging_dir }}/tanzu-admission"
+  component:   "admission-control"
+
+  # resources
+  default_resources:
+    requests:
+      cpu:    "100m"
+      memory: "64Mi"
+    limits:
+      cpu:    "250m"
+      memory: "128Mi"
+  default_quota:
+    requests:
+      cpu:    "4000m"
+      memory: "4096Mi"
+    limits:
+      cpu:    "4000m"
+      memory: "4096Mi"
+  default_maximums:
+    cpu:    "500m"
+    memory: "64Mi"
+
+  # gatekeeper
+  gatekeeper:
+    image:         "projects.registry.vmware.com/rpk/gatekeeper"
+    image_tag:     "v3.1.1"
+    resource_name: "gatekeeper"
+
+    # gatekeeper audit
+    audit:
+      resource_name: "gatekeeper-audit"
+
+    # gatekeeper controller
+    controller:
+      resource_name: "gatekeeper-controller"
+
+  # mutator
+  mutator:
+    image:         "projects.registry.vmware.com/rpk/sac"
+    image_tag:     "1.18"
+    resource_name: "sac"
+    resources:
+      requests:
+        cpu:    "10m"
+        memory: "32Mi"
+      limits:
+        cpu:    "40m"
+        memory: "64Mi"

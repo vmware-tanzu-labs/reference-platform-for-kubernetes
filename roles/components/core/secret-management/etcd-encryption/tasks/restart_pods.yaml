@@ -1,0 +1,31 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+# inner loop
+# - name: "get all pods in {{ ns }} namespace"
+#   command: "/usr/bin/kubectl get po -n {{ ns }} -ocustom-columns=NAME:.metadata.name --no-headers --context {{ tanzu_kubectl_context }}"
+#   register: "pods"
+#   tags: skip_ansible_lint
+
+# untested - old version above.  should NOT use shell commands
+- name: "get all pods in {{ ns }} namespace"
+  k8s_info:
+    kind:      "Pod"
+    context:   "{{ tanzu_kubectl_context }}"
+    namespace: "{{ ns }}"
+  register: pods
+
+# - name: "restart all pods in {{ ns }} namespace"
+#   command: "/usr/bin/kubectl delete pod {{ item }} -n {{ ns }} --context {{ tanzu_kubectl_context }}"
+#   with_items: "{{ pods.stdout_lines }}"
+#   tags: skip_ansible_lint
+
+# untested - old version above.  should NOT use shell commands
+- name: "restart all pods in {{ ns }} namespace"
+  k8s:
+    state:     "absent"
+    context:   "{{ tanzu_kubectl_context }}"
+    kind:      "Pod"
+    name:      "{{ item.metadata.name }}"
+    namespace: "{{ ns }}"
+  with_items: "{{ pods.resources }}"

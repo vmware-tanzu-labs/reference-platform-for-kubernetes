@@ -1,0 +1,16 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    prometheus: "{{ tanzu_app_stack.monitoring.resource_name }}"
+    app.kubernetes.io/name: prometheus
+    role: alert-rules
+  name: {{ tanzu_app_stack.monitoring.resource_name }}
+  namespace: "{{ tanzu_app_stack.monitoring.namespace }}"
+spec:
+  groups:
+    - name: app-stack.rules
+      rules: []

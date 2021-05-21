@@ -1,0 +1,23 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "determine the cluster cni"
+  import_role:
+    name: "common/cluster-cni"
+
+- name: "run only when a global or cluster policy is defined"
+  block:
+    - name: "run calico tasks"
+      import_tasks: "calico.yaml"
+      when: _cluster_cni == 'calico'
+
+    - name: "run antrea tasks"
+      import_tasks: "antrea.yaml"
+      when: _cluster_cni == 'antrea'
+  when: _cluster_cni is defined
+
+- name: "ensure the namespace is removed"
+  import_role:
+    name: "common/namespace/clean"
+  vars:
+    namespace: "{{ tanzu_networking.namespace }}"

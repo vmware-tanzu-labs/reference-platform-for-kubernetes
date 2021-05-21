@@ -1,0 +1,233 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ tanzu_security.cert_manager.resource_name }}
+  namespace: "{{ tanzu_security.namespace }}"
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager.resource_name }}
+    app.kubernetes.io/instance: {{ tanzu_security.cert_manager.resource_name }}
+spec:
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 9402
+      targetPort: 9402
+  selector:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager.resource_name }}
+    app.kubernetes.io/instance: {{ tanzu_security.cert_manager.resource_name }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+  namespace: "{{ tanzu_security.namespace }}"
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+    app.kubernetes.io/instance: {{ tanzu_security.cert_manager.resource_name }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: https
+      port: 443
+      targetPort: 10250
+  selector:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+    app.kubernetes.io/instance: {{ tanzu_security.cert_manager.resource_name }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ tanzu_security.cert_manager_cainjector.resource_name }}
+  namespace: "{{ tanzu_security.namespace }}"
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager_cainjector.resource_name }}
+    app.kubernetes.io/instance: {{ tanzu_security.cert_manager.resource_name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ tanzu_security.cert_manager_cainjector.resource_name }}
+      app.kubernetes.io/instance: {{ tanzu_security.cert_manager.resource_name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ tanzu_security.cert_manager_cainjector.resource_name }}
+        app.kubernetes.io/instance: {{ tanzu_security.cert_manager.resource_name }}
+      annotations:
+    spec:
+      serviceAccountName: cert-manager-cainjector
+      containers:
+        - name: {{ tanzu_security.cert_manager_cainjector.resource_name }}
+          image: "{{ tanzu_security.cert_manager_cainjector.image }}:{{ tanzu_security.cert_manager_cainjector.image_tag }}"
+          imagePullPolicy: IfNotPresent
+          args:
+            - --v=2
+            - --leader-election-namespace=kube-system
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          securityContext:
+              runAsUser: 65532
+          resources: {{ tanzu_security.default_resources }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ tanzu_security.cert_manager.resource_name }}
+  namespace: "{{ tanzu_security.namespace }}"
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager.resource_name }}
+    app.kubernetes.io/instance: {{ tanzu_security.cert_manager.resource_name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ tanzu_security.cert_manager.resource_name }}
+      app.kubernetes.io/instance: {{ tanzu_security.cert_manager.resource_name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ tanzu_security.cert_manager.resource_name }}
+        app.kubernetes.io/instance: {{ tanzu_security.cert_manager.resource_name }}
+      annotations:
+        prometheus.io/path: "/metrics"
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '9402'
+    spec:
+      serviceAccountName: cert-manager
+      containers:
+        - name: {{ tanzu_security.cert_manager.resource_name }}
+          image: "{{ tanzu_security.cert_manager.image }}:{{ tanzu_security.cert_manager.image_tag }}"
+          securityContext:
+              runAsUser: 65532
+          imagePullPolicy: IfNotPresent
+          args:
+            - --v=2
+            - --leader-election-namespace=kube-system
+            - --cluster-resource-namespace=$(POD_NAMESPACE)
+          ports:
+            - containerPort: 9402
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          resources: {{ tanzu_security.cert_manager.resources }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+  namespace: "{{ tanzu_security.namespace }}"
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+    app.kubernetes.io/instance: {{ tanzu_security.cert_manager.resource_name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+      app.kubernetes.io/instance: {{ tanzu_security.cert_manager.resource_name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+        app.kubernetes.io/instance: {{ tanzu_security.cert_manager.resource_name }}
+      annotations:
+    spec:
+      serviceAccountName: {{ tanzu_security.cert_manager_webhook.resource_name }}
+      containers:
+        - name: {{ tanzu_security.cert_manager.resource_name }}
+          image: "{{ tanzu_security.cert_manager_webhook.image }}:{{ tanzu_security.cert_manager_webhook.image_tag }}"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 65532
+          args:
+            - --v=2
+            - --secure-port=10250
+            - --dynamic-serving-ca-secret-namespace=$(POD_NAMESPACE)
+            - --dynamic-serving-ca-secret-name=cert-manager-webhook-ca
+            - --dynamic-serving-dns-names={{ tanzu_security.cert_manager_webhook.resource_name }},{{ tanzu_security.cert_manager_webhook.resource_name }}.$(POD_NAMESPACE),{{ tanzu_security.cert_manager_webhook.resource_name }}.$(POD_NAMESPACE).svc
+          ports:
+            - name: https
+              containerPort: 10250
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          resources: {{ tanzu_security.default_resources }}
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+    app.kubernetes.io/instance: {{ tanzu_security.cert_manager.resource_name }}
+  annotations:
+    cert-manager.io/inject-ca-from-secret: {{ tanzu_security.namespace }}/cert-manager-webhook-ca
+webhooks:
+  - name: webhook.cert-manager.io
+    rules:
+      - apiGroups:
+          - "cert-manager.io"
+          - "acme.cert-manager.io"
+        apiVersions:
+          - v1alpha2
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - "*/*"
+    failurePolicy: Fail
+    sideEffects: None
+    clientConfig:
+      service:
+        name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+        namespace: {{ tanzu_security.namespace }}
+        path: /mutate
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+    app.kubernetes.io/instance: {{ tanzu_security.cert_manager.resource_name }}
+  annotations:
+    cert-manager.io/inject-ca-from-secret: {{ tanzu_security.namespace }}/cert-manager-webhook-ca
+webhooks:
+  - name: webhook.cert-manager.io
+    namespaceSelector:
+      matchExpressions:
+        - key: "cert-manager.io/disable-validation"
+          operator: "NotIn"
+          values:
+            - "true"
+        - key: "name"
+          operator: "NotIn"
+          values:
+            - {{ tanzu_security.cert_manager.resource_name }}
+    rules:
+      - apiGroups:
+          - "cert-manager.io"
+        apiVersions:
+          - "*"
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - "*/*"
+    failurePolicy: Fail
+    sideEffects: None
+    clientConfig:
+      service:
+        name: {{ tanzu_security.cert_manager_webhook.resource_name }}
+        namespace: {{ tanzu_security.namespace }}
+        path: /validate

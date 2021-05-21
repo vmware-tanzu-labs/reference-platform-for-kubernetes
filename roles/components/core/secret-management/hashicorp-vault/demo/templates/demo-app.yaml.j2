@@ -1,0 +1,41 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: {{ tanzu_secrets.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.demo.app_name }}
+  name: {{ tanzu_secrets.hashicorp_vault.demo.app_name }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.demo.app_name }}
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        # https://www.vaultproject.io/docs/platform/k8s/injector/annotations
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/agent-inject-status: "update"
+        vault.hashicorp.com/role: "tanzu"
+        vault.hashicorp.com/agent-inject-secret-cool-config-bro.yaml: "tanzu/app1/test"
+        # the following annotation templates how the data lands in the file
+        vault.hashicorp.com/agent-inject-template-cool-config-bro.yaml: |{% raw %}
+          {{- with secret "tanzu/app1/test" -}}
+          tkgi: {{ .Data.data.tkgi }}
+          tanzu: {{ .Data.data.tanzu }}
+          {{- end -}}
+{% endraw %}
+      labels:
+        app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.demo.app_name }}
+    spec:
+      serviceAccountName: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+      containers:
+        - name: {{ tanzu_secrets.hashicorp_vault.demo.app_name }}
+          command:
+            - /bin/sh
+            - -c
+            - sleep 20000
+          image: photon:3.0

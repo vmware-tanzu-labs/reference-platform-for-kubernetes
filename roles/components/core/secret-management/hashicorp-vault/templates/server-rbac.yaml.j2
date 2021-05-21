@@ -1,0 +1,87 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+  namespace: {{ tanzu_secrets.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+    app.kubernetes.io/instance: hashicorp
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ tanzu_secrets.hashicorp_vault.config_job.name }}
+  namespace: {{ tanzu_secrets.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.config_job.name }}
+    app.kubernetes.io/instance: hashicorp
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+    app.kubernetes.io/instance: hashicorp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+    namespace: {{ tanzu_secrets.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ tanzu_secrets.hashicorp_vault.config_job.name }}
+  namespace: {{ tanzu_secrets.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.config_job.name }}
+    app.kubernetes.io/instance: hashicorp
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - "serviceaccounts"
+    verbs:
+      - "get"
+      - "list"
+      - "watch"
+  - apiGroups:
+      - ""
+    resources:
+      - "pods"
+      - "pods/log"
+      - "pods/exec"
+    verbs:
+      - "create"
+      - "get"
+      - "list"
+  - apiGroups:
+      - ""
+    resources:
+      - "secrets"
+    verbs:
+      - "*"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ tanzu_secrets.hashicorp_vault.config_job.name }}
+  namespace: {{ tanzu_secrets.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.config_job.name }}
+    app.kubernetes.io/instance: hashicorp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ tanzu_secrets.hashicorp_vault.config_job.name }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ tanzu_secrets.hashicorp_vault.config_job.name }}
+    namespace: {{ tanzu_secrets.namespace }}

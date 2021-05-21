@@ -1,0 +1,13 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "check if the {{ namespace }} namespace exists"
+  k8s_info:
+    kind:    "Namespace"
+    context: "{{ tanzu_kubectl_context }}"
+    name:    "{{ namespace }}"
+  register: _namespace_status
+
+- name: remove the namespace if it exists
+  import_tasks: clean.yaml
+  when: _namespace_status.resources | length > 0

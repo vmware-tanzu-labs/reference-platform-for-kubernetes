@@ -1,0 +1,24 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_service_mesh:
+  namespaces:
+    tsm:                "vmware-system-tsm"
+    istio:              "istio-system"
+  staging_dir:          "{{ rpk_staging_dir }}/tanzu-service-mesh"
+  tmc_access_token_url: "https://console.cloud.vmware.com/csp/gateway/am/api/auth/api-tokens/authorize"
+  tmc_org_url:          "https://{{ tanzu_mission_control_org_name }}.tmc.cloud.vmware.com"
+  tmc_api_version:      "v1alpha1"
+  use_tmc:              false
+  connection_pause:     "180"
+  images:
+    tsm_agent_operator:
+      image:     "284299419820.dkr.ecr.us-west-2.amazonaws.com/tsm-agent-operator"
+      image_tag: "v1.2.7"
+    operator_ecr:
+      image:     "docker.io/vmwareallspark/photon-kubectl"
+      image_tag: "1.15.0"
+
+  # use namespace operator or not
+  workload_tenancy:
+    enabled: false

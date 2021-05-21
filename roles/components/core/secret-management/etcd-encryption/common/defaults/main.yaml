@@ -1,0 +1,8 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_secrets:
+  namespace:                  "tanzu-secrets"
+  workload_cluster_namespace: "default"
+  etcd_encryption_conf_path:  "/etc/kubernetes/pki/secrets/encryption-config.yaml"
+  staging_dir:                "{{ rpk_staging_dir }}/tanzu-secrets"

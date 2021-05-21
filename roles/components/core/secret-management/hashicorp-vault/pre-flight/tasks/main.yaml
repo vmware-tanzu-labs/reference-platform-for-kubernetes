@@ -1,0 +1,20 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "retrieve the hashicorp vault root token and unseal keys"
+  import_role:
+    name: "common/vault-secrets"
+
+- name: "obtain kubernetes port 443 tcp address"
+  k8s_info:
+    kind:      "Service"
+    namespace: "default"
+    context:   "{{ tanzu_kubectl_context }}"
+    name:      "kubernetes"
+  register:     _kubernetes_tcp_address_lookup
+  changed_when: false
+
+- name: "set kubernetes port 443 tcp address"
+  set_fact:
+    _kubernetes_tcp_address: "{{ _kubernetes_tcp_address_lookup.resources[0].spec.clusterIP }}"
+  changed_when: false

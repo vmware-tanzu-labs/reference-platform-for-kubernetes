@@ -1,0 +1,116 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# NAMESPACES
+#
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_dashboard.staging_dir }}"
+
+- name: "create namespace"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_dashboard.namespace }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_dashboard.staging_dir }}/tanzu-namespace.yaml"
+
+#
+# RBAC
+#
+- name: "ensure octant rbac exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "octant rbac"
+    manifest_template:    "rbac-octant.yaml.j2"
+    manifest_file:        "rbac-octant.yaml"
+    manifest_staging_dir: "{{ tanzu_dashboard.staging_dir }}"
+
+#
+# APPLICATION
+#
+- name: "ensure octant exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "octant"
+    manifest_template:    "app-octant.yaml.j2"
+    manifest_file:        "app-octant.yaml"
+    manifest_staging_dir: "{{ tanzu_dashboard.staging_dir }}"
+
+#
+# DNS
+#
+- name: "get octant load balancer resource"
+  k8s_info:
+    api_version: "v1"
+    kind:        "Service"
+    namespace:   "{{ tanzu_dashboard.namespace }}"
+    name:        "octant-service"
+    context:     "{{ tanzu_kubectl_context }}"
+  register: octant_svc
+  until:
+    - ((octant_svc.resources[0].status.loadBalancer.ingress[0].ip | default('')) != '') or
+      (octant_svc.resources[0].status.loadBalancer.ingress[0].hostname | default('') != '')
+  retries:  60
+  delay:    1
+
+- name: "get octant ip"
+  set_fact:
+    octant_ip: "{{ octant_svc.resources[0].status.loadBalancer.ingress[0].ip | default('') }}"
+
+- block:
+    - name: "get the octant hostname"
+      set_fact:
+        octant_hostname: "{{ octant_svc.resources[0].status.loadBalancer.ingress[0].hostname | default('') }}"
+
+    - name: "ensure we have the hostname"
+      fail:
+        msg: "unable to determine the ip or hostname for the load balancer"
+      when: octant_hostname == ''
+
+    #
+    # NOTE: we would like to lookup DNS in the following manner, but the dig plugin caches the result
+    #       of the first run, so if the first run cannot resolve DNS, it will never resolve DNS.  To get
+    #       around this, we will fall back to the command module.
+    #
+    # - name: "lookup the ingress ip from the ingress_hostname"
+    #   set_fact:
+    #     ingress_lookup: "{{ lookup('dig', ingress_hostname) }}"
+    #   until:   ingress_lookup != 'NXDOMAIN'
+    #   retries: 60
+    #   delay:   5
+
+    - name: "lookup the octant ip from the ingress_hostname"
+      command:      "dig {{ octant_hostname }} +short"
+      changed_when: false
+      register:     octant_lookup
+      until:        octant_lookup.stdout != ""
+      retries:      60
+      delay:        5
+
+    - name: "ensure we resolved the hostname properly"
+      fail:
+        msg: "unable to resolve hostname {{ octant_hostname }}"
+      when: octant_lookup.stdout == ""
+
+    - name: "set the octant ip"
+      set_fact:
+        octant_ip: "{{ (octant_lookup.stdout_lines)[0] }}"
+  when: octant_ip == ''
+
+- name: "inspect the octant ip"
+  debug:
+    var:       octant_ip
+    verbosity: 1
+
+- name: "ensure dns resolvability for octant"
+  import_role:
+    name: "common/etc-hosts"
+  vars:
+    ip:   "{{ octant_ip }}"
+    fqdn: "{{ tanzu_dashboard.dns }}"

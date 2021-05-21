@@ -1,0 +1,16 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: department
+  namespace: {{ tanzu_app_stack.department.namespace }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: department
+  minReplicas: {{ tanzu_app_stack.department.min_replicas }}
+  maxReplicas: {{ tanzu_app_stack.department.max_replicas }}
+  targetCPUUtilizationPercentage: {{ tanzu_app_stack.department.target_utilization }}

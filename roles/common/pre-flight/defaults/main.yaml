@@ -1,0 +1,57 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+## Do not change these defaults unless you are an advanced RPK user
+## and are fully aware of their use / implications.
+
+# Profile to deploy.
+# Will search {{ rpk_inventory_dir }} and ./profiles for this file.
+rpk_profile:             "platform"
+
+# Path to inventory file and other customizations
+# effectively your "gitops" repo.
+rpk_inventory_dir:       "./build"
+
+# Namespace for Kapp to manage extensions in.
+rpk_extension_namespace: "tanzu-extensions"
+
+# Kapp extension group name to apply
+rpk_extension_group:     "rpk.extensions.tanzu.vmware.com"
+
+# Location to stage templates
+rpk_staging_dir: "{{ rpk_inventory_dir}}/manifests/staging/{{ inventory_hostname }}"
+
+# Location to stage manifests
+rpk_deploy_dir:  "{{ rpk_inventory_dir}}/manifests/deploy/{{ inventory_hostname }}"
+
+# Do not clean unless specifically set
+rpk_clean: false
+
+# Do not run demos unless specifically set
+rpk_demo:  false
+
+# valid tanzu_providers
+tanzu_providers:
+  - "aws"
+  - "azure"
+  - "kind"
+  - "vmware"
+
+# resources
+rpk_default_resources:
+  requests:
+    cpu:    "25m"
+    memory: "64Mi"
+  limits:
+    cpu:    "25m"
+    memory: "64Mi"
+rpk_default_maximums:
+  cpu:    "1000m"
+  memory: "1024Mi"
+rpk_default_quota:
+  requests:
+    cpu:    "2000m"
+    memory: "2048Mi"
+  limits:
+    cpu:    "2000m"
+    memory: "2048Mi"

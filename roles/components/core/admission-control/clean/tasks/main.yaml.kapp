@@ -1,0 +1,8 @@
+---
+- name: "clean manifests with kapp"
+  kapp:
+    state:        "absent"
+    context:      "{{ tanzu_kubectl_context }}"
+    namespace:    "{{ rpk_extension_namespace }}"
+    name:         "{{ tanzu_admission_control.component }}"
+    wait_timeout: "{{ wait_timeout | default('300s') }}"

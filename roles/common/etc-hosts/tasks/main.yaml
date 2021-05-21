@@ -1,0 +1,16 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+# NOTE: we do this to workaround strange caching issues with Route53 when working inside a container
+# NOTE: /etc/hosts is a mounted file from build/hosts during make *deploy
+- name: "ensure a local /etc/hosts entry exists for host: <{{ fqdn }}> with ip: <{{ ip }}>"
+  lineinfile:
+    dest:          "/etc/hosts"
+    regexp:        ".*{{ fqdn }}$"
+    line:          "{{ ip }} {{ fqdn }}"
+    state:         "present"
+    unsafe_writes: true
+  changed_when: false
+  become: true
+  tags:
+    - update_local_etc_hosts

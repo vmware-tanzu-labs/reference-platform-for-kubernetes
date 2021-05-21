@@ -1,0 +1,27 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# PSP
+#
+- name: "ensure psp for certificate jobs exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "psp for certificate jobs"
+    manifest_template:    "psp-for-ca-jobs.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_security.staging_dir }}"
+
+#
+# CONTROL PLANE
+#
+- name: "deliver ca to control plane"
+  include_tasks: deliver-ca-cp.yaml
+  with_items: "{{ _control_plane_nodes.resources }}"
+
+#
+# DATA PLANE
+#
+- name: "deliver ca to data plane"
+  include_tasks: "deliver-ca-dp.yaml"
+  with_items: "{{ _worker_nodes.resources }}"

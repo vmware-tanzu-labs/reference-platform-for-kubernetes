@@ -1,0 +1,84 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#@ load("@ytt:data", "data")
+#@ load("@ytt:yaml", "yaml")
+
+#@ def get_kapp_config_yaml():
+apiVersion: kapp.k14s.io/v1alpha1
+kind: Config
+
+# set required version for the features we are using
+minimumRequiredVersion: 0.35.0
+
+# how to wait for tanzu namespaces
+waitRules:
+  - supportsObservedGeneration: false
+    resourceMatchers:
+      - apiVersionKindMatcher:
+          apiVersion: "tenancy.platform.cnr.vmware.com/v1alpha1"
+          kind: "TanzuNamespace"
+    conditionMatchers:
+      - type: Ready
+        status: "True"
+        success: true
+
+# set change-group for tanzu namespaces
+changeGroupBindings:
+  - name: "change-groups.kapp.k14s.io/tanzu-namespaces"
+    resourceMatchers:
+      - apiVersionKindMatcher:
+          apiVersion: "tenancy.platform.cnr.vmware.com/v1alpha1"
+          kind: "TanzuNamespace"
+
+# insert tanzu-namespaces before regular resources and namespaces/crds
+changeRuleBindings:
+  - rules:
+      - "upsert after upserting change-groups.kapp.k14s.io/tanzu-namespaces"
+    resourceMatchers:
+      - hasNamespaceMatcher: {}
+      - andMatcher:
+          matchers:
+            - notMatcher:
+                matcher:
+                  anyMatcher:
+                    matchers:
+                      - apiVersionKindMatcher:
+                          apiVersion: "tenancy.platform.cnr.vmware.com/v1alpha1"
+                          kind: "TanzuNamespace"
+                      - apiGroupKindMatcher:
+                          apiGroup: "apiextensions.k8s.io"
+                          kind: "CustomResourceDefinition"
+  - rules:
+      - "upsert before upserting change-groups.kapp.k14s.io/namespaces"
+    resourceMatchers:
+      - apiVersionKindMatcher:
+          apiVersion: "tenancy.platform.cnr.vmware.com/v1alpha1"
+          kind: "TanzuNamespace"
+  - rules:
+      - "upsert after upserting change-groups.kapp.k14s.io/crds"
+    resourceMatchers:
+      - apiVersionKindMatcher:
+          apiVersion: "tenancy.platform.cnr.vmware.com/v1alpha1"
+          kind: "TanzuNamespace"
+
+# add additional labels to all resources
+ownershipLabelRules:
+  - path: [metadata, labels]
+    resourceMatchers:
+      - allMatcher: {}
+additionalLabels:
+  rpk-component: #@ data.values.component_values.component
+  rpk-heritage: "true"
+#@ end
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rpk-kapp-config
+  namespace: #@ data.values.component_values.namespace
+  labels:
+    kapp.k14s.io/config: ""
+data:
+  config.yml: #@ yaml.encode(get_kapp_config_yaml())

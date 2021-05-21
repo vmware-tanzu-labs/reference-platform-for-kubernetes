@@ -1,0 +1,7 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "kind storage classes"
+  debug:
+    msg: "kind storage classes do not need to be modified from defaults"
+    verbosity: 2

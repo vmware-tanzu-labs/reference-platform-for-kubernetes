@@ -1,0 +1,74 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# RESOURCE DEFINITIONS
+#
+
+# Kapp controller is installed by default in TKG 1.3. We need to pause its reconciliation so it doesn't overwrite our configmap changes
+
+- name: "disable kapp controller"
+  k8s:
+    state:   "present"
+    context: "{{ tanzu_kubectl_context }}"
+    definition:
+      apiVersion: "kappctrl.k14s.io/v1alpha1"
+      kind:       "App"
+      metadata:
+        name: "calico"
+        namespace: "tkg-system"
+      spec:
+        paused: true
+  when:
+    - _tkg_cluster | bool
+    - _tkg_release is version('1.2.1', '>')
+
+- name: "get info on the calico-node daemonset"
+  k8s_info:
+    api_version: "apps/v1"
+    kind:        "DaemonSet"
+    namespace:   "kube-system"
+    name:        "calico-node"
+    context:     "{{ tanzu_kubectl_context }}"
+  register: calico_node_info
+
+- name: "ensure calico-node daemonset is deployed before continuing"
+  fail:
+    msg: "calico-node daemonset is not deployed in the kube-system namespace"
+  when: (calico_node_info.resources | length) < 1
+
+- name: "ensure global default deny-all network policy exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "global default deny-all network policy"
+    manifest_template:    "calico-global-network-policy.yaml.j2"
+    manifest_file:        "calico-global-network-policy.yaml"
+    manifest_staging_dir: "{{ tanzu_networking.staging_dir }}"
+
+- name: "set the ip-in-ip and vxlan mode for aws"
+  set_fact:
+    calico_ipip_mode: "Always"
+    calico_vxlan_mode: "Never"
+  when: tanzu_provider == 'aws'
+
+- name: "set the ip-in-ip and vxlan mode for azure"
+  set_fact:
+    calico_ipip_mode: "Never"
+    calico_vxlan_mode: "Always"
+  when: tanzu_provider == 'azure'
+
+- name: "set the ip-in-ip and vxlan mode for non-aws"
+  set_fact:
+    calico_ipip_mode:  "CrossSubnet"
+    calico_vxlan_mode: "Never"
+  when: tanzu_provider != 'aws' and tanzu_provider != 'azure'
+
+- name: "ensure ip-in-ip and vxlan mode patch exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "ip-in-ip and vxlan mode patch exists"
+    manifest_template:    "ippool-default-patch.yaml.j2"
+    manifest_file:        "ippool-default-patch.yaml"
+    manifest_staging_dir: "{{ tanzu_networking.staging_dir }}"

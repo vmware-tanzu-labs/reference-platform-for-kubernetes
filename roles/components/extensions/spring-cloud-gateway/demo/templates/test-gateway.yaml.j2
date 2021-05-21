@@ -1,0 +1,32 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: "tanzu.vmware.com/v1"
+kind: SpringCloudGateway
+metadata:
+  name: test-gateway
+  namespace: {{ tanzu_spring_cloud_gateway.namespace }}
+spec:
+  routes:
+    - id: test-route
+      uri: https://github.com
+      predicates:
+        - Path=/test/**
+      filters:
+        - StripPrefix=1
+  count: 1
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: test-gateway
+  namespace: {{ tanzu_spring_cloud_gateway.namespace }}
+spec:
+  rules:
+    - host: {{ tanzu_spring_cloud_gateway.demo.dns }}
+      http:
+        paths:
+          - path: "/"
+            backend:
+              serviceName: test-gateway
+              servicePort: 80

@@ -1,0 +1,108 @@
+---
+# NOTE: order of this list is the order the components will run
+rpk_components:
+  - name:    "workload-tenancy"
+    enabled: true
+    profiles:
+      - "platform"
+  - name:    "networking"
+    enabled: true
+    profiles:
+      - "platform"
+      - "advanced"
+  - name:    "security"
+    enabled: true
+    profiles:
+      - "platform"
+  - name:    "admission-control"
+    enabled: true
+    profiles:
+      - "platform"
+  - name:    "storage"
+    enabled: true
+    profiles:
+      - "platform"
+  - name:    "ingress"
+    enabled: true
+    profiles:
+      - "platform"
+  - name:    "identity"
+    enabled: true
+    profiles:
+      - "platform"
+  - name:    "monitoring"
+    enabled: true
+    profiles:
+      - "platform"
+  - name:    "container-registry"
+    enabled: true
+    profiles:
+      - "platform"
+      - "advanced"
+  - name:    "logging"
+    enabled: true
+    profiles:
+      - "platform"
+  - name:    "autoscaling"
+    enabled: true
+    profiles:
+      - "platform"
+  - name:    "secret-management/hashicorp-vault"
+    enabled: true
+    profiles:
+      - "platform"
+  - name:    "secret-management/etcd-encryption"
+    enabled: false
+    profiles:
+      - "platform"
+  - name:    "application-stack"
+    enabled: true
+    profiles:
+      - "platform"
+  - name:    "application-pipeline"
+    enabled: true
+    profiles:
+      - "platform"
+  - name: "service-mesh/istio"
+    enabled: false
+    profiles:
+      - "platform"
+  - name:    "octant"
+    enabled: true
+    profiles: []
+  - name:    "tanzu-mission-control"
+    enabled: true
+    profiles:
+      - "advanced"
+  - name:    "avi"
+    enabled: false
+    profiles:
+      - "advanced"
+  - name:    "spring-cloud-gateway"
+    enabled: true
+    profiles:
+      - "advanced"
+  - name:    "spring-cloud-data-flow"
+    enabled: true
+    profiles:
+      - "advanced"
+  - name:    "tanzu-application-catalog"
+    enabled: true
+    profiles:
+      - "advanced"
+  - name:    "tanzu-build-service"
+    enabled: true
+    profiles:
+      - "advanced"
+  - name:    "tanzu-observability"
+    enabled: true
+    profiles:
+      - "advanced"
+  - name:    "tanzu-service-mesh"
+    enabled: false
+    profiles:
+      - "advanced"
+  - name:    "tanzu-sql"
+    enabled: true
+    profiles:
+      - "advanced"

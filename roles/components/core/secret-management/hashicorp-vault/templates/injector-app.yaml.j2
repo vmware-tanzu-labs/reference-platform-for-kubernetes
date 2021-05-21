@@ -1,0 +1,95 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ tanzu_secrets.hashicorp_vault_injector.resource_name }}
+  namespace: {{ tanzu_secrets.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault_injector.resource_name }}
+    app.kubernetes.io/instance: hashicorp
+    component: webhook
+spec:
+  replicas: {{ tanzu_secrets.hashicorp_vault_injector.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault_injector.resource_name }}
+      app.kubernetes.io/instance: hashicorp
+      component: webhook
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault_injector.resource_name }}
+        app.kubernetes.io/instance: hashicorp
+        component: webhook
+    spec:
+      serviceAccountName: "{{ tanzu_secrets.hashicorp_vault_injector.resource_name }}"
+      securityContext:
+        runAsNonRoot: true
+        runAsGroup: 1000
+        runAsUser: 100
+      containers:
+        - name: {{ tanzu_secrets.hashicorp_vault_injector.resource_name }}
+          image: "{{ tanzu_secrets.hashicorp_vault_injector.image }}:{{ tanzu_secrets.hashicorp_vault_injector.image_tag }}"
+          imagePullPolicy: "IfNotPresent"
+          env:
+            - name: AGENT_INJECT_LISTEN
+              value: ":8080"
+            - name: AGENT_INJECT_LOG_LEVEL
+              value: info
+            - name: AGENT_INJECT_VAULT_ADDR
+              value: http://hashicorp-vault.tanzu-secrets.svc:8200
+            - name: AGENT_INJECT_VAULT_AUTH_PATH
+              value: auth/kubernetes
+            - name: AGENT_INJECT_VAULT_IMAGE
+              value: "{{ tanzu_secrets.hashicorp_vault.image }}:{{ tanzu_secrets.hashicorp_vault.image_tag }}"
+            - name: AGENT_INJECT_TLS_AUTO
+              value: {{ tanzu_secrets.hashicorp_vault_injector.resource_name }}
+            - name: AGENT_INJECT_TLS_AUTO_HOSTS
+              value: {{ tanzu_secrets.hashicorp_vault_injector.resource_name }},{{ tanzu_secrets.hashicorp_vault_injector.resource_name }}.{{ tanzu_secrets.namespace }},{{ tanzu_secrets.hashicorp_vault_injector.resource_name }}.{{ tanzu_secrets.namespace }}.svc
+            - name: AGENT_INJECT_LOG_FORMAT
+              value: standard
+            - name: AGENT_INJECT_REVOKE_ON_SHUTDOWN
+              value: "false"
+          args:
+            - agent-inject
+            - 2>&1
+          livenessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+              scheme: HTTPS
+            failureThreshold: 2
+            initialDelaySeconds: 1
+            periodSeconds: 2
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+              scheme: HTTPS
+            failureThreshold: 2
+            initialDelaySeconds: 2
+            periodSeconds: 2
+            successThreshold: 1
+            timeoutSeconds: 5
+          resources: {{ tanzu_secrets.hashicorp_vault_injector.resources | default(tanzu_secrets.default_resources) }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ tanzu_secrets.hashicorp_vault_injector.resource_name }}
+  namespace: {{ tanzu_secrets.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault_injector.resource_name }}
+    app.kubernetes.io/instance: hashicorp
+spec:
+  ports:
+    - port: 443
+      targetPort: 8080
+  selector:
+    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault_injector.resource_name }}
+    app.kubernetes.io/instance: hashicorp
+    component: webhook

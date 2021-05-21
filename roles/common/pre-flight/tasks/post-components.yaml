@@ -1,0 +1,51 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# PRE-SET VARIABLES
+#   NOTE: this set of tasks happen AFTER to running pre-flight tasks from all components
+#
+
+#
+# EXTENSIONS NAMESPACE
+#
+- name: "ensure {{ rpk_extension_namespace }} namespace exists"
+  k8s:
+    state:   "present"
+    context: "{{ tanzu_kubectl_context }}"
+    wait:    true
+    definition:
+      apiVersion: "v1"
+      kind:       "Namespace"
+      metadata:
+        name: "{{ rpk_extension_namespace }}"
+        labels:
+          name: "{{ rpk_extension_namespace }}"
+
+#
+# HOST VALUES
+#
+- name: "ensure cluster-specific directory structure exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ rpk_staging_dir }}"
+
+- name: "generate data values file containing discovered data"
+  copy:
+    content: |
+      #@data/values
+      ---
+      #
+      # discovered data values file for {{ inventory_hostname }}
+      #
+      #@overlay/match missing_ok=True
+      #@overlay/match-child-defaults missing_ok=True
+      {{ _discovered_values | to_nice_yaml(indent=2) }}
+    dest:  "{{ rpk_staging_dir }}/discovered-values.yaml"
+    mode:  "0400"
+    force: true
+  vars:
+    _discovered_values:
+      discovered_values: "{{ hostvars[inventory_hostname] }}"
+  changed_when: false

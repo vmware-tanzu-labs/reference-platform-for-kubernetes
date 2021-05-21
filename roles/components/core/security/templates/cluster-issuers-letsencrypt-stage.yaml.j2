@@ -1,0 +1,36 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: cert-manager.io/v1alpha2
+kind: ClusterIssuer
+metadata:
+  # This issuer will not give trusted certificates, but has high rate limits
+  # so can be used for testing initial certificate generation
+  name: letsencrypt-stage
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: root@{{ tanzu_ingress_domain }}
+    privateKeySecretRef:
+      name: letsencrypt-stage
+    # Enable the HTTP-01 challenge provider
+    solvers:
+      - selector: {}
+        http01:
+          ingress:
+            podTemplate:
+              metadata:
+                creationTimestamp: null
+                labels:
+                  app.kubernetes.io/name: cluster-issuer
+              spec: {}
+            class: {{ tanzu_ingress.class }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: letsencrypt-stage-ca-cert
+  namespace: "{{ tanzu_security.namespace }}"
+data:
+# curl -s https://letsencrypt.org/certs/fakelerootx1.pem  | base64 -w 0
+  tls.crt: "{{ tanzu_security.letsencrypt_stage.tls_root_ca_cert }}"

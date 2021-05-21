@@ -1,0 +1,22 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure {{ _wait_for.result.metadata.name }} completed successfully"
+  k8s_info:
+    api_version: "batch/v1"
+    kind:        "Job"
+    namespace:   "{{ _wait_for.result.metadata.namespace }}"
+    name:        "{{ _wait_for.result.metadata.name }}"
+    context:     "{{ tanzu_kubectl_context }}"
+  register:    _job
+  until:       _job.resources[0].status.succeeded | default("False") | bool
+  retries:     "{{ retries | default('30') }}"
+  delay:       "{{ delay | default('1') }}"
+  failed_when: false
+
+- name: "error if {{ _wait_for.result.metadata.name }} job failed"
+  fail:
+    msg: "job {{ _wait_for.result.metadata.name }} in {{ _wait_for.result.metadata.namespace }} failed to run"
+  when:
+    - (not _job.resources[0].status.succeeded | default("False") | bool)
+    - (not ignore_failure | default("False") | bool)

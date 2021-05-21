@@ -1,0 +1,30 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: vpa-webhook-config
+  annotations:
+    cert-manager.io/inject-ca-from: {{ tanzu_autoscaling.namespace }}/vpa-webhook
+webhooks:
+- name: vpa.k8s.io
+  admissionReviewVersions:
+  - v1beta1
+  rules:
+  - operations: ["CREATE"]
+    apiGroups: [""]
+    apiVersions: ["v1"]
+    resources: ["pods"]
+  - operations: ["CREATE", "UPDATE"]
+    apiGroups: ["autoscaling.k8s.io"]
+    apiVersions: ["*"]
+    resources: ["verticalpodautoscalers"]
+  failurePolicy: "Ignore"
+  clientConfig:
+    service:
+      namespace: {{ tanzu_autoscaling.namespace }}
+      name: vpa-webhook
+  sideEffects: None
+  timeoutSeconds: 5
+

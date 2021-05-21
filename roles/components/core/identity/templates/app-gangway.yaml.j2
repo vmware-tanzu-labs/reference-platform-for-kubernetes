@@ -1,0 +1,164 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: gangway
+  namespace: "{{ tanzu_identity.namespace }}"
+  labels:
+    app.kubernetes.io/name: gangway
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: http
+  selector:
+    app.kubernetes.io/name: gangway
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: gangway
+  namespace: "{{ tanzu_identity.namespace }}"
+  annotations:
+    external-dns.alpha.kubernetes.io/target: "{{ tanzu_ingress.dns }}"
+spec:
+  rules:
+  - host: "{{ tanzu_identity.gangway.dns }}"
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: gangway
+          servicePort: 80
+  tls:
+  - hosts:
+    - "{{ tanzu_identity.gangway.dns }}"
+    secretName: gangway-cert-tls
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gangway
+  namespace: "{{ tanzu_identity.namespace }}"
+data:
+  gangway.yaml: |
+    serveTLS: false
+    certFile: /tls/tls.crt
+    keyFile: /tls/tls.key
+    clusterName: tanzu
+    authorizeURL: https://{{ tanzu_identity.dex.dns }}/auth
+    tokenURL: http://dex/token
+    scopes:
+    - openid
+    - profile
+    - email
+    - offline_access
+    redirectURL: https://{{ tanzu_identity.gangway.dns }}/callback
+    clientID: tanzu
+    usernameClaim: email
+    apiServerURL: {{ tanzu_apiserver_url }}
+{% if (tanzu_security.default_tls_provider == 'letsencrypt-prod') or (tanzu_security.default_tls_provider == 'letsencrypt-stage') %}
+    trustedCAPath: /etc/dex/tls.crt
+    idpCAPath: /etc/dex/tls.crt
+{% else %}
+    trustedCAPath: /etc/dex/ca.crt
+    idpCAPath: /etc/dex/ca.crt
+{% endif %}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gangway
+  namespace: "{{ tanzu_identity.namespace }}"
+type: Opaque
+data:
+  sesssionKey: EoIhzMf4QAyeBQnop3iLHqzENV+A+KPRSanHZdJ0OQM=
+  clientSecret: dGFuenUtc2VjdXJpdHk=
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gangway
+  namespace: "{{ tanzu_identity.namespace }}"
+  labels:
+    app.kubernetes.io/name: gangway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gangway
+  strategy: null
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gangway
+        revision: "1"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+      containers:
+      - name: gangway
+        image: {{ tanzu_identity.gangway.image }}:{{ tanzu_identity.gangway.image_tag }}
+        imagePullPolicy: IfNotPresent
+        command:
+        - gangway
+        - -config
+        - /gangway/gangway.yaml
+        env:
+        - name: GANGWAY_PORT
+          value: "8080"
+        - name: GANGWAY_SESSION_SECURITY_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gangway
+              key: sesssionKey
+        - name: GANGWAY_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: gangway
+              key: clientSecret
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        resources: {{ tanzu_identity.gangway.resources }}
+        volumeMounts:
+        - name: gangway
+          mountPath: /gangway/
+        - name: tls
+          mountPath: /tls/
+        - name: dex-ca
+          mountPath: /etc/dex/
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 20
+          timeoutSeconds: 1
+          periodSeconds: 60
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+            scheme: HTTP
+          timeoutSeconds: 1
+          periodSeconds: 10
+          failureThreshold: 3
+      volumes:
+      - name: gangway
+        configMap:
+          name: gangway
+      - name: tls
+        secret:
+          secretName: gangway-cert-tls
+      - name: dex-ca
+        secret:
+          secretName: dex-cert-tls

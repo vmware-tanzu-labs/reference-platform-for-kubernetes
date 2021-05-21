@@ -1,0 +1,7 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "print unimplemented message"
+  debug:
+    msg:       "unimplemented"
+    verbosity: 0

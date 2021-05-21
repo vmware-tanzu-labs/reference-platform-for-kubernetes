@@ -1,0 +1,37 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "get vault secret resource"
+  k8s_info:
+    api_version: "v1"
+    kind:        "Secret"
+    namespace:   "{{ tanzu_secrets.namespace }}"
+    name:        "{{ tanzu_secrets.hashicorp_vault.resource_name }}"
+    context:     "{{ tanzu_kubectl_context }}"
+  register: _vault_secret
+
+- debug:
+    msg:       "{{ hashicorp_vault_unseal_keys | default(None) }}"
+    verbosity: 2
+
+- when:
+    - _vault_secret.resources is defined
+    - (_vault_secret.resources | length) == 1
+  block:
+    - debug:
+        msg:       "{{ hashicorp_vault_root_token | default(None) }}"
+        verbosity: 2
+
+    - name: "set hashicorp vault root token"
+      set_fact:
+        hashicorp_vault_root_token: "{{ _vault_secret.resources[0].data.hashicorp_vault_root_token | b64decode }}"
+      when: hashicorp_vault_root_token is undefined
+
+    - debug:
+        msg:       "{{ hashicorp_vault_unseal_keys | default(None) }}"
+        verbosity: 2
+
+    - name: "set hashicorp vault unseal keys"
+      set_fact:
+        hashicorp_vault_unseal_keys: "{{ _vault_secret.resources[0].data.hashicorp_vault_unseal_keys | b64decode }}"
+      when: hashicorp_vault_unseal_keys is undefined

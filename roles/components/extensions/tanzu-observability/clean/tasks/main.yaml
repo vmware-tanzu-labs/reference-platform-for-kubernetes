@@ -1,0 +1,82 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure the namespace is removed"
+  import_role:
+    name: "common/namespace/clean"
+  vars:
+    namespace: "{{ tanzu_observability.namespace }}"
+  when: not tanzu_observability.use_tmc
+
+#
+# OBSERVABILITY COMPONENTS: USING TMC
+#   NOTE: the following will delete wavefront integration by disabling it via supported TMC integrations
+#
+# AUTH
+#   # see https://code.vmware.com/apis/897/tanzu-mission-control
+#
+
+- name: "get tmc authentication token"
+  uri:
+    url:         "{{ tanzu_observability.tmc_access_token_url }}?refresh_token={{ tanzu_mission_control_api_token }}"
+    method:      "POST"
+    status_code: "200"
+  register: _tmc_access_token
+  # don't acidentally log our access_token
+  no_log: true
+  when: tanzu_observability.use_tmc
+
+- name: "set the tmc access token"
+  set_fact:
+    _tmc_access_token: "{{ _tmc_access_token.json.access_token }}"
+  # don't acidentally log our access_token
+  no_log: true
+  when: tanzu_observability.use_tmc
+
+- name: "get tmc integrations status"
+  uri:
+    url:         "{{ tanzu_observability.tmc_org_url }}/{{ tanzu_observability.tmc_api_version }}/clusters/{{ tanzu_cluster_name }}/integrations"
+    method:      "GET"
+    status_code: "200"
+    headers:
+      Authorization: "Bearer {{ _tmc_access_token }}"
+    body_format: "json"
+  register: _tmc_integration_current_status
+  when: tanzu_observability.use_tmc
+
+- when:
+    - tanzu_observability.use_tmc
+    - (_tmc_integration_current_status.json | list | length) != 0
+    - (_tmc_integration_current_status.json.integrations | map(attribute='fullName') | selectattr('clusterName', 'equalto', tanzu_cluster_name) | selectattr('name', 'equalto', 'tanzu-observability-saas' ) | list | length) !=0
+  block:
+    - name: "filter tanzu observability integration status for cluster"
+      set_fact:
+        _tanzu_observability_integration_status: "{{ _tmc_integration_current_status.json.integrations | map(attribute='fullName') | selectattr('clusterName', 'equalto', tanzu_cluster_name) | selectattr('name', 'equalto', 'tanzu-observability-saas' ) | list }}"
+
+    - name: "set facts required for disabling tanzu observability "
+      set_fact:
+        _tanzu_observability_management_cluster_name: "full_name.managementClusterName={{ _tanzu_observability_integration_status[0].managementClusterName }}"
+        _tanzu_observability_provisioner_name: "full_name.provisionerName={{ _tanzu_observability_integration_status[0].provisionerName }}"
+
+    - name: "disable tanzu observability for cluster in tmc"
+      uri:
+        url:         "{{ tanzu_observability.tmc_org_url }}/{{ tanzu_observability.tmc_api_version }}/clusters/{{ tanzu_cluster_name }}/integrations/tanzu-observability-saas?{{ _tanzu_observability_management_cluster_name }}&{{ _tanzu_observability_provisioner_name}}"
+        method:      "DELETE"
+        status_code: "200"
+        headers:
+          Authorization: "Bearer {{ _tmc_access_token }}"
+        body_format: "json"
+      register: _tanzu_observability_deletion_status
+
+    # NOTE: this cleanup is generally done by the api delete above so we don't explicitly delete it
+    - name: "wait until the tanzu-observability-saas namespace is removed"
+      k8s_info:
+        kind:    "Namespace"
+        context: "{{ tanzu_kubectl_context }}"
+        name:    "tanzu-observability-saas"
+      register: _namespace_status
+      until:
+        - _namespace_status.resources is defined
+        - (_namespace_status.resources | length) == 0
+      retries: 100
+      delay:   2

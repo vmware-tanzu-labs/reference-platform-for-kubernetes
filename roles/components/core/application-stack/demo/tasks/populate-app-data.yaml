@@ -1,0 +1,80 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# APP DATA: EMPLOYEE
+#
+- name: "populate employee 01 with test data"
+  uri:
+    url:              "http://{{ tanzu_app_stack.gateway.dns }}{{ tanzu_app_stack.gateway.app_prefix }}/employee/"
+    method:           "POST"
+    body:             "{{ lookup('file','{{ role_path }}/files/test-data/employee_01.json') }}"
+    body_format:      "json"
+    return_content:   true
+    follow_redirects: "all"
+    headers:
+      Content-Type: "application/json"
+  register: employee_01_restdata
+
+- name: "debug - employee 01 with test data"
+  debug:
+    var:       employee_01_restdata
+    verbosity: 1
+
+- name: "populate employee 02 with test data"
+  uri:
+    url:              "http://{{ tanzu_app_stack.gateway.dns }}{{ tanzu_app_stack.gateway.app_prefix }}/employee/"
+    method:           "POST"
+    body:             "{{ lookup('file','{{ role_path }}/files/test-data/employee_02.json') }}"
+    body_format:      "json"
+    return_content:   true
+    follow_redirects: "all"
+    headers:
+      Content-Type: "application/json"
+  register: employee_02_restdata
+
+- name: "debug - employee 02 with test data"
+  debug:
+    var:       employee_02_restdata
+    verbosity: 1
+
+#
+# APP DATA: DEPARTMENT
+#
+- name: "populate department 01 with test data"
+  uri:
+    url:              "http://{{ tanzu_app_stack.gateway.dns }}{{ tanzu_app_stack.gateway.app_prefix }}/department/"
+    method:           "POST"
+    body:             "{{ lookup('file','{{ role_path }}/files/test-data/department_01.json') }}"
+    body_format:      "json"
+    return_content:   true
+    follow_redirects: "all"
+    headers:
+      Content-Type: "application/json"
+  register: department_01_restdata
+
+- name: "debug - department 01 with test data"
+  debug:
+    var:       department_01_restdata
+    verbosity: 1
+
+#
+# APP DATA: ORGANIZATION
+#
+- name: "populate organization 01 with test data"
+  uri:
+    url:              "http://{{ tanzu_app_stack.gateway.dns }}{{ tanzu_app_stack.gateway.app_prefix }}/organization/"
+    method:           "POST"
+    body:             "{{ lookup('file','{{ role_path }}/files/test-data/organization_01.json') }}"
+    body_format:      "json"
+    return_content:   true
+    follow_redirects: "all"
+    timeout:          35
+    headers:
+      Content-Type: "application/json"
+  register: organization_01_restdata
+
+- name: "debug - organization 01 with test data"
+  debug:
+    var:       organization_01_restdata
+    verbosity: 1

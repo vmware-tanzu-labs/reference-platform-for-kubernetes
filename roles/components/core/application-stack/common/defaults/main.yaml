@@ -1,0 +1,150 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_app_stack:
+  # common vars
+  staging_dir:     "{{ rpk_staging_dir }}/tanzu-app-stack"
+  service_account: "tanzu-app-stack"
+  resource_name:   "tanzu-app-stack"
+  build_images:    false
+  push_images:     false
+
+  # build vars
+  git_repo:              "https://github.com/AndriyKalashnykov/spring-microservices-k8s.git"
+  git_repo_dir:          "{{ rpk_staging_dir }}/tanzu-app-stack/files/git"
+  remote_image_repo:     "github.io"
+  remote_image_username: "andriykalashnykov"
+  remote_image_password: "_replace_me_with_real_pwd_"
+  remote_image_version:  "1.2"
+
+  # department
+  department:
+    namespace:          "tanzu-app-stack-department"
+    resource_name:      "tanzu-app-stack-department"
+    replicas:           1
+    min_replicas:       1
+    max_replicas:       3
+    target_utilization: "50"
+    remote_image:       "projects.registry.vmware.com/rpk/department-debug"
+    remote_image_tag:   "1.2"
+    local_image:        "projects.registry.vmware.com/rpk/department-debug"
+    local_image_tag:    "1.2"
+    git_path:           "department-service"
+    resources:
+      requests:
+        cpu:    "150m"
+        memory: "300Mi"
+      limits:
+        cpu:    "300m"
+        memory: "300Mi"
+
+  # employee
+  employee:
+    namespace:          "tanzu-app-stack-employee"
+    resource_name:      "tanzu-app-stack-employee"
+    replicas:           1
+    min_replicas:       1
+    max_replicas:       3
+    target_utilization: "50"
+    remote_image:       "projects.registry.vmware.com/rpk/employee-debug"
+    remote_image_tag:   "1.2"
+    local_image:        "projects.registry.vmware.com/rpk/employee-debug"
+    local_image_tag:    "1.2"
+    git_path:           "employee-service"
+    resources:
+      requests:
+        cpu:    "150m"
+        memory: "300Mi"
+      limits:
+        cpu:    "300m"
+        memory: "300Mi"
+
+  # organization
+  organization:
+    namespace:          "tanzu-app-stack-organization"
+    resource_name:      "tanzu-app-stack-organization"
+    replicas:           1
+    min_replicas:       1
+    max_replicas:       3
+    target_utilization: "50"
+    remote_image:       "projects.registry.vmware.com/rpk/organization-debug"
+    remote_image_tag:   "1.2"
+    local_image:        "projects.registry.vmware.com/rpk/organization-debug"
+    local_image_tag:    "1.2"
+    git_path:           "organization-service"
+    resources:
+      requests:
+        cpu:    "150m"
+        memory: "300Mi"
+      limits:
+        cpu:    "300m"
+        memory: "300Mi"
+
+  # gateway
+  gateway:
+    namespace:          "tanzu-app-stack-gateway"
+    resource_name:      "tanzu-app-stack-gateway"
+    replicas:           1
+    min_replicas:       1
+    max_replicas:       3
+    dns:                "company.{{ tanzu_ingress_domain }}"
+    app_prefix:         "/tanzu-app-stack/gateway"
+    target_utilization: "80"
+    remote_image:       "projects.registry.vmware.com/rpk/gateway-debug"
+    remote_image_tag:   "1.2"
+    local_image:        "projects.registry.vmware.com/rpk/gateway-debug"
+    local_image_tag:    "1.2"
+    git_path:           "gateway-service"
+    resources:
+      requests:
+        cpu:    "150m"
+        memory: "300Mi"
+      limits:
+        cpu:    "300m"
+        memory: "300Mi"
+
+  # mongodb
+  mongodb:
+    namespace:     "tanzu-app-stack-mongodb"
+    resource_name: "tanzu-app-stack-mongodb"
+    image:         "projects.registry.vmware.com/rpk/mongo"
+    image_tag:     "4.2.3"
+    resources:
+      requests:
+        cpu:    "500m"
+        memory: "300Mi"
+      limits:
+        cpu:    "1000m"
+        memory: "300Mi"
+
+  # monitoring
+  monitoring:
+    enabled:         true
+    namespace:       "tanzu-app-stack-monitoring"
+    service_account: "tanzu-app-stack-monitoring"
+    resource_name:   "tanzu-app-stack-monitoring"
+    url:             "http://company-monitor.{{ tanzu_ingress_domain }}"
+    dns:             "company-monitor.{{ tanzu_ingress_domain }}"
+    metrics_path:    "/actuator/prometheus"
+    resources:
+      requests:
+        cpu:    "100m"
+        memory: "400Mi"
+      limits:
+        cpu:    "200m"
+        memory: "400Mi"
+
+  # vault
+  vault:
+    enabled:     true
+    policy_name: "tanzu"
+    config_job:
+      name:                "tanzu-app-stack-vault-config-job"
+      vars_secret:         "tanzu-app-stack-vault-config-playbook-vars"
+      playbook_config_map: "tanzu-app-stack-vault-config-playbook"
+
+  # demo
+  demo:
+    traffic_app_name: "tanzu-app-stack-traffic"
+    traffic_rate:     "50"
+    traffic_duration: "300s"

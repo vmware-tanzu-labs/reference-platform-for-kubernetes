@@ -1,0 +1,29 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: post-data
+  namespace: {{ tanzu_app_stack.gateway.namespace }}
+  labels:
+    app.kubernetes.io/name: "{{ tanzu_app_stack.demo.traffic_app_name }}"
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "{{ tanzu_app_stack.demo.traffic_app_name }}"
+    spec:
+      containers:
+        - name: post-data
+          image: demyx/utilities
+          command: ["/bin/bash", "/script/post-data.sh"]
+          volumeMounts:
+            - name: script
+              mountPath: "/script"
+      restartPolicy: OnFailure
+      volumes:
+        - name: script
+          configMap:
+            name: post-data
+            defaultMode: 0777

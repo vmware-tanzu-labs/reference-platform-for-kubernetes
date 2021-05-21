@@ -1,0 +1,54 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: {{ tanzu_spring_cloud_data_flow.security.policy.name }}
+spec:
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  runAsUser:
+    rule: RunAsAny
+  fsGroup:
+    rule: RunAsAny
+  privileged: true
+  volumes:
+    - '*'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data_flow-cluster-role"
+  name: {{ tanzu_spring_cloud_data_flow.security.policy.role }}
+rules:
+- apiGroups:
+    - policy
+  resources:
+    - podsecuritypolicies
+  verbs:
+    - use
+  resourceNames:
+    - {{ tanzu_spring_cloud_data_flow.security.policy.name }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    rpk.heritage: "true"
+    rpk.module: "{{ tanzu_spring_cloud_data_flow.module }}"
+    rpk.resource: "spring-cloud-data_flow-cluster-role-binding"
+  name: {{ tanzu_spring_cloud_data_flow.security.policy.role_bind }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ tanzu_spring_cloud_data_flow.security.policy.role }}
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: "{{ tanzu_spring_cloud_data_flow.namespace }}"

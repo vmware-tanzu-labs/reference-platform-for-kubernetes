@@ -1,0 +1,20 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# RETRIEVE CLUSTER INFO
+#
+- name: "retrieve the kubeconfig"
+  shell: "kubectl config view --context={{ tanzu_kubectl_context }}"
+  changed_when: false
+  register: kubeconfig
+  tags:
+    - skip_ansible_lint
+
+- name: "set the kubectl cluster name"
+  set_fact:
+    tanzu_kubectl_cluster_name: "{{ tanzu_kubectl_context.split('@')[-1] }}"
+
+- name: "set the kube apiserver address"
+  set_fact:
+    tanzu_apiserver_url: "{{ ((kubeconfig.stdout | from_yaml).clusters | selectattr('name', 'equalto', tanzu_kubectl_cluster_name) | list)[0].cluster.server }}"

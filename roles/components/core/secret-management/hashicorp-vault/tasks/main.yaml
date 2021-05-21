@@ -1,0 +1,120 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# NAMESPACES
+#
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_secrets.staging_dir }}"
+
+- name: "create namespace"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_secrets.namespace }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_secrets.staging_dir }}/tanzu-namespace.yaml"
+
+#
+# VAULT AGENT INJECTOR
+#
+- name: "ensure hashicorp vault agent injector rbac exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "hashicorp vault agent injector rbac"
+    manifest_template:    "injector-rbac.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_secrets.staging_dir }}"
+
+- name: "ensure hashicorp vault agent injector webhook exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "hashicorp vault agent injector webhook"
+    manifest_template:    "injector-mutating-webhook.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_secrets.staging_dir }}"
+
+- name: "ensure hashicorp vault agent injector app exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "hashicorp vault agent injector app"
+    manifest_template:    "injector-app.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_secrets.staging_dir }}"
+
+#
+# VAULT SERVER
+#
+- name: "ensure hashicorp vault server rbac exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "hashicorp vault server rbac"
+    manifest_template:    "server-rbac.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_secrets.staging_dir }}"
+
+- name: "ensure hashicorp vault server config exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "hashicorp vault server config"
+    manifest_template:    "server-config.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_secrets.staging_dir }}"
+
+- name: "ensure hashicorp vault server exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "hashicorp vault server"
+    manifest_template:    "server-app.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_secrets.staging_dir }}"
+
+- name: "ensure hashicorp vault server ingress exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "hashicorp vault server ingress"
+    manifest_template:    "server-ingress.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_secrets.staging_dir }}"
+
+- name: "wait until hashicorp-vault is running"
+  k8s_info:
+    kind:      "StatefulSet"
+    namespace: "{{ tanzu_secrets.namespace }}"
+    context:   "{{ tanzu_kubectl_context }}"
+    label_selectors:
+      - "app.kubernetes.io/name = {{ tanzu_secrets.hashicorp_vault.resource_name }}"
+  register: _vault_status
+  until:
+    - _vault_status.resources[0].status.replicas is defined
+    - _vault_status.resources[0].status.readyReplicas is defined
+    - _vault_status.resources[0].status.replicas == _vault_status.resources[0].status.readyReplicas
+  retries: 30
+  delay:   15
+
+- name: "ensure hashicorp vault config job exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "hashicorp vault config job"
+    manifest_template:    "server-config-job.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_secrets.staging_dir }}"
+    name:                 "{{ tanzu_secrets.hashicorp_vault.config_job.name }}"
+  when:
+    - hashicorp_vault_root_token is undefined
+    - hashicorp_vault_unseal_keys is undefined
+
+- name: "ensure {{ tanzu_secrets.hashicorp_vault.config_job.name }} job succeeded"
+  import_role:
+    name: "common/wait-for-job"
+  vars:
+    name:      "{{ tanzu_secrets.hashicorp_vault.config_job.name }}"
+    namespace: "{{ tanzu_secrets.namespace }}"
+    retries:   50
+    delay:     5
+  when:
+    - hashicorp_vault_root_token is undefined
+    - hashicorp_vault_unseal_keys is undefined

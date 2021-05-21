@@ -1,0 +1,10 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "display the application catalog registry info"
+  debug:
+    msg: |
+      You can view the TAC images at: https://{{ tanzu_application_catalog.registry_endpoint }}
+      Admin Username: {{ tanzu_container_registry.admin_username }}
+      Admin Password: {{ tanzu_container_registry.admin_password }}
+    verbosity: 0

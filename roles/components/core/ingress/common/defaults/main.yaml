@@ -1,0 +1,147 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+tanzu_ingress:
+  # common vars
+  component:   "ingress"
+  namespace:   "tanzu-ingress"
+  staging_dir: "{{ rpk_staging_dir }}/tanzu-ingress"
+  deploy_dir:  "{{ rpk_deploy_dir }}/tanzu-ingress"
+  class:       "contour"
+  domain:      "{{ tanzu_ingress_domain }}"
+  dns:         "ingress.{{ tanzu_ingress_domain }}"
+
+ # resources
+  default_resources:
+    requests:
+      cpu:    "50m"
+      memory: "64Mi"
+    limits:
+      cpu:    "50m"
+      memory: "64Mi"
+  default_maximums:
+    cpu:    "1000m"
+    memory: "1024Mi"
+  default_quota:
+    requests:
+      cpu:    "8"
+      memory: "8Gi"
+    limits:
+      cpu:    "8"
+      memory: "8Gi"
+
+  # aws
+  aws_access_key: "{{ aws_access_key | default('') }}"
+  aws_secret_key: "{{ aws_secret_key | default('') }}"
+  aws_eip_allocation_id: "{{ tanzu_ingress_aws_eip_allocation_id | default('') }}"
+
+  # azure
+  azure_secret: |
+    {
+      "tenantId": "{{ azure_tenant_id | default('') }}",
+      "subscriptionId": "{{ azure_subscription_id | default('') }}",
+      "resourceGroup": "{{ azure_dns_resource_group_name | default('') }}",
+      "aadClientId": "{{ azure_client_id | default('') }}",
+      "aadClientSecret": "{{ azure_client_secret | default('') }}"
+    }
+
+  # envoy
+  envoy:
+    image:     "quay.io/bitnami/envoy"
+    image_tag: "1.15.0"
+    resources:
+      requests:
+        cpu:    "50m"
+        memory: "128Mi"
+      limits:
+        cpu:    "100m"
+        memory: "256Mi"
+
+  # contour
+  contour:
+    replicas:  2
+    image:     "quay.io/bitnami/contour"
+    image_tag: "1.8.1"
+    resources:
+      requests:
+        cpu:    "50m"
+        memory: "128Mi"
+      limits:
+        cpu:    "200m"
+        memory: "512Mi"
+
+  # external-dns
+  external_dns:
+    replicas:      1
+    image:         "k8s.gcr.io/external-dns/external-dns"
+    image_tag:     "v0.7.3"
+    resource_name: "external-dns"
+    provider:      "{{ tanzu_dns_provider | default('internal') }}"
+    supported_providers:
+      - "internal"
+      - "route53"
+      - "azure"
+    delete_records:        true
+    sync_interval_seconds: 15
+    resources:
+      requests:
+        cpu:    "100m"
+        memory: "32Mi"
+      limits:
+        cpu:    "200m"
+        memory: "64Mi"
+
+  # bind
+  bind:
+    image:         "projects.registry.vmware.com/rpk/bind9"
+    image_tag:     "9.16"
+    resource_name: "bind"
+    resources:
+      requests:
+        cpu:    "50m"
+        memory: "32Mi"
+      limits:
+        cpu:    "100m"
+        memory: "128Mi"
+  bind_init:
+    image:     "projects.registry.vmware.com/rpk/alpine"
+    image_tag: "3.12.1"
+    resources:
+      requests:
+        cpu:    "25m"
+        memory: "32Mi"
+      limits:
+        cpu:    "50m"
+        memory: "64Mi"
+
+  # vmware load balancer
+  vmware_loadbalancer:
+    start_ip: "{{ tanzu_load_balancer_start_ip | default(omit) }}"
+    end_ip:   "{{ tanzu_load_balancer_end_ip | default(omit) }}"
+    nsx:      "{{ tanzu_load_balancer_nsx | default('false') }}"
+
+  # metallb
+  metallb:
+    controller:
+      image:     "projects.registry.vmware.com/rpk/metallb-controller"
+      image_tag: "v0.8.1"
+    speaker:
+      image:     "projects.registry.vmware.com/rpk/metallb-speaker"
+      image_tag: "v0.8.1"
+    resources:
+      requests:
+        cpu:    "50m"
+        memory: "64Mi"
+      limits:
+        cpu:    "200m"
+        memory: "256Mi"
+
+  # demo
+  demo:
+    namespace:     "tanzu-ingress-demo"
+    staging_dir:   "{{ rpk_staging_dir }}/tanzu-ingress-demo"
+    dns:           "ingress-demo.{{ tanzu_ingress_domain }}"
+    resource_name: "kuard"
+    image:         "gcr.io/kuar-demo/kuard-amd64"
+    image_tag:     "1"
+    replicas:      3

@@ -1,0 +1,7 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "print the dashboard access information"
+  debug:
+    msg: "You can access the Tanzu Service Mesh Dashboard at URL https://console.cloud.vmware.com"
+    verbosity: 0

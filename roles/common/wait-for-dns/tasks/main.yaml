@@ -1,0 +1,49 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# NOTE: we would like to lookup DNS in the following manner, but the dig plugin caches the result
+#       of the first run, so if the first run cannot resolve DNS, it will never resolve DNS.  To get
+#       around this, we will fall back to the command module.
+#
+# - name: "lookup the ip from the hostname <{{ hostname }}>"
+#   set_fact:
+#     dns_lookup: "{{ lookup('dig', hostname) }}"
+#   until:   dns_lookup != 'NXDOMAIN'
+#   retries: 60
+#   delay:   5
+
+- name: "lookup ip from the hostname <{{ hostname }}>"
+  command:      "dig {{ hostname }} +short"
+  changed_when: false
+  register:     _dns_lookup
+  retries:      60
+  delay:        5
+  until:
+    - _dns_lookup.stdout != ""
+    - not _dns_lookup.failed
+  failed_when: false
+
+- name: "attempt trace ip lookup from the hostname <{{ hostname }}>"
+  command:      "dig {{ hostname }} +short +trace | grep '^A' | awk '{print $2}'"
+  changed_when: false
+  register:     _dns_lookup_trace
+  retries:      15
+  delay:        5
+  until:
+    - _dns_lookup_trace.stdout != ""
+    - not _dns_lookup_trace.failed
+  when:
+    - _dns_lookup.stdout == ""
+  failed_when: false
+
+- name: "ensure we resolved the hostname properly"
+  fail:
+    msg: "unable to resolve hostname <{{ hostname }}>"
+  when:
+    - _dns_lookup.stdout == ""
+    - _dns_lookup_trace.stdout == ""
+
+- name: "return the ip address as a fact"
+  set_fact:
+    _ip_address: "{{ (_dns_lookup.stdout_lines)[0] }}"

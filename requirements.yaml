@@ -1,0 +1,7 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+# ansible requirements
+- src:     "avinetworks.avisdk"
+  name:    "avi-sdk"
+  version: "20.1.2-beta"

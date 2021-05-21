@@ -1,0 +1,120 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# NAMESPACES
+#
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_spring_cloud_data_flow.staging_dir }}"
+
+- name: "create namespace for spring cloud data flow"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_spring_cloud_data_flow.namespace }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_spring_cloud_data_flow.staging_dir }}/tanzu-namespace.yaml"
+
+- name: "call harbor api to create spring cloud data flow repository"
+  uri:
+    url:              "https://{{ tanzu_container_registry.core.dns }}/api/v2.0/projects"
+    user:             "{{ tanzu_container_registry.admin_username }}"
+    password:         "{{ tanzu_container_registry.admin_password }}"
+    method:           "POST"
+    status_code:      [201, 409]
+    force_basic_auth: true
+    validate_certs:   false
+    body_format:      "json"
+    body:             "{{ tanzu_spring_cloud_data_flow.registry.project }}"
+  register: harbor_registry_info
+
+#
+# IMAGE MIGRATION
+#   NOTE: moves images from registry.pivotal.io/p-scdf-for-kubernetes to {{ tanzu_container_registry.core.dns +'/'+ tanzu_spring_cloud_data_flow.registry.project.project_name + '/' +  image.name +':'+  tanzu_spring_cloud_data_flow.registry.destination_tag }}
+#
+- name:          "initiate image migration"
+  include_tasks: "migrate-image-task.yaml"
+  when:
+    - tanzu_spring_cloud_data_flow.registry.migrate_images | bool
+
+#
+# POSTGRESQL
+#
+- name: "ensure spring cloud data flow postgresql exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "spring cloud data flow postgresql"
+    manifest_template:    "app-postgresql.yaml.j2"
+    manifest_file:        "app-postgresql.yaml"
+    manifest_staging_dir: "{{ tanzu_spring_cloud_data_flow.staging_dir }}"
+
+#
+# RABBIT MQ
+#
+- name: "ensure spring cloud data flow rabbitmq exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "spring cloud data flow rabbitmq"
+    manifest_template:    "app-rabbitmq.yaml.j2"
+    manifest_file:        "app-rabbitmq.yaml"
+    manifest_staging_dir: "{{ tanzu_spring_cloud_data_flow.staging_dir }}"
+
+#
+# SPRING CLOUD DATA FLOW SECRET/PSP
+#
+- name: "ensure spring cloud data flow registry secret exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "spring cloud data flow registry secret"
+    manifest_template:    "secret-spring-cloud-data-flow.yaml.j2"
+    manifest_file:        "secret-spring-cloud-data-flow.yaml"
+    manifest_staging_dir: "{{ tanzu_spring_cloud_data_flow.staging_dir }}"
+
+- name: "ensure spring cloud data flow psp exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "spring cloud data flow psp"
+    manifest_template:    "psp-spring-cloud-data-flow.yaml.j2"
+    manifest_file:        "psp-spring-cloud-data-flow.yaml"
+    manifest_staging_dir: "{{ tanzu_spring_cloud_data_flow.staging_dir }}"
+
+#
+# SPRING CLOUD DATA SKIPPER
+#
+- name: "ensure spring cloud data flow skipper exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "spring cloud data flow skipper"
+    manifest_template:    "app-skipper.yaml.j2"
+    manifest_file:        "app-skipper.yaml"
+    manifest_staging_dir: "{{ tanzu_spring_cloud_data_flow.staging_dir }}"
+
+#
+# SPRING CLOUD DATA FLOW
+#
+- name: "ensure spring cloud data flow exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "spring cloud data flow"
+    manifest_template:    "app-spring-cloud-data-flow.yaml.j2"
+    manifest_file:        "app-spring-cloud-data-flow.yaml"
+    manifest_staging_dir: "{{ tanzu_spring_cloud_data_flow.staging_dir }}"
+
+#
+# DNS
+#
+- name: "ensure dns resolvability spring cloud data flow"
+  import_role:
+    name: "common/etc-hosts"
+  vars:
+    ip:   "{{ ingress_ip }}"
+    fqdn: "{{ tanzu_spring_cloud_data_flow.dns }}"

@@ -1,0 +1,53 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure the namespace is removed"
+  import_role:
+    name: "common/namespace/clean"
+  vars:
+    namespace: "{{ tanzu_sql.namespace }}"
+
+- name: "ensure the cluster-wide rbac resources are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "ClusterRoleBinding"
+    name:    "{{ item.name }}"
+  with_items:
+    - name: "postgres-operator-cluster-role-binding"
+
+- name: "ensure the cluster-wide rbac resources are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "ClusterRole"
+    name:    "{{ item.name }}"
+  with_items:
+    - name: "postgres-operator-cluster-role"
+
+- name: "ensure the mutating webhook rbac resources are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "MutatingWebhookConfiguration"
+    name:    "{{ item.name }}"
+  with_items:
+    - name: "postgres-operator-mutating-webhook-configuration"
+
+- name: "ensure the validating webhook resources are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "ValidatingWebhookConfiguration"
+    name:    "{{ item.name }}"
+  with_items:
+    - name: "postgres-operator-validating-webhook-configuration"
+
+- name: "ensure the custom resource definition resources are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "CustomResourceDefinition"
+    name:    "{{ item.name }}"
+  with_items:
+    - name: "postgresinstances.postgres.pivotal.io"

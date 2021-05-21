@@ -1,0 +1,14 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# STORAGE CLASS
+#
+- name: "ensure azure storage classes exist"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "azure storage classes"
+    manifest_template:    "storage-class-azure.yaml.j2"
+    manifest_file:        "storage-class-azure.yaml"
+    manifest_staging_dir: "{{ tanzu_storage.staging_dir }}"

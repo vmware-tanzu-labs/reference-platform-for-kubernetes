@@ -1,0 +1,16 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+sonobuoy-config:
+  driver: Job
+  plugin-name: rpk-workload-tenancy
+  result-format: manual
+spec:
+  image: cloudnativereadiness/rpk-workload-tenancy-validate:0.1.3
+  name: plugin
+  resources: {}
+  # mountPath must match resultsDir build arg for docker image
+  volumeMounts:
+    - mountPath: /tmp/results
+      name: results
+

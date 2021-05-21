@@ -1,0 +1,92 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# AUTH
+#   # see https://code.vmware.com/apis/897/tanzu-mission-control
+#
+- name: "get authentication token"
+  uri:
+    url:         "{{ tanzu_mission_control.access_token_url }}?refresh_token={{ tanzu_mission_control_api_token }}"
+    method:      "POST"
+    status_code: "200"
+  register: _tmc_access_token
+
+- name: "set the access token"
+  set_fact:
+    _tmc_access_token: "{{ _tmc_access_token.json.access_token }}"
+
+#
+# CLUSTERS
+#   see https://code.vmware.com/apis/897/tanzu-mission-control#/ClusterResourceService
+#
+- name: "check if cluster exists in the org"
+  uri:
+    url:         "{{ tanzu_mission_control.org_url }}/{{ tanzu_mission_control.api_version }}/clusters/{{ tanzu_cluster_name }}?fullName.managementClusterName=attached&fullName.provisionerName=attached"
+    method:      "GET"
+    status_code: 200,404
+    headers:
+      Authorization: "Bearer {{ _tmc_access_token }}"
+  register: _tmc_cluster
+
+- name: "remove a cluster from the tmc org"
+  uri:
+    url:         "{{ tanzu_mission_control.org_url }}/{{ tanzu_mission_control.api_version }}/clusters/{{ tanzu_cluster_name }}?fullName.managementClusterName=attached&fullName.provisionerName=attached"
+    method:      "DELETE"
+    status_code: "200"
+    headers:
+      Authorization: "Bearer {{ _tmc_access_token }}"
+    # NOTE: the API seems to not support this, but it doesnt affect functionality, leaving this in place for when this will be supported
+    body_format: "json"
+    body:
+      full_name:
+        managementClusterName: "attached"
+        provisionerName:       "attached"
+  register: _tmc_cluster_delete_status
+  when:
+    - _tmc_cluster.status == 200
+    - _tmc_cluster.json.cluster.fullName.name == tanzu_cluster_name
+    - _tmc_cluster.json.cluster.meta.labels.owner == tanzu_mission_control.owner_label
+
+- name: "fail if rpk is not the owner of the named cluster"
+  fail:
+    msg: "TMC cluster owner {{ _tmc_cluster.json.cluster.meta.labels.owner }} does not match {{ tanzu_mission_control.owner_label }}"
+  when: _tmc_cluster.json.cluster.meta.labels.owner != tanzu_mission_control.owner_label
+
+- name: "wait 30 seconds for cluster to be removed from the tmc org"
+  uri:
+    url:         "{{ tanzu_mission_control.org_url }}/{{ tanzu_mission_control.api_version }}/clusters/{{ tanzu_cluster_name }}?fullName.managementClusterName=attached&fullName.provisionerName=attached"
+    method:      "GET"
+    status_code: 404
+    headers:
+      Authorization: "Bearer {{ _tmc_access_token }}"
+  register: _tmc_cluster
+  retries:  20
+  delay:    30
+  until:    _tmc_cluster.status == 404
+  failed_when: false
+
+- name: "log that TMC taking too long to forget about the cluster"
+  debug:
+    msg: |
+      ********************************************************************
+      Removing the cluster from TMC took longer than 10 minutes,
+      it'll probably finish eventually.
+
+      try running clean again after a while.
+
+      In extreme situations you may need to manually detach it from within
+      the TMC website.
+
+      If you see issues with namespaces not deleting you may need to run
+      $ kubectl delete APIService v1alpha1.login.concierge.pinniped.dev
+      ********************************************************************
+    verbosity: 0
+  when: _tmc_cluster.status != 404
+
+- name: "ensure the namespace is removed"
+  import_role:
+    name: "common/namespace/clean"
+  vars:
+    namespace: "{{ tanzu_mission_control.namespace }}"
+  when: _tmc_cluster.status == 404

@@ -1,0 +1,99 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_workload_tenancy.staging_dir }}"
+
+- name: "create required demo namespaces"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_workload_tenancy.demo_namespace }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_workload_tenancy.staging_dir }}/tanzu-namespace.yaml"
+
+#
+# LIMIT RANGE DEMO
+#
+- name: "write file for pod which inherits default resources from limit range"
+  template:
+    src:  "defaults-from-limit-range.yaml.j2"
+    dest: "{{ tanzu_workload_tenancy.staging_dir }}/defaults-from-limit-range.yaml"
+    mode: "0400"
+  changed_when: false
+
+- name: "launch pod which inherits default resources from limit range"
+  k8s:
+    state:        "present"
+    context:      "{{ tanzu_kubectl_context }}"
+    src:          "{{ tanzu_workload_tenancy.staging_dir }}/defaults-from-limit-range.yaml"
+    wait:         true
+    wait_timeout: "300"
+  register: inherit_defaults_pod
+
+#
+# EXCEED LIMIT RANGE: CPU
+#
+- name: "write file for pod which exceeds limit range cpu"
+  template:
+    src:  "exceed-limit-range-cpu.yaml.j2"
+    dest: "{{ tanzu_workload_tenancy.staging_dir }}/exceed-limit-range-cpu.yaml"
+    mode: "0400"
+  changed_when: false
+
+- name: "launch pod which exceeds limit range cpu"
+  k8s:
+    state:        "present"
+    context:      "{{ tanzu_kubectl_context }}"
+    src:          "{{ tanzu_workload_tenancy.staging_dir }}/exceed-limit-range-cpu.yaml"
+    wait:         true
+    wait_timeout: "300"
+  failed_when: false
+  register:    exceed_cpu_pod
+
+- name: "ensure pod failed to launch"
+  assert:
+    that:
+      - exceed_cpu_pod.status == 403
+
+#
+# EXCEED LIMIT RANGE: MEMORY
+#
+- name: "write file for pod which exceeds limit range memory"
+  template:
+    src:  "exceed-limit-range-mem.yaml.j2"
+    dest: "{{ tanzu_workload_tenancy.staging_dir }}/exceed-limit-range-mem.yaml"
+    mode: "0400"
+  changed_when: false
+
+- name: "launch pod which exceeds limit range memory"
+  k8s:
+    state:        "present"
+    context:      "{{ tanzu_kubectl_context }}"
+    src:          "{{ tanzu_workload_tenancy.staging_dir }}/exceed-limit-range-mem.yaml"
+    wait:         true
+    wait_timeout: "300"
+  failed_when: false
+  register:    exceed_mem_pod
+
+- name: "ensure pod failed to launch"
+  assert:
+    that:
+      - exceed_mem_pod.status == 403
+
+#
+# PRINT INFO
+#
+- name: "print the demo information"
+  debug:
+    msg:
+      - "Namespace CRD can be viewed by: kubectl get tanzunamespace -n {{ tanzu_workload_tenancy.demo_namespace }}"
+      - "LimitRange created by Namespace CRD can be viewed by: kubectl get limitrange -n {{ tanzu_workload_tenancy.demo_namespace }}"
+      - "ResourceQuota created by Namespace CRD can be viewed by: kubectl get resourcequota -n {{ tanzu_workload_tenancy.demo_namespace }}"
+      - "Pod which inherited from LimitRange can be viewed by: kubectl describe pod  defaults-from-limit-range -n {{ tanzu_workload_tenancy.demo_namespace }}"
+      - "Pod which exceeds LimitRange CPU limits had message: {{ exceed_cpu_pod.msg }}"
+      - "Pod which exceeds LimitRange Memory limits had message: {{ exceed_mem_pod.msg }}"
+    verbosity: 0

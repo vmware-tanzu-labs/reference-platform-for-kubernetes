@@ -1,0 +1,30 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure the namespace is removed"
+  import_role:
+    name: "common/namespace/clean"
+  vars:
+    namespace: "{{ tanzu_secrets.namespace }}"
+
+- name: "ensure the cluster-wide rbac resources are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "{{ item.kind }}"
+    name:    "{{ item.name }}"
+  with_items:
+    - name: "{{ tanzu_secrets.hashicorp_vault_injector.resource_name }}"
+      kind: "ClusterRole"
+    - name: "{{ tanzu_secrets.hashicorp_vault_injector.resource_name }}"
+      kind: "ClusterRoleBinding"
+    - name: "{{ tanzu_secrets.hashicorp_vault.resource_name }}"
+      kind: "ClusterRoleBinding"
+
+- name: "ensure the mutating webhook configuration is removed"
+  k8s:
+    state:       "absent"
+    context:     "{{ tanzu_kubectl_context }}"
+    kind:        "MutatingWebhookConfiguration"
+    name:        "{{ tanzu_secrets.hashicorp_vault_injector.resource_name }}"
+    api_version: "admissionregistration.k8s.io/v1beta1"

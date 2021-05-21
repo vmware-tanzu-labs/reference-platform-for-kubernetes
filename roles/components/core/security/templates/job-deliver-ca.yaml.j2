@@ -1,0 +1,147 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: install-ca-script
+  namespace: {{ tanzu_security.namespace }}
+data:
+  install-ca.sh: |
+    #!/bin/sh
+    set -eux
+
+    # first ensure the ca certificate exists in the kubernetes pki directory
+    if [[ `cat /tmp/tanzu-ca/ca.crt` == "" ]]; then
+      echo "tanzu ca cert is empty"
+      exit 1
+    fi
+
+    # backup the certificate file
+    if [[ -f /etc/kubernetes/pki/tanzu-ca.crt ]]; then
+      cp /etc/kubernetes/pki/tanzu-ca.crt /tmp/tanzu-ca.crt.bak
+    fi
+    cat /tmp/tanzu-ca/ca.crt /tmp/extra-ca/*.crt | tee /etc/kubernetes/pki/tanzu-ca.crt
+
+    # run the appropriate install method
+    if [[ -d /etc/pki/ca-trust/source/anchors ]]; then
+      cp -v /etc/kubernetes/pki/tanzu-ca.crt /etc/pki/ca-trust/source/anchors/
+
+      DEST=/etc/pki/ca-trust/extracted
+
+      # Prevent p11-kit from reading user configuration files.
+      export P11_KIT_NO_USER_CONFIG=1
+
+      # OpenSSL PEM bundle that includes trust flags
+      # (BEGIN TRUSTED CERTIFICATE)
+      /usr/bin/p11-kit extract --format=openssl-bundle --filter=certificates --overwrite --comment $DEST/openssl/ca-bundle.trust.crt
+      /usr/bin/p11-kit extract --format=pem-bundle --filter=ca-anchors --overwrite --comment --purpose server-auth $DEST/pem/tls-ca-bundle.pem
+      /usr/bin/p11-kit extract --format=pem-bundle --filter=ca-anchors --overwrite --comment --purpose email $DEST/pem/email-ca-bundle.pem
+      /usr/bin/p11-kit extract --format=java-cacerts --filter=ca-anchors --overwrite --purpose server-auth $DEST/java/cacerts
+    else
+      SSL_CERT_DIR=/etc/ssl/certs
+      CONCATENATED_CERT_FILE="/etc/pki/tls/certs/ca-bundle.crt"
+
+      if [ ! -d "/etc/pki/tls/certs" ]; then
+        CONCATENATED_CERT_FILE="/etc/ssl/certs/ca-certificates.crt"
+      fi
+
+      cp -v /etc/kubernetes/pki/tanzu-ca.crt $SSL_CERT_DIR
+
+      openssl rehash
+
+      if [ $? != 0 ]; then
+        echo "Error while rehashing"
+      fi
+
+      cat $SSL_CERT_DIR/*.pem > $CONCATENATED_CERT_FILE
+    fi
+
+    # restart containerd
+    CONTAINERD_PID=`pgrep -x containerd`
+    if [[ "${CONTAINERD_PID}" != '' ]]; then
+      kill -1 ${CONTAINERD_PID}
+    else
+      echo "unable to find containerd pid"
+      exit 1
+    fi
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ _delivery_job_name }}
+  namespace: {{ tanzu_security.namespace }}
+spec:
+  activeDeadlineSeconds: 300
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ _delivery_job_name }}
+    spec:
+      serviceAccountName: {{ tanzu_security.cert_delivery_job.resource_name }}
+      hostPID: true
+      nodeName: {{ item.metadata.name }}
+      securityContext:
+        fsGroup: 0
+      tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+      restartPolicy: Never
+      imagePullPolicy: IfNotPresent
+      resources: {{ tanzu_security.default_resources }}
+      containers:
+        - image: {{ tanzu_security.cert_delivery_job.default.image }}:{{ tanzu_security.cert_delivery_job.default.image_tag }}
+          name: {{ tanzu_security.cert_delivery_job.resource_name }}
+          command:
+            - "/bin/bash"
+          args:
+            - "/scripts/install-ca.sh"
+          securityContext:
+            privileged: true
+            runAsUser: 0
+          volumeMounts:
+            - mountPath: /etc/kubernetes/pki
+              name: kubernetes-pki
+            - mountPath: /etc/ssl/certs
+              name: system-certs
+            - mountPath: /etc/pki
+              name: system-pki
+            - mountPath: /usr/share
+              name: system-share
+            - mountPath: /scripts
+              name: scripts
+              readOnly: true
+            - mountPath: /tmp/tanzu-ca
+              name: tanzu-ca
+              readOnly: true
+            - mountPath: /tmp/extra-ca
+              name: extra-ca
+              readOnly: true
+      volumes:
+        - name: kubernetes-pki
+          hostPath:
+            path: /etc/kubernetes/pki
+            type: Directory
+        - name: system-certs
+          hostPath:
+            path: /etc/ssl/certs
+            type: Directory
+        - name: system-pki
+          hostPath:
+            path: /etc/pki
+            type: Directory
+        - name: system-share
+          hostPath:
+            path: /usr/share
+            type: Directory
+        - name: scripts
+          configMap:
+            name: install-ca-script
+        - name: tanzu-ca
+          secret:
+            secretName: ca-keypair
+        - name: extra-ca
+          secret:
+            secretName: root-ca-certs

@@ -1,0 +1,49 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "allow tanzu service mesh components time to make a connection"
+  pause:
+    seconds: "{{ tanzu_service_mesh.connection_pause }}"
+  when: not tsm_first_check
+
+- name: "ensure cluster {{ tanzu_cluster_name }} is connected to tanzu service mesh"
+  uri:
+    url:              "{{ tanzu_service_mesh_url }}/tsm/v1alpha1/clusters/{{ tanzu_cluster_name | lower | regex_replace('@','') | regex_replace('#','') | regex_replace('_','') }}"
+    headers:
+      csp-auth-token: "{{ _csp_access_token }}"
+    body_format:      "raw"
+    method:           "GET"
+    return_content:   true
+    status_code:
+      - 200
+      - 404
+  # don't acidentally log our access_token
+  no_log:        true
+  register:      _tsm_cluster_connection
+  until:         (_tsm_cluster_connection.json.status.state == 'Connected') or
+                 (_tsm_cluster_connection.json.status.state == 'Ready')
+  # following 2 lines for code reuse
+  delay:         "{{ tsm_check_delay | default('10') }}"
+  retries:       "{{ tsm_check_retry | default('3') }}"
+  # if doesn't exist yet, ignore error on first check
+  # 2nd check we must not have errors, and is set to false
+  ignore_errors: "{{ tsm_first_check | bool }}"
+
+- name: "set tanzu service mesh not connected"
+  set_fact:
+    _tsm_connected: false
+  when: _tsm_cluster_connection is failed
+
+- name: "set tanzu service mesh connection state"
+  when: _tsm_cluster_connection is succeeded
+  block:
+    - name: "set tanzu service mesh connected"
+      set_fact:
+        _tsm_connected: true
+      when: (_tsm_cluster_connection.json.status.state == 'Connected') or
+            (_tsm_cluster_connection.json.status.state == 'Ready')
+
+    - name: "set tanzu service mesh not connected"
+      set_fact:
+        _tsm_connected: false
+      when: _tsm_cluster_connection.json.status.state == 'Connecting'

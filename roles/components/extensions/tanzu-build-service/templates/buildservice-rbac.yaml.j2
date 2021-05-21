@@ -1,0 +1,552 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rpk-registry-serviceaccount
+  namespace: {{ tanzu_build_service.namespace }}
+imagePullSecrets:
+- name: canonical-registry-secret
+secrets:
+- name: canonical-registry-secret
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cert-injection-webhook-sa
+  namespace: {{ tanzu_build_service.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-sa"
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cb-service-account
+  namespace: {{ tanzu_build_service.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-sa"
+imagePullSecrets:
+- name: canonical-registry-secret
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: secret-syncer-service-account
+  namespace: {{ tanzu_build_service.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-sa"
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: warmer-service-account
+  namespace: {{ tanzu_build_service.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-sa"
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: build-service-user-role
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-cluste-role-binding"
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - pods/log
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  resourceNames:
+  - default
+  verbs:
+  - get
+  - update
+  - patch
+- apiGroups:
+  - kpack.io
+  resources:
+  - images
+  verbs:
+  - get
+  - list
+  - create
+  - update
+  - delete
+  - patch
+  - watch
+- apiGroups:
+  - kpack.io
+  resources:
+  - builds
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+- apiGroups:
+  - kpack.io
+  resources:
+  - builders
+  verbs:
+  - get
+  - list
+  - create
+  - update
+  - delete
+  - patch
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - create
+  - update
+  - delete
+  - patch
+  - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cert-injection-webhook-cluster-role
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-cluster-role"
+rules:
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - mutatingwebhookconfigurations
+  resourceNames:
+  - defaults.webhook.cert-injection.tanzu.vmware.com
+  verbs:
+  - update
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - mutatingwebhookconfigurations
+  verbs:
+  - get
+  - list
+  - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: build-service-secret-syncer-role
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-cluster-role"
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - kpack.io
+  resources:
+  - builds
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: build-service-admin-role
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-cluste-role"
+rules:
+- apiGroups:
+  - kpack.io
+  resources:
+  - clusterstores
+  - clusterstacks
+  - clusterbuilders
+  verbs:
+  - get
+  - list
+  - create
+  - update
+  - delete
+  - patch
+  - watch
+- apiGroups:
+  - projects.vmware.com
+  resources:
+  - projects
+  verbs:
+  - get
+  - list
+  - create
+  - update
+  - delete
+  - patch
+  - watch
+- apiGroups:
+  - stacks.stacks-operator.tanzu.vmware.com
+  resources:
+  - customstacks
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - stacks.stacks-operator.tanzu.vmware.com
+  resources:
+  - customstacks/status
+  verbs:
+  - get
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: build-service-authenticated-role
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-cluste-role"
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  resourceNames:
+  - kp-config
+  verbs:
+  - get
+  - list
+  - create
+  - update
+  - delete
+  - patch
+  - watch
+- apiGroups:
+  - kpack.io
+  resources:
+  - clusterstores
+  - clusterstacks
+  - clusterbuilders
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - projects.vmware.com
+  resources:
+  - projects
+  verbs:
+  - create
+- apiGroups:
+  - stacks.stacks-operator.tanzu.vmware.com
+  resources:
+  - customstacks
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - stacks.stacks-operator.tanzu.vmware.com
+  resources:
+  - customstacks/status
+  verbs:
+  - get
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: build-service-warmer-role
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-cluster-role"
+rules:
+- apiGroups:
+  - kpack.io
+  resources:
+  - clusterbuilders
+  verbs:
+  - get
+  - list
+  - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cert-injection-webhook-role
+  namespace: {{ tanzu_build_service.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-role"
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  resourceNames:
+  - cert-injection-webhook-tls
+  verbs:
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: build-service-warmer-namespace-role
+  namespace: {{ tanzu_build_service.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-role"
+rules:
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - delete
+  - create
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cert-injection-webhook-cluster-role-binding
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-cluster-role-binding"
+  annotations:
+    kapp.k14s.io/update-strategy: fallback-on-replace
+subjects:
+- kind: ServiceAccount
+  name: cert-injection-webhook-sa
+  namespace: {{ tanzu_build_service.namespace }}
+roleRef:
+  kind: ClusterRole
+  name: cert-injection-webhook-cluster-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: build-service-secret-syncer-role-binding
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-cluster-role-binding"
+  annotations:
+    kapp.k14s.io/update-strategy: fallback-on-replace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: build-service-secret-syncer-role
+subjects:
+- kind: ServiceAccount
+  name: secret-syncer-service-account
+  namespace: {{ tanzu_build_service.namespace }}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: build-service-warmer-role-binding
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-cluser-role-binding"
+  annotations:
+    kapp.k14s.io/update-strategy: fallback-on-replace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: build-service-warmer-role
+subjects:
+- kind: ServiceAccount
+  name: warmer-service-account
+  namespace: {{ tanzu_build_service.namespace }}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: build-service-admin-role-binding
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-cluste-role-binding"
+  annotations:
+    kapp.k14s.io/update-strategy: fallback-on-replace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: build-service-admin-role
+subjects: []
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: build-service-authenticated-role-binding
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-cluste-role-binding"
+  annotations:
+    kapp.k14s.io/update-strategy: fallback-on-replace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: build-service-authenticated-role
+subjects:
+- kind: Group
+  name: system:authenticated
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cert-injection-webhook-role-binding
+  namespace: {{ tanzu_build_service.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-role-binding"
+  annotations:
+    kapp.k14s.io/update-strategy: fallback-on-replace
+subjects:
+- kind: ServiceAccount
+  name: cert-injection-webhook-sa
+  namespace: {{ tanzu_build_service.namespace }}
+roleRef:
+  kind: Role
+  name: cert-injection-webhook-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: build-service-warmer-namespace-role-binding
+  namespace: {{ tanzu_build_service.namespace }}
+  labels:
+    rpk.heritage: "true"
+    rpk.module : "{{ tanzu_build_service.module }}"
+    rpk.resource: "build-service-role-binding"
+  annotations:
+    kapp.k14s.io/update-strategy: fallback-on-replace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: build-service-warmer-namespace-role
+subjects:
+- kind: ServiceAccount
+  name: warmer-service-account
+  namespace: {{ tanzu_build_service.namespace }}
+

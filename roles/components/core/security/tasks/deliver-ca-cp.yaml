@@ -1,0 +1,29 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "register job name"
+  set_fact:
+    _delivery_job_name: "{{ ('cp-ca-delivery-' + item.metadata.name) | eskape }}"
+
+# TODO: this does not work on v7wk8s
+- name: "ensure control plane certificate authority delivery job exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "control plane certificate authority delivery job"
+    manifest_template:    "job-deliver-ca.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_security.staging_dir }}"
+  when:
+    - not (tanzu_cluster_is_v7wk8s | default(False))
+
+# TODO: this does not work on v7wk8s
+- name: "ensure {{ _delivery_job_name }} job succeeded"
+  import_role:
+    name: "common/wait-for-job"
+  vars:
+    name:      "{{ _delivery_job_name }}"
+    namespace: "{{ tanzu_security.namespace }}"
+    retries:   30
+    delay:     5
+  when:
+    - not (tanzu_cluster_is_v7wk8s | default(False))

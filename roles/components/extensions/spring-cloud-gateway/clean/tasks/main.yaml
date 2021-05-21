@@ -1,0 +1,28 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure the namespace is removed"
+  import_role:
+    name: "common/namespace/clean"
+  vars:
+    namespace: "{{ tanzu_spring_cloud_gateway.namespace }}"
+
+- name: "ensure the cluster-wide resources are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "{{ item.kind }}"
+    name:    "{{ item.name }}"
+  with_items:
+    - name: "spring-cloud-gateway-role-for-scg-reconciler"
+      kind: "RoleBinding"
+    - name: "spring-cloud-gateway-cluster-role-for-scg-reconciler"
+      kind: "ClusterRoleBinding"
+    - name: "spring-cloud-gateway-role"
+      kind: "Role"
+    - name: "spring-cloud-gateway-cluster-role"
+      kind: "ClusterRole"
+    - name: "{{ tanzu_spring_cloud_gateway.security.policy.role_bind }}"
+      kind: "ClusterRoleBinding"
+    - name: "{{ tanzu_spring_cloud_gateway.security.policy.role }}"
+      kind: "ClusterRole"

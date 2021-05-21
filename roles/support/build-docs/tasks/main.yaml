@@ -1,0 +1,62 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "build additional variables section"
+  block:
+    - name: "obtain all rpk components"
+      include_vars:
+        file: "profiles/{{ profile }}.yaml"
+        name: "{{ profile }}"
+      with_items: "{{ rpk_supported_profiles }}"
+      loop_control:
+        loop_var: "profile"
+
+    - debug:
+        var:       "advanced.rpk_components"
+        verbosity: 1
+
+    - debug:
+        var:      "platform.rpk_components"
+        verbosity: 1
+
+    # regen component by profile doc tables
+    - name: "build additional variables section"
+      template:
+        src:  "sections/main/additional_vars.md.j2"
+        dest: "/ansible/roles/support/build-docs/templates/sections/common/additional_vars.md"
+        mode: "0700"
+      tags:
+        # we want to report changes here
+        - skip_ansible_lint
+
+# sends to /tmp because we need to inject table of contents after this is built
+- name: "build main cloud provider documentation from common sections"
+  template:
+    src:  "sections/main/{{ provider }}.md.j2"
+    dest: "/ansible/roles/support/build-docs/templates/built/{{ provider }}.md"
+    mode: "0700"
+  with_items: "{{ rpk_providers }}"
+  loop_control:
+    loop_var: "provider"
+  tags:
+    # we want to report changes here
+    - skip_ansible_lint
+
+# generate table of contents off of built main cloud provider doc, sends to /tmp
+- name: "generate table of contents for main cloud provider documentation"
+  include_tasks: "toc.yaml"
+  with_items: "{{ rpk_providers }}"
+  loop_control:
+    loop_var: "provider"
+
+# use /tmp/provider-toc.md and /tmp/provider.md to assemble final cloud provider docs
+- name: "assemble final cloud provider documentation"
+  template:
+    src: "{{ provider }}.md.j2"
+    dest: "/ansible/docs/providers/{{ provider }}.md"
+  with_items: "{{ rpk_providers }}"
+  loop_control:
+    loop_var: "provider"
+  tags:
+    # we want to report changes here
+    - skip_ansible_lint

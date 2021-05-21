@@ -1,0 +1,77 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure the namespace is removed"
+  import_role:
+    name: "common/namespace/clean"
+  vars:
+    namespace: "{{ tanzu_logging.namespace }}"
+
+- name: "ensure the custom resource definitions are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "CustomResourceDefinition"
+    name:    "{{ item }}"
+  register: crd_clean_status
+  until:    not crd_clean_status.failed
+  retries:  30
+  delay:    1
+  with_items:
+    - "apmservers.apm.k8s.elastic.co"
+    - "kibanas.kibana.k8s.elastic.co"
+    - "elasticsearches.elasticsearch.k8s.elastic.co"
+
+- name: "ensure the api services are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "APIService"
+    name:    "{{ item }}"
+  register: api_clean_status
+  until:    not api_clean_status.failed
+  retries:  30
+  delay:    1
+  with_items:
+    - "v1beta1.apm.k8s.elastic.co"
+    - "v1beta1.elasticsearch.k8s.elastic.co"
+    - "v1beta1.kibana.k8s.elastic.co"
+    - "v1.apm.k8s.elastic.co"
+    - "v1.elasticsearch.k8s.elastic.co"
+    - "v1.kibana.k8s.elastic.co"
+
+- name: "ensure the pod security policy is removed"
+  k8s:
+    state:       "absent"
+    context:     "{{ tanzu_kubectl_context }}"
+    kind:        "PodSecurityPolicy"
+    name:        "elasticsearch-psp"
+    api_version: "policy/v1beta1"
+
+- name: "ensure the cluster-wide rbac resources are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "{{ item.kind }}"
+    name:    "{{ item.name }}"
+  with_items:
+    - name: "elastic-operator-view"
+      kind: "ClusterRole"
+    - name: "elastic-operator-edit"
+      kind: "ClusterRole"
+    - name: "elastic-operator"
+      kind: "ClusterRole"
+    - name: "fluent-bit-read"
+      kind: "ClusterRole"
+    - name: "elasticsearch-psp"
+      kind: "ClusterRole"
+    - name: "elastic-operator"
+      kind: "ClusterRoleBinding"
+    - name: "fluent-bit-read"
+      kind: "ClusterRoleBinding"
+    - name: "elastic-operator"
+      kind: "ClusterRoleBinding"
+    - name: "fluent-bit-read"
+      kind: "ClusterRoleBinding"
+    - name: "elasticsearch-psp"
+      kind: "ClusterRoleBinding"

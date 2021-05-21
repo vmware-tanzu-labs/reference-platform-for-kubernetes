@@ -1,0 +1,34 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: department
+  namespace: {{ tanzu_app_stack.department.namespace }}
+  labels:
+    app.kubernetes.io/name: "{{ tanzu_app_stack.department.resource_name }}"
+data:
+  logging.pattern.console: "%clr(%d{YYYY-MM-dd E HH:mm:ss.SSS}){faint} %clr(%-5p) %clr(${PID}){faint} %clr([%8.15t]){faint} %clr(%c{1.}:%L){cyan} %clr(:){red} %clr(%m){faint}%n"
+  logging.file.name: "/tmp/service.log"
+  logging.pattern.file: "%d{YYYY-MM-dd E HH:mm:ss.SSS} %-5p ${PID} [%8.15t] %c{1.}:%L : %m%n"
+  logging.level.ROOT: "INFO"
+  logging.level.com.mongodb: "DEBUG"
+  logging.level.org.springframework.cloud.bootstrap: "INFO"
+  logging.level.vmware.services: "DEBUG"
+  logging.level.org.springframework.cloud: "INFO"
+  spring.cloud.kubernetes.discovery.all-namespaces: "true"
+  spring.data.mongodb.database: "admin"
+  spring.data.mongodb.host: "mongodb.{{ tanzu_app_stack.mongodb.namespace }}.svc.cluster.local"
+  spring.output.ansi.enabled: "ALWAYS"
+  management.endpoints.web.exposure.include: "env,health,configprops,loggers,sessions,info,metrics,prometheus,loggers"
+  management.endpoints.enabled-by-default: "true"
+  management.endpoint.env.enabled: "true"
+  management.endpoint.health.enabled: "true"
+  management.endpoint.configprops.enabled: "true"
+  management.endpoint.info.enabled: "true"
+  management.endpoint.loggers.enabled: "true"
+  management.endpoint.sessions.enabled: "true"
+  management.metrics.enable.all: "true"
+  management.metrics.distribution.percentiles-histogram.http.server.requests: "true"
+  management.metrics.distribution.sla.http.server.requests: "1ms,5ms"

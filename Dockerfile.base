@@ -1,0 +1,72 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+#
+# BUILD
+#
+FROM python:3.7.9-alpine3.12 as build
+
+# set environment
+ENV PATH=/ansible/.pip/usr/local/bin:$PATH
+ENV PYTHONPATH=/usr/local/lib/python3.7/site-packages/:/ansible/.pip/usr/local/lib/python3.7/site-packages/
+ENV KUBECTL_VERSION=v1.18.3
+ENV HELM_VERSION=v3.4.1
+
+# install build prereqs
+RUN apk update && \
+    apk add bash sudo coreutils gcc musl-dev libffi-dev git \
+    gpgme-dev libxml2-dev libxslt-dev curl bind-tools perl-utils \
+    python3-dev openssl-dev cargo \
+    --virtual build-dependencies
+
+# add other executables
+RUN curl -L https://reference-platform-for-kubernetes.s3.amazonaws.com/tmc -o /usr/local/bin/tmc && chmod +x /usr/local/bin/tmc
+RUN curl -L https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl && chmod +x /usr/local/bin/kubectl
+RUN curl -L https://downloads.bitnami.com/tac/tac-cli-linux-amd64.tar.gz -o /tmp/tac.tar.gz && tar zxvf /tmp/tac.tar.gz -C /tmp && mv /tmp/tac /usr/local/bin && chmod +x /usr/local/bin/tac
+RUN curl -L https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz -o /tmp/helm.tar.gz && tar zxvf /tmp/helm.tar.gz -C /tmp && mv /tmp/linux-amd64/helm /usr/local/bin && chmod +x /usr/local/bin/helm
+RUN curl -L https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -o /usr/local/bin/yq && chmod +x /usr/local/bin/yq
+# Paul's release with the label hack (https://github.com/vmware-tanzu/carvel-kapp/issues/160)
+RUN curl -L https://github.com/paulczar/carvel-kapp/releases/download/label-hack/kapp -o /usr/local/bin/kapp && chmod +x /usr/local/bin/kapp
+RUN curl -L https://github.com/vmware-tanzu/carvel-ytt/releases/download/v0.30.0/ytt-linux-amd64 -o /usr/local/bin/ytt && chmod +x /usr/local/bin/ytt
+
+# build python dependencies
+# WARN: if anything changes before building python dependencies, you're likely going to have a bad time
+#       as lxml seems to take a very long time to compile, sometimes upwards to several hours.  try not to
+#       change anything here until new requirements are needed, to attempt to utilize docker layer caching.
+COPY ./requirements.txt /ansible/requirements.txt
+RUN pip3 install --upgrade pip
+RUN pip3 install --root /ansible/.pip -r /ansible/requirements.txt
+
+# build ansible dependencies
+COPY ./requirements.yaml /ansible/requirements.yaml
+RUN mkdir -p /ansible/roles/external && ansible-galaxy install -r /ansible/requirements.yaml -p /ansible/roles/external
+
+# copy scripts
+COPY ./lib/ /ansible/lib
+COPY ./bin/rpk /ansible/bin/rpk
+COPY ./ansible.cfg /ansible/ansible.cfg
+
+#
+# RUN
+#   - builds rpk-base:latest image
+#
+FROM python:3.7.9-alpine3.12
+
+# update the image
+RUN apk update && apk add bash openssh-client bind-tools curl openssl openssh-keygen sshpass libc6-compat --no-cache
+
+# copy dependencies
+COPY --from=build /ansible /ansible
+
+# copy executables and configurations from build image
+COPY --from=build /usr/local/bin /usr/local/bin
+
+# set pathing
+ENV PATH=/ansible/.pip/usr/local/bin:$PATH
+ENV PYTHONPATH=/usr/local/lib/python3.7/site-packages/:/ansible/.pip/usr/local/lib/python3.7/site-packages/
+
+# set kubeconfig and ansible options
+ENV KUBECONFIG=/ansible/.kube/config
+ENV ANSIBLE_FORCE_COLOR=1
+
+WORKDIR /ansible
+ENTRYPOINT ["./bin/rpk"]

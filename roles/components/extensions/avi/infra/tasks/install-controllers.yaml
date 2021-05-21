@@ -1,0 +1,435 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+# inspired by https://github.com/avinetworks/devops/blob/master/ansible/vcf/vcf-ctl.yml
+- name: "create temp ssh key directory"
+  file:
+    path:  "{{ avi.staging_dir }}/ssh"
+    state: "directory"
+
+- name: "get path status for ssh key"
+  stat:
+    path: "{{ avi.staging_dir }}/ssh/avi_id_ssh_rsa"
+  register: _stat_result
+
+- name: "generate ssh key"
+  openssh_keypair:
+    path: "{{ avi.staging_dir }}/ssh/avi_id_ssh_rsa"
+    size: 4096
+  when: not _stat_result.stat.exists
+
+- name: "slurp the public key"
+  set_fact:
+    _pub_key: "{{ lookup('file', '{{ avi.staging_dir }}/ssh/avi_id_ssh_rsa.pub') }}"
+
+- name: "provision the avi controllers"
+  block:
+    # controller 1
+    - name: "deploy avi controller 1"
+      vmware_deploy_ovf:
+        name: "{{ avi.controller.networks[0].fqdn.split('.')[0] }}"
+        properties:
+          avi.mgmt-ip.CONTROLLER:             "{{ avi.controller.networks[0].ip      | default(omit) }}"
+          avi.mgmt-mask.CONTROLLER:           "{{ avi.controller.networks[0].netmask | default(omit) }}"
+          avi.default-gw.CONTROLLER:          "{{ avi.controller.networks[0].gateway | default(omit) }}"
+          avi.sysadmin-public-key.CONTROLLER: "{{ _pub_key }}"
+      register: _avi_controller_1_status
+
+    - name: "set avi controller 1 uuid"
+      set_fact:
+        _avi_controller_1_uuid: "{{ _avi_controller_1_status.instance.hw_product_uuid }}"
+      when:
+        - _avi_controller_1_status is defined
+        - "'instance' in _avi_controller_1_status"
+
+    - name: "modify avi controller 1 hardware"
+      vmware_guest:
+        uuid: "{{ _avi_controller_1_uuid }}"
+
+    # controller 2
+    - name: "deploy avi controller 2"
+      vmware_deploy_ovf:
+        name: "{{ avi.controller.networks[1].fqdn.split('.')[0] }}"
+        properties:
+          avi.mgmt-ip.CONTROLLER:    "{{ avi.controller.networks[1].ip      | default(omit) }}"
+          avi.mgmt-mask.CONTROLLER:  "{{ avi.controller.networks[1].netmask | default(omit) }}"
+          avi.default-gw.CONTROLLER: "{{ avi.controller.networks[1].gateway | default(omit) }}"
+      register: _avi_controller_2_status
+      when: avi.controller.ha_mode | bool
+
+    - name: "set avi controller 2 uuid"
+      set_fact:
+        _avi_controller_2_uuid: "{{ _avi_controller_2_status.instance.hw_product_uuid }}"
+      when:
+        - _avi_controller_2_status is defined
+        - "'instance' in _avi_controller_2_status"
+        - avi.controller.ha_mode | bool
+
+    - name: "modify avi controller 2 hardware"
+      vmware_guest:
+        uuid: "{{ _avi_controller_2_uuid }}"
+      when:
+        - _avi_controller_2_uuid is defined
+        - avi.controller.ha_mode | bool
+
+    # controller 3
+    - name: "deploy avi controller 3"
+      vmware_deploy_ovf:
+        name: "{{ avi.controller.networks[2].fqdn.split('.')[0] }}"
+        properties:
+          avi.mgmt-ip.CONTROLLER:    "{{ avi.controller.networks[2].ip      | default(omit) }}"
+          avi.mgmt-mask.CONTROLLER:  "{{ avi.controller.networks[2].netmask | default(omit) }}"
+          avi.default-gw.CONTROLLER: "{{ avi.controller.networks[2].gateway | default(omit) }}"
+      register: _avi_controller_3_status
+      when: avi.controller.ha_mode | bool
+
+    - name: "set avi controller 3 uuid"
+      set_fact:
+        _avi_controller_3_uuid: "{{ _avi_controller_3_status.instance.hw_product_uuid }}"
+      when:
+        - _avi_controller_3_status is defined
+        - "'instance' in _avi_controller_3_status"
+        - avi.controller.ha_mode | bool
+
+    - name: "modify avi controller 3 hardware"
+      vmware_guest:
+        uuid: "{{ _avi_controller_3_uuid }}"
+      when:
+        - _avi_controller_3_uuid is defined
+        - avi.controller.ha_mode | bool
+
+  # propogate defaults to above block modules
+  module_defaults:
+    vmware_deploy_ovf:
+      hostname:       "{{ vcenter_server }}"
+      username:       "{{ vcenter_username }}"
+      password:       "{{ vcenter_password }}"
+      folder:         "{{ avi.vcenter.folder }}"
+      datacenter:     "{{ avi.vcenter.datacenter }}"
+      cluster:        "{{ avi.vcenter.cluster }}"
+      datastore:      "{{ avi.vcenter.datastore }}"
+      validate_certs: false
+      power_on:       false
+      ova:            "{{ avi.controller.ova_path }}/{{ avi.controller.ova_file }}"
+      networks:
+        Management: "{{ avi.vcenter.management_portgroup }}"
+    vmware_guest:
+      state:          "present"
+      hostname:       "{{ vcenter_server }}"
+      username:       "{{ vcenter_username }}"
+      password:       "{{ vcenter_password }}"
+      validate_certs: false
+      hardware:
+        memory_mb: "{{ avi.controller.memory_mb }}"
+        num_cpus:  "{{ avi.controller.num_cpus }}"
+      disk:
+        - size_gb: "{{ avi.controller.disk_size_gb }}"
+
+- name: "power on the avi controllers"
+  block:
+    # controller 3
+    - name: "power on avi controller 3"
+      vmware_guest:
+        uuid: "{{ _avi_controller_3_uuid }}"
+      register: _avi_controller_3_info
+      when:
+        - _avi_controller_3_uuid is defined
+        - avi.controller.ha_mode | bool
+
+    - name: "set avi controller 3 management ip"
+      set_fact:
+        _avi_controller_3_mgmt_ip: "{{ _avi_controller_3_info.instance.ipv4 | default(avi.controller.networks[2].ip) }}"
+      when:
+        - avi.controller.ha_mode | bool
+
+    # controller 2
+    - name: "power on avi controller 2"
+      vmware_guest:
+        uuid: "{{ _avi_controller_2_uuid }}"
+      register: _avi_controller_2_info
+      when:
+        - _avi_controller_2_uuid is defined
+        - avi.controller.ha_mode | bool
+
+    - name: "set avi controller 2 management ip"
+      set_fact:
+        _avi_controller_2_mgmt_ip: "{{ _avi_controller_2_info.instance.ipv4 | default(avi.controller.networks[1].ip) }}"
+      when:
+        - avi.controller.ha_mode | bool
+
+    # controller 1
+    - name: "power on avi controller 1"
+      vmware_guest:
+        uuid: "{{ _avi_controller_1_uuid }}"
+      register: _avi_controller_1_info
+      when: "_avi_controller_1_uuid is defined"
+
+    - name: "set avi controller 1 management ip"
+      set_fact:
+        _avi_controller_1_mgmt_ip: "{{ _avi_controller_1_info.instance.ipv4 | default(avi.controller.networks[0].ip) }}"
+
+  # propogate defaults to above block modules
+  module_defaults:
+    vmware_guest:
+      state:               "poweredon"
+      hostname:            "{{ vcenter_server }}"
+      username:            "{{ vcenter_username }}"
+      password:            "{{ vcenter_password }}"
+      validate_certs:      false
+      wait_for_ip_address: true
+
+- name: "add avicontroller as a host to make it connectable"
+  add_host:
+    hostname:               "avicontroller"
+    ansible_host:           "{{ _avi_controller_1_mgmt_ip }}"
+    ansible_port:           22
+    ansible_user:           "{{ avi.controller.username }}"
+    ansible_ssh_pass:       "{{ avi.controller.password }}"
+    ansible_ssh_extra_args: "-o StrictHostKeyChecking=no"
+
+- name: "create anti-affinity drs rule for cluster nodes"
+  vmware_vm_vm_drs_rule:
+    hostname:       "{{ vcenter_server }}"
+    username:       "{{ vcenter_username }}"
+    password:       "{{ vcenter_password }}"
+    cluster_name:   "{{ avi.vcenter.cluster }}"
+    validate_certs: false
+    enabled:        true
+    mandatory:      true
+    affinity_rule:  false
+    vms:
+      - "{{ avi.controller.networks[0].fqdn.split('.')[0] }}"
+      - "{{ avi.controller.networks[1].fqdn.split('.')[0] }}"
+      - "{{ avi.controller.networks[2].fqdn.split('.')[0] }}"
+    drs_rule_name: avi-cluster-antiaffinity-rule-001
+  when:
+    - avi.controller.ha_mode | bool
+    - avi.controller.anti_affinity_create | bool
+
+- name: "wait for avi portal to be active"
+  uri:
+    url:            "https://{{ _avi_controller_1_mgmt_ip }}/api/initial-data"
+    validate_certs: false
+    status_code:    200
+  register: _ver_results
+  until:    _ver_results.status == 200
+  retries:  300
+  delay:    10
+
+- name: "set the controller version"
+  set_fact:
+    _controller_version: "{{ _ver_results.json.version.Version.split('(')[0] }}"
+
+- when: _controller_version > "18.2.0"
+  block:
+    - name: "define a list of commands to run"
+      set_fact:
+        _command_list:
+          - "ssh -o 'StrictHostKeyChecking no' -i {{ avi.staging_dir }}/ssh/avi_id_ssh_rsa admin@{{ _avi_controller_1_mgmt_ip }} 'if [ ! -d ~/.ssh ]; then mkdir -p ~/.ssh; fi'"
+          - "ssh -o 'StrictHostKeyChecking no' -i {{ avi.staging_dir }}/ssh/avi_id_ssh_rsa admin@{{ _avi_controller_1_mgmt_ip }} cat /etc/ssh/ssh_host_dsa_key.pub >>~/.ssh/known_hosts"
+          - "ssh -o 'StrictHostKeyChecking no' -i {{ avi.staging_dir }}/ssh/avi_id_ssh_rsa admin@{{ _avi_controller_1_mgmt_ip }} sudo /opt/avi/scripts/initialize_admin_user.py --password {{ avi.controller.password }}"
+
+    - name: "set controller admin password"
+      shell: "{{ item }}"
+      with_items: "{{ _command_list }}"
+
+- name: "clean up temporary ssh key"
+  file:
+    state: "absent"
+    path:  "{{ avi.staging_dir }}/ssh"
+
+- block:
+    - name: "init avi api session"
+      avi_api_session:
+        http_method: "get"
+        path:        "tenant"
+        params:
+          name: "admin"
+      register:      _api_results
+      until:         _api_results | selectattr("results.obj.count", "defined")
+      retries:       20
+      delay:         30
+      ignore_errors: true
+
+    - name:  "get avi system configuration"
+      avi_api_session:
+        http_method: "get"
+        path:        "systemconfiguration"
+      ignore_errors: true
+      register:      _api_results
+
+    - name: "modify welcome_workflow_complete"
+      avi_systemconfiguration:
+        welcome_workflow_complete: true
+      when:
+        - '"obj" in _api_results'
+        - not _api_results.obj.welcome_workflow_complete
+
+    - name: "add dns server configuration"
+      avi_systemconfiguration:
+        dns_configuration:
+          server_list:
+            - addr: "{{ avi.controller.dns_server }}"
+              type: "V4"
+      when:
+        - avi.controller.dns_server is defined
+        - avi.controller.dns_server != None
+
+    - name: "set ntp fqdn"
+      set_fact:
+        _ntp_fqdn: "DNS"
+      when:
+        - avi.controller.ntp_server is defined
+        - avi.controller.ntp_server | ipaddr == False
+
+    - name: "add ntp server configuration"
+      avi_systemconfiguration:
+        ntp_configuration:
+          ntp_servers:
+            - server:
+                addr: "{{ avi.controller.ntp_server }}"
+                type: "{{ _ntp_fqdn | default('V4', true) }}"
+      when:
+        - avi.controller.ntp_server is defined
+        - avi.controller.ntp_server != None
+
+  # propogate defaults to above block modules
+  module_defaults:
+    avi_api_session:
+      controller:  "{{ _avi_controller_1_mgmt_ip }}"
+      username:    "{{ avi.controller.username }}"
+      password:    "{{ avi.controller.password }}"
+      api_version: "{{ _controller_version }}"
+      tenant:      "{{ avi.controller.tenant }}"
+    avi_systemconfiguration:
+      avi_api_update_method: "patch"
+      avi_api_patch_op:      "replace"
+      controller:            "{{ _avi_controller_1_mgmt_ip }}"
+      username:              "{{ avi.controller.username }}"
+      password:              "{{ avi.controller.password }}"
+      api_version:           "{{ _controller_version }}"
+      tenant:                "{{ avi.controller.tenant }}"
+
+- name: "set n1_type"
+  set_fact:
+    n1_type: "DNS"
+  when:
+    - avi.controller.networks[0].fqdn is defined
+    - avi.controller.networks[0].fqdn != None
+
+- name: "set n2_type"
+  set_fact:
+    n2_type: "DNS"
+  when:
+    - avi.controller.networks[1].fqdn is defined
+    - avi.controller.networks[1].fqdn != None
+    - avi.controller.ha_mode | bool
+
+- name: "set n3_type"
+  set_fact:
+    n3_type: "DNS"
+  when:
+    - avi.controller.networks[2].fqdn is defined
+    - avi.controller.networks[2].fqdn != None
+    - avi.controller.ha_mode | bool
+
+- name: "set backup passphrase"
+  avi_backupconfiguration:
+    controller:            "{{ _avi_controller_1_mgmt_ip }}"
+    username:              "{{ avi.controller.username }}"
+    password:              "{{ avi.controller.password }}"
+    api_version:           "{{ _controller_version }}"
+    name:                  "Backup-Configuration"
+    backup_passphrase:     "{{ avi.controller.password }}"
+    upload_to_remote_host: false
+
+- name: "wait for avi portal to be active on all controller nodes"
+  uri:
+    url:            "https://{{ _avi_controller_1_mgmt_ip }}/api/initial-data"
+    validate_certs: false
+    status_code:    200
+  register: _ver_results
+  until:    _ver_results.status == 200
+  retries:  300
+  delay:    10
+  with_items:
+    - "{{ _avi_controller_1_mgmt_ip }}"
+    - "{{ _avi_controller_2_mgmt_ip }}"
+    - "{{ _avi_controller_3_mgmt_ip }}"
+  when:
+    - avi.controller.ha_mode | bool
+
+- name: "initialize avi cluster with cluster vip"
+  avi_cluster:
+    controller: "{{ _avi_controller_1_mgmt_ip }}"
+    username:   "{{ avi.controller.username }}"
+    password:   "{{ avi.controller.password }}"
+    tenant:     "{{ avi.controller.tenant }}"
+    name:       "avi-{{ tanzu_cluster_name }}"
+    virtual_ip:
+      type: "V4"
+      addr: "{{ avi.controller.vip }}"
+    nodes:
+      - ip:
+          type: "{{ n1_type | default('V4', true) }}"
+          addr: "{{ avi.controller.networks[0].fqdn | default(_avi_controller_1_mgmt_ip, true) }}"
+        name: "avicontroller-{{ _avi_controller_1_mgmt_ip }}"
+      - ip:
+          type: "{{ n2_type | default('V4', true) }}"
+          addr: "{{ avi.controller.networks[1].fqdn | default(_avi_controller_2_mgmt_ip, true) }}"
+        name: "avicontroller-{{ _avi_controller_2_mgmt_ip }}"
+      - ip:
+          type: "{{ n3_type | default('V4', true) }}"
+          addr: "{{ avi.controller.networks[2].fqdn | default(_avi_controller_3_mgmt_ip, true) }}"
+        name: "avicontroller-{{ _avi_controller_3_mgmt_ip }}"
+  register: _cluster_results
+  when:
+    - avi.controller.vip is defined
+    - avi.controller.vip | length != 0
+    - avi.controller.ha_mode | bool
+
+- name: "ensure the api is available"
+  avi_api_session:
+    controller:  "{{ _avi_controller_1_mgmt_ip }}"
+    username:    "{{ avi.controller.username }}"
+    password:    "{{ avi.controller.password }}"
+    tenant:      "{{ avi.controller.tenant }}"
+    api_version: "{{ _controller_version }}"
+    http_method: "get"
+    path:        "tenant"
+    params:
+      name: "admin"
+  register:      _api_results
+  until:         _api_results|selectattr("results.obj.count", "defined")
+  retries:       20
+  delay:         30
+  ignore_errors: true
+
+- name: "upload license to avi cluster"
+  avi_api_session:
+    controller:  "{{ _avi_controller_1_mgmt_ip }}"
+    username:    "{{ avi.controller.username }}"
+    password:    "{{ avi.controller.password }}"
+    tenant:      "{{ avi.controller.tenant }}"
+    http_method: "put"
+    path:        "license"
+    data:
+      license_text: "{{ avi.controller.license_data | string }}"
+  when:
+    - avi.controller.license_data is defined
+    - avi.controller.license_data != None
+
+- name: "generate avi service engine ova"
+  avi_api_session:
+    controller:  "{{ _avi_controller_1_mgmt_ip }}"
+    username:    "{{ avi.controller.username }}"
+    password:    "{{ avi.controller.password }}"
+    http_method: "post"
+    path:        "fileservice/seova"
+    timeout:     600
+    data:
+      file_format: "ova"
+  register: _ova_create_results
+  until:    not _ova_create_results.failed
+  retries:  3
+  delay:    30

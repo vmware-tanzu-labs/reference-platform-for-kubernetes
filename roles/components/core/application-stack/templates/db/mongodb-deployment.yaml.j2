@@ -1,0 +1,75 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb
+  namespace: {{ tanzu_app_stack.mongodb.namespace }}
+  labels:
+    app.kubernetes.io/name: "{{ tanzu_app_stack.mongodb.resource_name }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "{{ tanzu_app_stack.mongodb.resource_name }}"
+  template:
+    metadata:
+      namespace: {{ tanzu_app_stack.mongodb.namespace }}
+      labels:
+        app.kubernetes.io/name: "{{ tanzu_app_stack.mongodb.resource_name }}"
+    spec:
+      securityContext:
+        runAsUser: 999
+      containers:
+      - name: mongodb
+        image: {{ tanzu_app_stack.mongodb.image }}:{{ tanzu_app_stack.mongodb.image_tag }}
+        ports:
+        - containerPort: 27017
+        env:
+        - name: MONGO_INITDB_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: mongodb
+              key: database-name
+        - name: MONGO_INITDB_ROOT_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mongodb
+              key: database-user
+        - name: MONGO_INITDB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongodb
+              key: database-password
+        resources: {{ tanzu_app_stack.mongodb.resources }}
+        readinessProbe:
+          tcpSocket:
+            port: 27017
+          initialDelaySeconds: 50
+          timeoutSeconds: 2
+          periodSeconds: 20
+          failureThreshold: 5
+        livenessProbe:
+          tcpSocket:
+            port: 27017
+          initialDelaySeconds: 50
+          timeoutSeconds: 2
+          periodSeconds: 20
+          failureThreshold: 5
+      serviceAccountName: {{ tanzu_app_stack.service_account }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb
+  namespace: {{ tanzu_app_stack.mongodb.namespace }}
+  labels:
+    app.kubernetes.io/name: "{{ tanzu_app_stack.mongodb.resource_name }}"
+spec:
+  ports:
+    - name: db
+      port: 27017
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: "{{ tanzu_app_stack.mongodb.resource_name }}"

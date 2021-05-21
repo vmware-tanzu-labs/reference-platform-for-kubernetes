@@ -1,0 +1,777 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# CHART MUSEUM
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ tanzu_container_registry.chartmuseum.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+    component: chartmuseum
+spec:
+  replicas: {{ tanzu_container_registry.chartmuseum.replicas }}
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "harbor"
+      component: chartmuseum
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "harbor"
+        component: chartmuseum
+    spec:
+      securityContext:
+        fsGroup: 10000
+      containers:
+        - name: chartmuseum
+          image: {{ tanzu_container_registry.chartmuseum.image }}:{{ tanzu_container_registry.base_image_tag }}
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /health
+              scheme: HTTP
+              port: 9999
+            initialDelaySeconds: 300
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              scheme: HTTP
+              port: 9999
+            initialDelaySeconds: 1
+            periodSeconds: 10
+          envFrom:
+            - configMapRef:
+                name: "{{ tanzu_container_registry.chartmuseum.resource_name }}"
+            - secretRef:
+                name: "{{ tanzu_container_registry.chartmuseum.resource_name }}"
+          env:
+            - name: BASIC_AUTH_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ tanzu_container_registry.core.resource_name }}
+                  key: secret
+          ports:
+            - containerPort: 9999
+          volumeMounts:
+            - name: chartmuseum-data
+              mountPath: /chart_storage
+              subPath:
+          resources: {{ tanzu_container_registry.chartmuseum.resources | default(tanzu_container_registry.default_resources) }}
+      volumes:
+        - name: chartmuseum-data
+          persistentVolumeClaim:
+            claimName: "{{ tanzu_container_registry.chartmuseum.resource_name }}"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ tanzu_container_registry.chartmuseum.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+spec:
+  ports:
+    - port: 80
+      targetPort: 9999
+  selector:
+    app.kubernetes.io/name: "harbor"
+    component: chartmuseum
+
+#
+# CLAIR
+#
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ tanzu_container_registry.clair.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+    component: clair
+spec:
+  replicas: {{ tanzu_container_registry.clair.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "harbor"
+      component: clair
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "harbor"
+        component: clair
+    spec:
+      securityContext:
+        fsGroup: 10000
+      containers:
+        - name: clair
+          image: {{ tanzu_container_registry.clair.image }}:{{ tanzu_container_registry.base_image_tag }}
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 6061
+            initialDelaySeconds: 300
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 6061
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          args: ["-log-level", "info"]
+          env:
+            - name: HTTP_PROXY
+              value: ""
+            - name: HTTPS_PROXY
+              value: ""
+            - name: NO_PROXY
+              value: "{{ tanzu_container_registry.core.resource_name }},{{ tanzu_container_registry.jobservice.resource_name }},{{ tanzu_container_registry.postgres.resource_name }},{{ tanzu_container_registry.chartmuseum.resource_name }},{{ tanzu_container_registry.clair.resource_name }},{{ tanzu_container_registry.notary.server.resource_name }},{{ tanzu_container_registry.notary.signer.resource_name }},{{ tanzu_container_registry.registry.resource_name }},{{ tanzu_container_registry.portal.resource_name }},127.0.0.1,localhost,.local,.internal"
+          ports:
+            - containerPort: 6060
+          volumeMounts:
+            - name: config
+              mountPath: /etc/clair/config.yaml
+              subPath: config.yaml
+            - name: clair-internal-certs
+              mountPath: /etc/harbor/ssl/clair
+          resources: {{ tanzu_container_registry.clair.resources }}
+        - name: adapter
+          image: {{ tanzu_container_registry.clair.adapter.image }}:{{ tanzu_container_registry.base_image_tag }}
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /probe/healthy
+              scheme: HTTPS
+              port: 8443
+            initialDelaySeconds: 300
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /probe/ready
+              scheme: HTTPS
+              port: 8443
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources: {{ tanzu_container_registry.clair.adapter.resources | default(tanzu_container_registry.default_resources) }}
+          env:
+            - name: SCANNER_CLAIR_URL
+              # To avoid a pod cannot reach itself via service IP when the clusters disable hairpin
+              value: "http://127.0.0.1:6060"
+            - name: SCANNER_STORE_REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ tanzu_container_registry.clair.resource_name }}
+                  key: redis
+            - name: SCANNER_CLAIR_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ tanzu_container_registry.clair.resource_name }}
+                  key: database
+            - name: INTERNAL_TLS_ENABLED
+              value: "true"
+            - name: SCANNER_API_SERVER_ADDR
+              value: ":8443"
+            - name: SCANNER_API_SERVER_TLS_KEY
+              value: /etc/harbor/ssl/clair/tls.key
+            - name: SCANNER_API_SERVER_TLS_CERTIFICATE
+              value: /etc/harbor/ssl/clair/tls.crt
+            - name: SCANNER_LOG_LEVEL
+              value: "info"
+          ports:
+            - containerPort: 8443
+          volumeMounts:
+            - name: clair-internal-certs
+              mountPath: /etc/harbor/ssl/clair
+      volumes:
+        - name: config
+          secret:
+            secretName: "{{ tanzu_container_registry.clair.resource_name }}"
+        - name: clair-internal-certs
+          secret:
+            secretName: "{{ tanzu_container_registry.clair.tls_internal_name }}"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ tanzu_container_registry.clair.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+  annotations:
+    projectcontour.io/upstream-protocol.tls: "adapter, 8443"
+spec:
+  ports:
+    - name: adapter
+      port: 8443
+  selector:
+    app.kubernetes.io/name: "harbor"
+    component: clair
+
+#
+# JOB SERVICE
+#
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ tanzu_container_registry.jobservice.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+    component: jobservice
+spec:
+  replicas: {{ tanzu_container_registry.jobservice.replicas }}
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "harbor"
+      component: jobservice
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "harbor"
+        component: jobservice
+    spec:
+      securityContext:
+        fsGroup: 10000
+      containers:
+        - name: jobservice
+          image: {{ tanzu_container_registry.jobservice.image }}:{{ tanzu_container_registry.base_image_tag }}
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /api/v1/stats
+              scheme: HTTPS
+              port: 8443
+            initialDelaySeconds: 300
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/v1/stats
+              scheme: HTTPS
+              port: 8443
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          env:
+            - name: CORE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ tanzu_container_registry.core.resource_name }}
+                  key: secret
+            - name: INTERNAL_TLS_ENABLED
+              value: "true"
+            - name: INTERNAL_TLS_KEY_PATH
+              value: /etc/harbor/ssl/jobservice/tls.key
+            - name: INTERNAL_TLS_CERT_PATH
+              value: /etc/harbor/ssl/jobservice/tls.crt
+            - name: INTERNAL_TLS_TRUST_CA_PATH
+              value: /etc/harbor/ssl/jobservice/ca.crt
+          envFrom:
+            - configMapRef:
+                name: "{{ tanzu_container_registry.jobservice.resource_name }}-env"
+            - secretRef:
+                name: "{{ tanzu_container_registry.jobservice.resource_name }}"
+          ports:
+            - containerPort: 8443
+          volumeMounts:
+            - name: jobservice-config
+              mountPath: /etc/jobservice/config.yml
+              subPath: config.yml
+            - name: job-logs
+              mountPath: /var/log/jobs
+              subPath:
+            - name: jobservice-internal-certs
+              mountPath: /etc/harbor/ssl/jobservice
+          resources: {{ tanzu_container_registry.jobservice.resources | default(tanzu_container_registry.default_resources) }}
+      volumes:
+        - name: jobservice-config
+          configMap:
+            name: "{{ tanzu_container_registry.jobservice.resource_name }}"
+        - name: job-logs
+          persistentVolumeClaim:
+            claimName: "{{ tanzu_container_registry.jobservice.resource_name }}"
+        - name: jobservice-internal-certs
+          secret:
+            secretName: "{{ tanzu_container_registry.jobservice.tls_internal_name }}"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ tanzu_container_registry.jobservice.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+  annotations:
+    projectcontour.io/upstream-protocol.tls: "8443"
+spec:
+  ports:
+    - port: 443
+      targetPort: 8443
+  selector:
+    app.kubernetes.io/name: "harbor"
+    component: jobservice
+
+#
+# NOTARY
+#
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ tanzu_container_registry.notary.server.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+    component: notary-server
+spec:
+  replicas: {{ tanzu_container_registry.notary.server.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "harbor"
+      component: notary-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "harbor"
+        component: notary-server
+    spec:
+      securityContext:
+        fsGroup: 10000
+      containers:
+        - name: notary-server
+          image: {{ tanzu_container_registry.notary.server.image }}:{{ tanzu_container_registry.base_image_tag }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: MIGRATIONS_PATH
+              value: migrations/server/postgresql
+            - name: DB_URL
+              value: postgres://{{ tanzu_container_registry.postgres.username }}:{{ tanzu_container_registry.postgres.password }}@{{ tanzu_container_registry.postgres.resource_name }}:5432/notaryserver?sslmode=disable
+          volumeMounts:
+            - name: config
+              mountPath: /etc/notary/server-config.postgres.json
+              subPath: server.json
+            - name: token-service-certificate
+              mountPath: /root.crt
+              subPath: tls.crt
+            - name: signer-certificate
+              mountPath: /etc/ssl/notary/ca.crt
+              subPath: ca.crt
+          resources: {{ tanzu_container_registry.notary.server.resources | default(tanzu_container_registry.default_resources) }}
+      volumes:
+        - name: config
+          secret:
+            secretName: "{{ tanzu_container_registry.notary.server.resource_name }}"
+        - name: token-service-certificate
+          secret:
+            secretName: {{ tanzu_container_registry.core.ingress_tls_name }}
+        - name: signer-certificate
+          secret:
+            secretName: {{ tanzu_container_registry.notary.signer.tls_internal_name }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ tanzu_container_registry.notary.signer.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+    component: notary-signer
+spec:
+  replicas: {{ tanzu_container_registry.notary.signer.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "harbor"
+      component: notary-signer
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "harbor"
+        component: notary-signer
+    spec:
+      securityContext:
+        fsGroup: 10000
+      containers:
+      - name: notary-signer
+        image: {{ tanzu_container_registry.notary.signer.image }}:{{ tanzu_container_registry.base_image_tag }}
+        imagePullPolicy: IfNotPresent
+        env:
+          - name: MIGRATIONS_PATH
+            value: migrations/signer/postgresql
+          - name: DB_URL
+            value: postgres://{{ tanzu_container_registry.postgres.username }}:{{ tanzu_container_registry.postgres.password }}@{{ tanzu_container_registry.postgres.resource_name }}:5432/notarysigner?sslmode=disable
+          - name: NOTARY_SIGNER_DEFAULTALIAS
+            value: defaultalias
+        volumeMounts:
+          - name: config
+            mountPath: /etc/notary/signer-config.postgres.json
+            subPath: signer.json
+          - name: signer-certificate
+            mountPath: /etc/ssl/notary/tls.crt
+            subPath: tls.crt
+          - name: signer-certificate
+            mountPath: /etc/ssl/notary/tls.key
+            subPath: tls.key
+        resources: {{ tanzu_container_registry.notary.signer.resources | default(tanzu_container_registry.default_resources) }}
+      volumes:
+        - name: config
+          secret:
+            secretName: "{{ tanzu_container_registry.notary.server.resource_name }}"
+        - name: signer-certificate
+          secret:
+            secretName: {{ tanzu_container_registry.notary.signer.tls_internal_name }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ tanzu_container_registry.notary.server.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+spec:
+  ports:
+    - port: 4443
+  selector:
+    app.kubernetes.io/name: "harbor"
+    component: notary-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ tanzu_container_registry.notary.signer.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+spec:
+  ports:
+    - port: 7899
+  selector:
+    app.kubernetes.io/name: "harbor"
+    component: notary-signer
+
+#
+# REGISTRY
+#
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ tanzu_container_registry.registry.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+    component: registry
+spec:
+  replicas: {{ tanzu_container_registry.registry.replicas }}
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "harbor"
+      component: registry
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "harbor"
+        component: registry
+    spec:
+      securityContext:
+        fsGroup: 10000
+      containers:
+        - name: registry
+          image: {{ tanzu_container_registry.registry.image }}:{{ tanzu_container_registry.base_image_tag }}
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /
+              scheme: HTTPS
+              port: 5443
+            initialDelaySeconds: 300
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              scheme: HTTPS
+              port: 5443
+            initialDelaySeconds: 1
+            periodSeconds: 10
+          args: ["serve", "/etc/registry/config.yml"]
+          envFrom:
+            - secretRef:
+                name: "{{ tanzu_container_registry.registry.resource_name }}"
+          env:
+            - name: INTERNAL_TLS_ENABLED
+              value: "true"
+            - name: INTERNAL_TLS_KEY_PATH
+              value: /etc/harbor/ssl/registry/tls.key
+            - name: INTERNAL_TLS_CERT_PATH
+              value: /etc/harbor/ssl/registry/tls.crt
+            - name: INTERNAL_TLS_TRUST_CA_PATH
+              value: /etc/harbor/ssl/registry/ca.crt
+          ports:
+            - containerPort: 5443
+            - containerPort: 5001
+          volumeMounts:
+            - name: registry-data
+              mountPath: /storage
+              subPath:
+            - name: registry-root-certificate
+              mountPath: /etc/registry/root.crt
+              subPath: tls.crt
+            - name: registry-htpasswd
+              mountPath: /etc/registry/passwd
+              subPath: passwd
+            - name: registry-config
+              mountPath: /etc/registry/config.yml
+              subPath: config.yml
+            - name: registry-internal-certs
+              mountPath: /etc/harbor/ssl/registry
+          resources: {{ tanzu_container_registry.registry.resources | default(tanzu_container_registry.default_resources) }}
+        - name: registryctl
+          image: {{ tanzu_container_registry.registry.registryctl.image }}:{{ tanzu_container_registry.base_image_tag }}
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              scheme: HTTPS
+              port: 8443
+            initialDelaySeconds: 300
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              scheme: HTTPS
+              port: 8443
+            initialDelaySeconds: 1
+            periodSeconds: 10
+          args: ["serve", "/etc/registry/config.yml"]
+          envFrom:
+            - secretRef:
+                name: "{{ tanzu_container_registry.registry.resource_name }}"
+          env:
+            - name: CORE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ tanzu_container_registry.core.resource_name }}
+                  key: secret
+            - name: JOBSERVICE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ tanzu_container_registry.jobservice.resource_name }}
+                  key: JOBSERVICE_SECRET
+            - name: INTERNAL_TLS_ENABLED
+              value: "true"
+            - name: INTERNAL_TLS_KEY_PATH
+              value: /etc/harbor/ssl/registry/tls.key
+            - name: INTERNAL_TLS_CERT_PATH
+              value: /etc/harbor/ssl/registry/tls.crt
+            - name: INTERNAL_TLS_TRUST_CA_PATH
+              value: /etc/harbor/ssl/registry/ca.crt
+          ports:
+            - containerPort: 8443
+          volumeMounts:
+            - name: registry-data
+              mountPath: /storage
+              subPath:
+            - name: registry-config
+              mountPath: /etc/registry/config.yml
+              subPath: config.yml
+            - name: registry-config
+              mountPath: /etc/registryctl/config.yml
+              subPath: ctl-config.yml
+            - name: registry-internal-certs
+              mountPath: /etc/harbor/ssl/registry
+          resources: {{ tanzu_container_registry.registry.registryctl.resources | default(tanzu_container_registry.default_resources) }}
+      volumes:
+        - name: registry-htpasswd
+          secret:
+            secretName: {{ tanzu_container_registry.registry.resource_name }}
+            items:
+              - key: REGISTRY_HTPASSWD
+                path: passwd
+        - name: registry-root-certificate
+          secret:
+            secretName: {{ tanzu_container_registry.core.ingress_tls_name }}
+        - name: registry-config
+          configMap:
+            name: "{{ tanzu_container_registry.registry.resource_name }}"
+        - name: registry-data
+          persistentVolumeClaim:
+            claimName: {{ tanzu_container_registry.registry.resource_name }}
+        - name: registry-internal-certs
+          secret:
+            secretName: harbor-registry-internal-tls
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ tanzu_container_registry.registry.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+  annotations:
+    projectcontour.io/upstream-protocol.tls: "registry, controller, 5443, 8443"
+spec:
+  ports:
+    - name: registry
+      port: 5443
+    - name: controller
+      port: 8443
+  selector:
+    app.kubernetes.io/name: "harbor"
+    component: registry
+
+#
+# TRIVY
+#
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: "{{ tanzu_container_registry.trivy.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+    component: trivy
+spec:
+  replicas: {{ tanzu_container_registry.trivy.replicas }}
+  serviceName: "{{ tanzu_container_registry.trivy.resource_name }}"
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "harbor"
+      component: trivy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "harbor"
+        component: trivy
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10000
+        fsGroup: 10000
+      automountServiceAccountToken: false
+      containers:
+        - name: trivy
+          image: {{ tanzu_container_registry.trivy.image }}:{{ tanzu_container_registry.base_image_tag }}
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: false
+            allowPrivilegeEscalation: false
+          env:
+            - name: HTTP_PROXY
+              value: ""
+            - name: HTTPS_PROXY
+              value: ""
+            - name: NO_PROXY
+              value: "{{ tanzu_container_registry.core.resource_name }},{{ tanzu_container_registry.jobservice.resource_name }},{{ tanzu_container_registry.postgres.resource_name }},{{ tanzu_container_registry.chartmuseum.resource_name }},{{ tanzu_container_registry.clair.resource_name }},{{ tanzu_container_registry.notary.server.resource_name }},{{ tanzu_container_registry.notary.signer.resource_name }},{{ tanzu_container_registry.registry.resource_name }},{{ tanzu_container_registry.portal.resource_name }},{{ tanzu_container_registry.trivy.resource_name }},127.0.0.1,localhost,.local,.internal"
+            - name: "SCANNER_LOG_LEVEL"
+              value: "info"
+            - name: "SCANNER_TRIVY_CACHE_DIR"
+              value: "/home/scanner/.cache/trivy"
+            - name: "SCANNER_TRIVY_REPORTS_DIR"
+              value: "/home/scanner/.cache/reports"
+            - name: "SCANNER_TRIVY_DEBUG_MODE"
+              value: "false"
+            - name: "SCANNER_TRIVY_VULN_TYPE"
+              value: "os,library"
+            - name: "SCANNER_TRIVY_GITHUB_TOKEN"
+              valueFrom:
+                secretKeyRef:
+                  name: {{ tanzu_container_registry.trivy.resource_name }}
+                  key: gitHubToken
+            - name: "SCANNER_TRIVY_SEVERITY"
+              value: "UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL"
+            - name: "SCANNER_TRIVY_IGNORE_UNFIXED"
+              value: "false"
+            - name: "SCANNER_TRIVY_SKIP_UPDATE"
+              value: "false"
+            - name: "SCANNER_TRIVY_INSECURE"
+              value: "false"
+            - name: SCANNER_API_SERVER_ADDR
+              value: ":8443"
+            - name: INTERNAL_TLS_ENABLED
+              value: "true"
+            - name: SCANNER_API_SERVER_TLS_KEY
+              value: /etc/harbor/ssl/trivy/tls.key
+            - name: SCANNER_API_SERVER_TLS_CERTIFICATE
+              value: /etc/harbor/ssl/trivy/tls.crt
+            - name: "SCANNER_STORE_REDIS_URL"
+              valueFrom:
+                secretKeyRef:
+                  name: {{ tanzu_container_registry.trivy.resource_name }}
+                  key: redisURL
+            - name: "SCANNER_JOB_QUEUE_REDIS_URL"
+              valueFrom:
+                secretKeyRef:
+                  name: {{ tanzu_container_registry.trivy.resource_name }}
+                  key: redisURL
+          ports:
+            - name: api-server
+              containerPort: 8443
+          volumeMounts:
+            - name: data
+              mountPath: /home/scanner/.cache
+              readOnly: false
+            - name: trivy-internal-certs
+              mountPath: /etc/harbor/ssl/trivy
+          livenessProbe:
+            httpGet:
+              scheme: HTTPS
+              path: /probe/healthy
+              port: api-server
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 10
+          readinessProbe:
+            httpGet:
+              scheme: HTTPS
+              path: /probe/ready
+              port: api-server
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          resources: {{ tanzu_container_registry.trivy.resources | default(tanzu_container_registry.default_resources) }}
+      volumes:
+        - name: trivy-internal-certs
+          secret:
+            secretName: {{ tanzu_container_registry.trivy.tls_internal_name }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app.kubernetes.io/name: "harbor"
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "{{ tanzu_container_registry.trivy.size }}"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ tanzu_container_registry.trivy.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+  annotations:
+    projectcontour.io/upstream-protocol.tls: "api-server, 8443"
+spec:
+  ports:
+    - name: api-server
+      protocol: TCP
+      port: 8443
+  selector:
+    app.kubernetes.io/name: "harbor"
+    component: trivy

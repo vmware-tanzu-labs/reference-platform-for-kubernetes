@@ -1,0 +1,47 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure the namespace is removed"
+  import_role:
+    name: "common/namespace/clean"
+  vars:
+    namespace: "{{ tanzu_identity.namespace }}"
+
+- name: "ensure the pod security policies are removed"
+  k8s:
+    state:       "absent"
+    context:     "{{ tanzu_kubectl_context }}"
+    kind:        "PodSecurityPolicy"
+    name:        "{{ item }}"
+    api_version: "policy/v1beta1"
+  with_items:
+    - "ldap-psp"
+    - "job-kube-apiserver-psp"
+
+- name: "ensure the cluster-wide rbac resources are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "{{ item.kind }}"
+    name:    "{{ item.name }}"
+  with_items:
+    - name: "{{ tanzu_identity.dex.clusterrole }}"
+      kind: "ClusterRole"
+    - name: "{{ tanzu_identity.dex.clusterrolebinding }}"
+      kind: "ClusterRoleBinding"
+    - name: "ldap-psp"
+      kind: "ClusterRole"
+    - name: "ldap-psp"
+      kind: "ClusterRoleBinding"
+    - name: "job-kube-apiserver-psp"
+      kind: "ClusterRole"
+    - name: "job-kube-apiserver-psp"
+      kind: "ClusterRoleBinding"
+
+- name: "ensure the cluster-wide demo user clusterrolebinding resources are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "ClusterRoleBinding"
+    name:    "{{ item.clusterrolebinding }}"
+  with_items: "{{ tanzu_identity.demo_users }}"

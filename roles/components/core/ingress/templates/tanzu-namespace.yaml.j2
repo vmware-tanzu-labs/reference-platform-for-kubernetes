@@ -1,0 +1,20 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+# see https://github.com/vmware-tanzu-labs/namespace-operator
+apiVersion: tenancy.platform.cnr.vmware.com/v1alpha1
+kind: TanzuNamespace
+metadata:
+  name: {{ tanzu_ingress.namespace }}
+spec:
+  tanzuNamespaceName: "{{ tanzu_ingress.namespace }}"
+  tanzuLimitRangeDefaultCpuLimit: "{{ tanzu_ingress.default_resources.limits.cpu }}"
+  tanzuLimitRangeDefaultMemoryLimit: "{{ tanzu_ingress.default_resources.limits.memory }}"
+  tanzuLimitRangeDefaultCpuRequest: "{{ tanzu_ingress.default_resources.requests.cpu }}"
+  tanzuLimitRangeDefaultMemoryRequest: "{{ tanzu_ingress.default_resources.requests.memory }}"
+  tanzuLimitRangeMaxCpuLimit: "1000m"
+  tanzuLimitRangeMaxMemoryLimit: "1024Mi"
+  tanzuResourceQuotaCpuRequests: "8"
+  tanzuResourceQuotaMemoryRequests: "16Gi"
+  tanzuResourceQuotaCpuLimits: "8"
+  tanzuResourceQuotaMemoryLimits: "16Gi"

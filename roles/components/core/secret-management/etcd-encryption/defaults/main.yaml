@@ -1,0 +1,5 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+k8s_apiserver_manifest_path:    "/etc/kubernetes/manifests/kube-apiserver.yaml"
+etcd_cert_dir:                  "/etc/kubernetes/pki/etcd"

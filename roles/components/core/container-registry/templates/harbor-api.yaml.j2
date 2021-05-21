@@ -1,0 +1,132 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# CORE
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ tanzu_container_registry.core.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+    component: core
+spec:
+  replicas: {{ tanzu_container_registry.core.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "harbor"
+      component: core
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "harbor"
+        component: core
+    spec:
+      securityContext:
+        fsGroup: 10000
+      containers:
+        - name: core
+          image: {{ tanzu_container_registry.core.image }}:{{ tanzu_container_registry.base_image_tag }}
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /api/v2.0/ping
+              scheme: HTTPS
+              port: 8443
+            initialDelaySeconds: 300
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/v2.0/ping
+              scheme: HTTPS
+              port: 8443
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          envFrom:
+            - configMapRef:
+                name: "{{ tanzu_container_registry.core.resource_name }}"
+            - secretRef:
+                name: "{{ tanzu_container_registry.core.resource_name }}"
+            - secretRef:
+                name: "{{tanzu_container_registry.core.ingress_tls_name }}"
+          env:
+            - name: CORE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ tanzu_container_registry.core.resource_name }}
+                  key: secret
+            - name: JOBSERVICE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ tanzu_container_registry.jobservice.resource_name }}"
+                  key: JOBSERVICE_SECRET
+            - name: INTERNAL_TLS_ENABLED
+              value: "true"
+            - name: INTERNAL_TLS_KEY_PATH
+              value: /etc/harbor/ssl/core/tls.key
+            - name: INTERNAL_TLS_CERT_PATH
+              value: /etc/harbor/ssl/core/tls.crt
+            - name: INTERNAL_TLS_TRUST_CA_PATH
+              value: /etc/harbor/ssl/core/ca.crt
+          ports:
+            - containerPort: 8443
+          volumeMounts:
+            - name: config
+              mountPath: /etc/core/app.conf
+              subPath: app.conf
+            - name: secret-key
+              mountPath: /etc/core/key
+              subPath: key
+            - name: token-service-private-key
+              mountPath: /etc/core/private_key.pem
+              subPath: tls.key
+            - name: ca-download
+              mountPath: /etc/core/ca
+            - name: core-internal-certs
+              mountPath: /etc/harbor/ssl/core
+            - name: psc
+              mountPath: /etc/core/token
+          resources: {{ tanzu_container_registry.core.resources | default(tanzu_container_registry.default_resources) }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ tanzu_container_registry.core.resource_name }}
+            items:
+              - key: app.conf
+                path: app.conf
+        - name: secret-key
+          secret:
+            secretName: {{ tanzu_container_registry.core.resource_name }}
+            items:
+              - key: secretKey
+                path: key
+        - name: token-service-private-key
+          secret:
+            secretName: {{ tanzu_container_registry.core.ingress_tls_name }}
+        - name: ca-download
+          secret:
+            secretName: "{{ tanzu_container_registry.core.ingress_tls_name }}"
+        - name: core-internal-certs
+          secret:
+            secretName: "{{ tanzu_container_registry.core.tls_internal_name }}"
+        - name: psc
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ tanzu_container_registry.core.resource_name }}"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+  annotations:
+    projectcontour.io/upstream-protocol.tls: "443"
+spec:
+  ports:
+    - port: 443
+      targetPort: 8443
+  selector:
+    app.kubernetes.io/name: "harbor"
+    component: core

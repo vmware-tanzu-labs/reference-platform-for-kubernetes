@@ -1,0 +1,58 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+# NOTE: Istio uses 2 namespaces in order to properly manage the lifecycle of
+#       both the operator and istio control-plane separately
+#       Setting the namespaces to the same value can cause resources to hang on deletion
+tanzu_mesh:
+  # common
+  namespace:      "tanzu-mesh"
+  staging_dir:    "{{ rpk_staging_dir }}/tanzu-mesh"
+  image_repo:     "projects.registry.vmware.com/rpk"
+  image_tag:      "1.7.0"
+  policy_profile: "demo"
+  pod_labels:
+    app.kubernetes.io/name: "istio"
+    app:                    "istio"
+
+  # operator
+  operator:
+    # NOTE: may be needed in the event of switching to dual namespaces for operator vs. resources
+    # namespace:         "tanzu-mesh"
+    image:              "istio-operator"
+    service_account:    "istio-operator"
+    clusterrole:        "istio-operator-clusterrole"
+    clusterrolebinding: "istio-operator-clusterrolebinding"
+    name:               "istiocontrolplane"
+    pod_labels:
+      app:                    "istio"
+      name:                   "istio-operator"
+      app.kubernetes.io/name: "istio-operator"
+      component:              "operator"
+    resources:
+      requests:
+        cpu:    "100m"
+        memory: "128Mi"
+      limits:
+        cpu:    "250m"
+        memory: "256Mi"
+
+  # istiod
+  istiod:
+    pod_labels:
+      component: "istiod"
+
+  # ingress gateway
+  ingress_gateway:
+    pod_labels:
+      component: "ingress-gateway"
+
+  # egress gateway
+  egress_gateway:
+    pod_labels:
+      component: "egress-gateway"
+
+  # system
+  # NOTE: may be needed in the event of switching to dual namespaces for operator vs. resources
+  # system:
+  #   namespace: "tanzu-mesh-system"

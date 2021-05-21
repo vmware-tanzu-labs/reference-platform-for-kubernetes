@@ -1,0 +1,33 @@
+---
+all:
+  vars:
+    aws_secret_key:                      "{{ lookup('env', 'RPK_AWS_SECRET_KEY_1') | b64decode }}"
+    aws_access_key:                      "{{ lookup('env', 'RPK_AWS_ACCESS_KEY_1') | b64decode }}"
+    tanzu_mission_control_org_name:      ""
+    tanzu_mission_control_api_token:     ""
+    tanzu_service_mesh_api_token:        ""
+    tanzu_service_mesh_url:              ""
+    tanzu_observability_org_name:        ""
+    tanzu_observability_api_token:       ""
+    tanzu_build_service_username:        ""
+    tanzu_build_service_password:        ""
+    tanzu_sql_username:                  ""
+    tanzu_sql_password:                  ""
+    tanzu_network_api_token:             ""
+    tanzu_application_catalog_username:  ""
+    tanzu_application_catalog_password:  ""
+    tanzu_application_catalog_api_token: ""
+  children:
+    aws_clusters:
+      vars:
+        tanzu_provider:             "aws"
+        tanzu_dns_provider:         "route53"
+        tanzu_default_tls_provider: "ca"
+      hosts:
+        aws_tanzu_cluster1:
+          rpk_profile:                         "platform"
+          tanzu_kubectl_context:               "{{ lookup('env', 'RPK_KUBECONFIG_CONTEXT') }}"
+          tanzu_ingress_domain:                "aws-cluster-1.ihazcloudthings.xyz"
+          tanzu_cluster_name:                  "aws-cluster-1"
+          tanzu_mission_control_cluster_group: "rpk-clusters-ci-cd"
+          tanzu_storage_classes_aws: []

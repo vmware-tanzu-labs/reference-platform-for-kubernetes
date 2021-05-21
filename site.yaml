@@ -1,0 +1,112 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- hosts:        "all"
+  connection:   "local"
+  gather_facts: false
+  tasks:
+    #
+    # PRE-FLIGHT TASKS
+    #
+    - name: "perform generic pre-flight tasks (before component pre-flight)"
+      import_role:
+        name:       "common/pre-flight"
+        tasks_from: "pre-components"
+
+    - when: rpk_action == "deploy"
+      block:
+        - name: "display pre-flight message to user"
+          debug:
+            msg: |
+              running pre-flight tasks for profile '{{ rpk_profile }}' roles '{{ rpk_components }}'
+            verbosity: 2
+
+        - name: "perform pre-flight tasks for '{{ rpk_profile }}' components"
+          include_role:
+            name:   "{{ _pre_flight_component.name }}/pre-flight"
+            public: true
+          loop_control:
+            loop_var: _pre_flight_component
+            label:    "rpk_component: {{ _pre_flight_component.name }}"
+          with_items: "{{ rpk_components }}"
+          when:
+            - _pre_flight_component.enabled | bool
+
+    - name: "perform generic pre-flight tasks (after component pre-flight)"
+      import_role:
+        name:       "common/pre-flight"
+        tasks_from: "post-components"
+      when: rpk_action != "other"
+
+    #
+    # DEPLOY
+    #
+    - when: rpk_action == "deploy" or rpk_action == "other"
+      block:
+        - name: "display deploy message to user"
+          debug:
+            msg: |
+              deploying profile '{{ rpk_profile }}' roles '{{ rpk_components }}'
+            verbosity: 2
+
+        - name: "deploy rpk profile '{{ rpk_profile }}' components"
+          include_role:
+            name:   "{{ _deploy_component.name }}"
+            public: true
+          loop_control:
+            loop_var: _deploy_component
+            label:    "rpk_component: {{ _deploy_component.name }}"
+          with_items: "{{ rpk_components }}"
+          when:
+            - _deploy_component.enabled | bool
+
+    #
+    # DEMO
+    #
+    - when:
+        - rpk_action == "demo"
+        - rpk_role_name is defined
+      block:
+        - name: "display demo message to user"
+          debug:
+            msg: |
+              demoing profile '{{ rpk_profile }}' roles '{{ rpk_role_name }}'
+            verbosity: 2
+
+        - name: "demo rpk profile '{{ rpk_profile }}' components"
+          include_role:
+            name:   "{{ _demo_component.name }}/demo"
+            public: true
+          loop_control:
+            loop_var: _demo_component
+            label:    "rpk_component: {{ _demo_component.name }}"
+          with_items: "{{ rpk_components }}"
+          when:
+            - _demo_component.enabled | bool
+            - (_demo_component.name == rpk_role_name) or (rpk_role_name is not defined)
+
+    #
+    # CLEAN
+    #
+    - when: rpk_action == "clean"
+      vars:
+        _clean_components: "{{ rpk_components | reverse | list }}"
+      block:
+        - name: "display clean message to user"
+          debug:
+            msg: |
+              cleaning profile '{{ rpk_profile }}' roles '{{ _clean_components }}'
+            verbosity: 2
+
+        - name: "clean rpk profile '{{ rpk_profile }}' components"
+          include_role:
+            name:   "{{ _clean_component.name }}/clean"
+            public: true
+          loop_control:
+            loop_var: _clean_component
+            label:    "rpk_component: {{ _clean_component.name }}"
+          with_items: "{{ _clean_components }}"
+          when:
+            - _clean_component.enabled | bool
+            - (rpk_role_name is not defined) or
+              (_clean_component.name == rpk_role_name and rpk_role_name is defined)

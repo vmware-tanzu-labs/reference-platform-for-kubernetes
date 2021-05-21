@@ -1,0 +1,404 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ tanzu_storage.ephemeral.csi_attacher.resource_name }}
+  namespace: {{ tanzu_storage.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_storage.ephemeral.csi_attacher.resource_name }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ tanzu_storage.ephemeral.csi_attacher.resource_name }}
+  ports:
+    - name: dummy
+      port: 12345
+---
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: {{ tanzu_storage.ephemeral.csi_attacher.resource_name }}
+  namespace: {{ tanzu_storage.namespace }}
+spec:
+  serviceName: "{{ tanzu_storage.ephemeral.csi_attacher.resource_name }}"
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ tanzu_storage.ephemeral.csi_attacher.resource_name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ tanzu_storage.ephemeral.csi_attacher.resource_name }}
+    spec:
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - {{ tanzu_storage.ephemeral.csi_plugin.resource_name }}
+              topologyKey: kubernetes.io/hostname
+      serviceAccountName: {{ tanzu_storage.ephemeral.csi_attacher.resource_name }}
+      containers:
+        - name: csi-attacher
+          image: {{ tanzu_storage.ephemeral.csi_attacher.image }}:{{ tanzu_storage.ephemeral.csi_attacher.image_tag }}
+          args:
+            - --v=5
+            - --csi-address=/csi/csi.sock
+          resources: {{ tanzu_storage.default_resources }}
+          securityContext:
+            # This is necessary only for systems with SELinux, where
+            # non-privileged sidecar containers cannot access unix domain socket
+            # created by privileged CSI driver container.
+            privileged: true
+          volumeMounts:
+          - mountPath: /csi
+            name: socket-dir
+      volumes:
+        - hostPath:
+            path: /var/lib/kubelet/plugins/csi-hostpath
+            type: DirectoryOrCreate
+          name: socket-dir
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ tanzu_storage.ephemeral.csi_plugin.resource_name }}
+  namespace: {{ tanzu_storage.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_storage.ephemeral.csi_plugin.resource_name }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ tanzu_storage.ephemeral.csi_plugin.resource_name }}
+  ports:
+    - name: dummy
+      port: 12345
+---
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: {{ tanzu_storage.ephemeral.csi_plugin.resource_name }}
+  namespace: {{ tanzu_storage.namespace }}
+spec:
+  serviceName: "{{ tanzu_storage.ephemeral.csi_plugin.resource_name }}"
+  # One replica only:
+  # Host path driver only works when everything runs
+  # on a single node. We achieve that by starting it once and then
+  # co-locate all other pods via inter-pod affinity
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ tanzu_storage.ephemeral.csi_plugin.resource_name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ tanzu_storage.ephemeral.csi_plugin.resource_name }}
+    spec:
+      containers:
+        - name: node-driver-registrar
+          image: quay.io/k8scsi/csi-node-driver-registrar:v1.3.0
+          args:
+            - --v=5
+            - --csi-address=/csi/csi.sock
+            - --kubelet-registration-path=/var/lib/kubelet/plugins/csi-hostpath/csi.sock
+          resources: {{ tanzu_storage.default_resources }}
+          securityContext:
+            # This is necessary only for systems with SELinux, where
+            # non-privileged sidecar containers cannot access unix domain socket
+            # created by privileged CSI driver container.
+            privileged: true
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+            - mountPath: /registration
+              name: registration-dir
+            - mountPath: /csi-data-dir
+              name: csi-data-dir
+        - name: hostpath
+          image: {{ tanzu_storage.ephemeral.csi_plugin.image }}:{{ tanzu_storage.ephemeral.csi_plugin.image_tag }}
+          args:
+            - "--drivername=hostpath.csi.k8s.io"
+            - "--v=5"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--nodeid=$(KUBE_NODE_NAME)"
+          resources: {{ tanzu_storage.default_resources }}
+          env:
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi.sock
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+          securityContext:
+            privileged: true
+          ports:
+            - containerPort: 9898
+              name: healthz
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: healthz
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+            periodSeconds: 2
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+            - mountPath: /var/lib/kubelet/pods
+              mountPropagation: Bidirectional
+              name: mountpoint-dir
+            - mountPath: /var/lib/kubelet/plugins
+              mountPropagation: Bidirectional
+              name: plugins-dir
+            - mountPath: /csi-data-dir
+              name: csi-data-dir
+            - mountPath: /dev
+              name: dev-dir
+        - name: liveness-probe
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+          image: quay.io/k8scsi/livenessprobe:v1.1.0
+          args:
+            - --csi-address=/csi/csi.sock
+            - --health-port=9898
+          resources: {{ tanzu_storage.default_resources }}
+      volumes:
+        - hostPath:
+            path: /var/lib/kubelet/plugins/csi-hostpath
+            type: DirectoryOrCreate
+          name: socket-dir
+        - hostPath:
+            path: /var/lib/kubelet/pods
+            type: DirectoryOrCreate
+          name: mountpoint-dir
+        - hostPath:
+            path: /var/lib/kubelet/plugins_registry
+            type: Directory
+          name: registration-dir
+        - hostPath:
+            path: /var/lib/kubelet/plugins
+            type: Directory
+          name: plugins-dir
+        - hostPath:
+            # 'path' is where PV data is persisted on host.
+            # using /tmp is also possible while the PVs will not available after plugin container recreation or host reboot
+            path: /var/lib/csi-hostpath-data/
+            type: DirectoryOrCreate
+          name: csi-data-dir
+        - hostPath:
+            path: /dev
+            type: Directory
+          name: dev-dir
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ tanzu_storage.ephemeral.csi_provisioner.resource_name }}
+  namespace: {{ tanzu_storage.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_storage.ephemeral.csi_provisioner.resource_name }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ tanzu_storage.ephemeral.csi_provisioner.resource_name }}
+  ports:
+    - name: dummy
+      port: 12345
+---
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: {{ tanzu_storage.ephemeral.csi_provisioner.resource_name }}
+  namespace: {{ tanzu_storage.namespace }}
+spec:
+  serviceName: "{{ tanzu_storage.ephemeral.csi_provisioner.resource_name }}"
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ tanzu_storage.ephemeral.csi_provisioner.resource_name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ tanzu_storage.ephemeral.csi_provisioner.resource_name }}
+    spec:
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - {{ tanzu_storage.ephemeral.csi_plugin.resource_name }}
+              topologyKey: kubernetes.io/hostname
+      serviceAccountName: {{ tanzu_storage.ephemeral.csi_provisioner.resource_name }}
+      containers:
+        - name: csi-provisioner
+          image: {{ tanzu_storage.ephemeral.csi_provisioner.image }}:{{ tanzu_storage.ephemeral.csi_provisioner.image_tag }}
+          args:
+            - -v=5
+            - --csi-address=/csi/csi.sock
+            - --feature-gates=Topology=true
+          resources: {{ tanzu_storage.default_resources }}
+          securityContext:
+            # This is necessary only for systems with SELinux, where
+            # non-privileged sidecar containers cannot access unix domain socket
+            # created by privileged CSI driver container.
+            privileged: true
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+      volumes:
+        - hostPath:
+            path: /var/lib/kubelet/plugins/csi-hostpath
+            type: DirectoryOrCreate
+          name: socket-dir
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ tanzu_storage.ephemeral.csi_resizer.resource_name }}
+  namespace: {{ tanzu_storage.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_storage.ephemeral.csi_resizer.resource_name }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ tanzu_storage.ephemeral.csi_resizer.resource_name }}
+  ports:
+    - name: dummy
+      port: 12345
+---
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: {{ tanzu_storage.ephemeral.csi_resizer.resource_name }}
+  namespace: {{ tanzu_storage.namespace }}
+spec:
+  serviceName: "{{ tanzu_storage.ephemeral.csi_resizer.resource_name }}"
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ tanzu_storage.ephemeral.csi_resizer.resource_name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ tanzu_storage.ephemeral.csi_resizer.resource_name }}
+    spec:
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - {{ tanzu_storage.ephemeral.csi_plugin.resource_name }}
+              topologyKey: kubernetes.io/hostname
+      serviceAccountName: {{ tanzu_storage.ephemeral.csi_resizer.resource_name }}
+      containers:
+        - name: csi-resizer
+          image: {{ tanzu_storage.ephemeral.csi_resizer.image }}:{{ tanzu_storage.ephemeral.csi_resizer.image_tag }}
+          args:
+            - -v=5
+            - -csi-address=/csi/csi.sock
+          resources: {{ tanzu_storage.default_resources }}
+          securityContext:
+            # This is necessary only for systems with SELinux, where
+            # non-privileged sidecar containers cannot access unix domain socket
+            # created by privileged CSI driver container.
+            privileged: true
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+      volumes:
+        - hostPath:
+            path: /var/lib/kubelet/plugins/csi-hostpath
+            type: DirectoryOrCreate
+          name: socket-dir
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ tanzu_storage.ephemeral.csi_snapshotter.resource_name }}
+  namespace: {{ tanzu_storage.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ tanzu_storage.ephemeral.csi_snapshotter.resource_name }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ tanzu_storage.ephemeral.csi_snapshotter.resource_name }}
+  ports:
+    - name: dummy
+      port: 12345
+---
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: {{ tanzu_storage.ephemeral.csi_snapshotter.resource_name }}
+  namespace: {{ tanzu_storage.namespace }}
+spec:
+  serviceName: "{{ tanzu_storage.ephemeral.csi_snapshotter.resource_name }}"
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ tanzu_storage.ephemeral.csi_snapshotter.resource_name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ tanzu_storage.ephemeral.csi_snapshotter.resource_name }}
+    spec:
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - {{ tanzu_storage.ephemeral.csi_plugin.resource_name }}
+              topologyKey: kubernetes.io/hostname
+      serviceAccount: {{ tanzu_storage.ephemeral.csi_snapshotter.resource_name }}
+      containers:
+        - name: csi-snapshotter
+          image: {{ tanzu_storage.ephemeral.csi_snapshotter.image }}:{{ tanzu_storage.ephemeral.csi_snapshotter.image_tag }}
+          args:
+            - -v=5
+            - --csi-address=/csi/csi.sock
+          resources: {{ tanzu_storage.default_resources }}
+          securityContext:
+            # This is necessary only for systems with SELinux, where
+            # non-privileged sidecar containers cannot access unix domain socket
+            # created by privileged CSI driver container.
+            privileged: true
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+      volumes:
+        - hostPath:
+            path: /var/lib/kubelet/plugins/csi-hostpath
+            type: DirectoryOrCreate
+          name: socket-dir
+---
+apiVersion: storage.k8s.io/v1beta1
+kind: CSIDriver
+metadata:
+  name: hostpath.csi.k8s.io
+spec:
+  # Supports persistent and ephemeral inline volumes.
+  volumeLifecycleModes:
+    - Persistent
+    - Ephemeral
+  # To determine at runtime which mode a volume uses, pod info and its
+  # "csi.storage.k8s.io/ephemeral" entry are needed.
+  podInfoOnMount: true

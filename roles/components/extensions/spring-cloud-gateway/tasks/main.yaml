@@ -1,0 +1,80 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# NAMESPACES
+#
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_spring_cloud_gateway.staging_dir }}"
+
+- name: "create namespace for spring cloud gateway"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_spring_cloud_gateway.namespace }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_spring_cloud_gateway.staging_dir }}/tanzu-namespace.yaml"
+
+- name: "call harbor api to create spring-cloud-gateway repository"
+  uri:
+    url:              "https://{{ tanzu_container_registry.core.dns }}/api/v2.0/projects"
+    user:             "{{ tanzu_container_registry.admin_username }}"
+    password:         "{{ tanzu_container_registry.admin_password }}"
+    method:           "POST"
+    status_code:      [201, 409]
+    force_basic_auth: true
+    validate_certs:   false
+    body_format:      "json"
+    body:             "{{ tanzu_spring_cloud_gateway.registry.project }}"
+  register: harbor_registry_info
+
+- name: "initiate image migration"
+  import_tasks: "migrate-image-task.yaml"
+
+- name: "ensure spring-cloud-gateway crd exist"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "spring-cloud-gateway crd"
+    manifest_template:    "spring-cloud-gateway-crd.yaml.j2"
+    manifest_file:        "spring-cloud-gateway-crd.yaml"
+    manifest_staging_dir: "{{ tanzu_spring_cloud_gateway.staging_dir }}"
+
+- name: "ensure spring-cloud-gateway rbac exist"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "spring-cloud-gateway rbac"
+    manifest_template:    "spring-cloud-gateway-rbac.yaml.j2"
+    manifest_file:        "spring-cloud-gateway-rbac.yaml"
+    manifest_staging_dir: "{{ tanzu_spring_cloud_gateway.staging_dir }}"
+
+- name: "ensure spring-cloud-gateway psp exist"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "spring-cloud-gateway psp"
+    manifest_template:    "spring-cloud-gateway-psp.yaml.j2"
+    manifest_file:        "spring-cloud-gateway-psp.yaml"
+    manifest_staging_dir: "{{ tanzu_spring_cloud_gateway.staging_dir }}"
+
+- name: "ensure spring-cloud-gateway secret exist"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "spring-cloud-gateway secret"
+    manifest_template:    "spring-cloud-gateway-secret.yaml.j2"
+    manifest_file:        "spring-cloud-gateway-secret.yaml"
+    manifest_staging_dir: "{{ tanzu_spring_cloud_gateway.staging_dir }}"
+
+- name: "ensure spring-cloud-gateway deployment exist"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "spring-cloud-gateway deployment"
+    manifest_template:    "spring-cloud-gateway-deployment.yaml.j2"
+    manifest_file:        "spring-cloud-gateway-deployment.yaml"
+    manifest_staging_dir: "{{ tanzu_spring_cloud_gateway.staging_dir }}"

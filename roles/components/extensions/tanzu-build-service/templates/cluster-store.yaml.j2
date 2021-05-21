@@ -1,0 +1,9 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+apiVersion: kpack.io/v1alpha1
+kind: ClusterStore
+metadata:
+  name: {{ tanzu_build_service.demo.store.name }}
+spec:
+  sources:
+  - image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name +'/nodejs:'+ tanzu_build_service.registry.destination_tag }}

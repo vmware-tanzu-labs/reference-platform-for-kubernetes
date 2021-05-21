@@ -1,0 +1,49 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "check if registry exists"
+  import_tasks: "roles/extensions/tanzu-application-catalog/tasks/find-registry.yaml"
+  vars:
+    registry_name: "{{ tanzu_application_catalog.remote_registry_name }}"
+
+- when: _harbor_registry_id is defined
+  block:
+    # NOTE: we no longer need to get the image list.  we will delete replications which were created with a tac-
+    #       prefix.  image list from tac will change and may cause issues, so we will use the tac- prefix.
+    # - name: "get image list"
+    #   import_tasks: "roles/extensions/tanzu-application-catalog/tasks/get-image-list.yaml"
+    #   vars:
+    #     registry_name: "{{ tanzu_application_catalog.remote_registry_name }}"
+    - name: "get a list of replication policies"
+      uri:
+        url:              "https://{{ tanzu_application_catalog.registry_endpoint }}/api/v2.0/replication/policies"
+        url_username:     "{{ tanzu_container_registry.admin_username }}"
+        url_password:     "{{ tanzu_container_registry.admin_password }}"
+        method:           "GET"
+        follow_redirects: true
+        force_basic_auth: true
+        validate_certs:   false
+      register: _get_replication_policies_response
+
+    - name: "remove replication policies for tac registry"
+      include_tasks: "remove-replications.yaml"
+      # NOTE: we no longer need to get the image list.  we will delete replications which were created with a tac-
+      #       prefix.  image list from tac will change and may cause issues, so we will use the tac- prefix.
+      loop:     "{{ (_get_replication_policies_response.json | selectattr('name', 'search', '^tac-') | list) }}"
+
+    - name: "remove registry endpoint"
+      uri:
+        url:              "https://{{ tanzu_application_catalog.registry_endpoint }}/api/v2.0/registries/{{ _harbor_registry_id }}"
+        url_username:     "{{ tanzu_container_registry.admin_username }}"
+        url_password:     "{{ tanzu_container_registry.admin_password }}"
+        method:           "DELETE"
+        follow_redirects: true
+        force_basic_auth: true
+        validate_certs:   false
+      when: _harbor_registry_id is defined
+
+- name: "ensure the tanzu-application-catalog namespace is removed"
+  include_role:
+    name: "common/namespace/clean"
+  vars:
+    namespace: "{{ tanzu_application_catalog.namespace }}"

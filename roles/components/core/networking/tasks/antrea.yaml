@@ -1,0 +1,128 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+# Kapp controller is installed by default in TKG 1.3. We need to pause its reconciliation so it doesn't overwrite our configmap changes
+
+- name: "disable kapp controller"
+  k8s:
+    state:   "present"
+    context: "{{ tanzu_kubectl_context }}"
+    definition:
+      apiVersion: "kappctrl.k14s.io/v1alpha1"
+      kind:       "App"
+      metadata:
+        name: "antrea"
+        namespace: "tkg-system"
+      spec:
+        paused: true
+  when:
+    - _tkg_cluster | bool
+    - _tkg_release is version('1.2.1', '>')
+
+- name: "get antrea configmap names"
+  k8s_info:
+    kind:            "ConfigMap"
+    context:         "{{ tanzu_kubectl_context }}"
+    api_version:     "v1"
+    namespace:       "kube-system"
+    label_selectors: "app = antrea"
+  register: _antrea_configmaps
+
+- name: "determine antrea configuration configmap"
+  set_fact:
+    _antrea_configmap_name: "{{ item.metadata.name }}"
+  with_items: "{{ _antrea_configmaps.resources }}"
+  when: item.metadata.name is match('antrea-config.*')
+
+- name: "get configmap info"
+  k8s_info:
+    kind:        "ConfigMap"
+    context:     "{{ tanzu_kubectl_context }}"
+    api_version: "v1"
+    namespace:   "kube-system"
+    name:        "{{ _antrea_configmap_name }}"
+  register: _antrea_configmap
+
+- name: "find cluster cidr"
+  set_fact:
+    _cluster_network_cidr: "{{ (_antrea_configmap.resources[0].data['antrea-agent.conf'] | from_yaml).serviceCIDR }}"
+
+- name: "set antrea agent tunnel protocol to vxlan for azure"
+  set_fact:
+    _antrea_tunnel_protocol: "vxlan"
+  when: tanzu_provider == 'azure'
+
+- name: "set antrea network policy crd based on newer tkg version"
+  set_fact:
+    _antrea_crd_policy: "AntreaPolicy"
+  when:
+    - _tkg_cluster | bool
+    - _tkg_release is version('1.2.1', '>')
+
+- name: "enable antrea clusternetworkpolicy in antrea agent"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "antrea enable clusternetworkpolicy"
+    manifest_template:    "antrea-configmap-enable-cnp.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_networking.staging_dir }}"
+
+- name: "restart antrea controller"
+  shell: "kubectl rollout restart deployment/antrea-controller -n kube-system --context {{ tanzu_kubectl_context }}"
+  register: "_antrea_controller_rollout_status"
+  changed_when: "_antrea_controller_rollout_status.rc == 0"
+  when: tanzu_networking.antrea.restart | default('true') | bool
+  tags:
+    # we do not have a more elegant way to handle this; skip for now
+    - skip_ansible_lint
+
+- name: "wait for antrea controller to restart"
+  k8s_info:
+    api_version: "apps/v1"
+    kind:        "Deployment"
+    namespace:   "kube-system"
+    name:        "antrea-controller"
+    context:     "{{ tanzu_kubectl_context }}"
+  register:    _deployment
+  until:       _deployment.resources | json_query('[*].status.conditions[?reason==`MinimumReplicasAvailable`][].status') | select ('match','True') | list | length == 1
+  retries:     "{{ retries | default('30') }}"
+  delay:       "{{ delay | default('1') }}"
+  failed_when: false
+  when: _antrea_controller_rollout_status.rc == 0
+
+- name: "restart antrea agent pods"
+  shell: "kubectl rollout restart ds/antrea-agent -n kube-system --context {{ tanzu_kubectl_context }}"
+  register: "_antrea_agent_rollout_status"
+  changed_when: "_antrea_agent_rollout_status.rc == 0"
+  when: tanzu_networking.antrea.restart | default('true') | bool
+  tags:
+    # we do not have a more elegant way to handle this; skip for now
+    - skip_ansible_lint
+
+- name: "wait for antrea agents to restart"
+  k8s_info:
+    api_version: "apps/v1"
+    kind:        "DaemonSet"
+    namespace:   "kube-system"
+    name:        "antrea-agent"
+    context:     "{{ tanzu_kubectl_context }}"
+  register:    _daemonset
+  until:       _daemonset.resources | json_query('[*].status.desiredNumberScheduled') == _daemonset.resources | json_query('[*].status.updatedNumberScheduled') and
+               _daemonset.resources | json_query('[*].status.desiredNumberScheduled') == _daemonset.resources | json_query('[*].status.numberReady')
+  retries:     "{{ retries | default('100') }}"
+  delay:       "{{ delay | default('1') }}"
+  failed_when: false
+  when: _antrea_agent_rollout_status.rc == 0
+
+#
+# NOTE: we cannot enable a default deny all policy in the traditional sense
+#       because a ClusterNetworkPolicy cannot be overriden by a K8S NetworkPolicy
+#
+# - name: "ensure global default deny-all network policy exists"
+#   import_role:
+#     name: "common/manifest-file"
+#   vars:
+#     manifest_description: "cluster default deny-all network policy"
+#     manifest_template:    "antrea-cluster-network-policy.yaml.j2"
+#     manifest_file:        "antrea-cluster-network-policy.yaml"
+#     manifest_staging_dir: "{{ tanzu_networking.staging_dir }}"

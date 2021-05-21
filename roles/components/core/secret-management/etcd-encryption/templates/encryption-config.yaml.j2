@@ -1,0 +1,62 @@
+#! Copyright 2006-2021 VMware, Inc.
+#! # SPDX-License-Identifier: MIT
+---
+#@ load("@ytt:data", "data")
+#@ load("@ytt:overlay", "overlay")
+#@ load("@ytt:yaml", "yaml")
+
+#@ def has_secretbox(i, left, right):
+#@   return "secretbox" in left;
+#@ end
+
+#@ def has_secret_resources(i, left, right):
+#@   resources = list(dict(left)["resources"])
+#@   return "secrets" in resources
+#@ end
+
+#@ def is_encryption_config(i, left, right):
+#@   path = dict(left)["path"]
+#@   return path == "{{ tanzu_secrets.etcd_encryption_conf_path }}"
+#@ end
+
+#@ def insert_new_key():
+apiVersion: apiserver.config.k8s.io/v1
+kind: EncryptionConfiguration
+resources:
+  #@overlay/match by=has_secret_resources
+  - providers:
+    #@overlay/match by=has_secretbox
+    - secretbox:
+        keys:
+        #@overlay/match by=overlay.index(0)
+        #@overlay/insert before=True
+        - name: #@ data.values.secret_name
+          secret: #@ data.values.secret_key
+#@ end
+
+#@ def insert_new_content():
+apiVersion: apiserver.config.k8s.io/v1
+kind: EncryptionConfiguration
+resources:
+- resources:
+  - secrets
+  providers:
+  - secretbox:
+      keys:
+      - name: #@ data.values.secret_name
+        secret: #@ data.values.secret_key
+  - identity: {}
+#@ end
+
+#@overlay/match by=overlay.subset({"kind":"KubeadmControlPlane"})
+---
+spec:
+  kubeadmConfigSpec:
+    #@overlay/match missing_ok=True
+    files:
+    #@overlay/match by=is_encryption_config,expects="0+"
+    - owner: 'root:root'
+      path: {{ tanzu_secrets.etcd_encryption_conf_path }}
+      permissions: '0644'
+      #@overlay/replace via=lambda left,right: yaml.encode(overlay.apply(yaml.decode(left), insert_new_key()))
+      content: #@ yaml.encode(insert_new_content())

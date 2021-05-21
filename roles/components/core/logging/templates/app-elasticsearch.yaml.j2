@@ -1,0 +1,48 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: elasticsearch
+  namespace: "{{ tanzu_logging.namespace }}"
+---
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: elasticsearch
+  labels:
+    app.kubernetes.io/name: elasticsearch
+  namespace: "{{ tanzu_logging.namespace }}"
+spec:
+  version: {{ tanzu_logging.elastic.version }}
+  nodeSets:
+  - name: default
+    count: 1
+    config:
+      node.master: true
+      node.data: true
+      node.ingest: true
+      node.store.allow_mmap: false
+    podTemplate:
+      metadata:
+        labels:
+          app.kubernetes.io/name: elasticsearch
+      spec:
+        serviceAccountName: elasticsearch
+        containers:
+          - name: elasticsearch
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 1000
+              runAsGroup: 1000
+            resources: {{ tanzu_logging.elastic.resources }}
+    volumeClaimTemplates:
+      - metadata:
+          name: elasticsearch-data
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi

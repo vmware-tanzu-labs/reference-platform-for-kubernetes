@@ -1,0 +1,20 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure the tanzu-dashboard namespace is removed"
+  include_role:
+    name: "common/namespace/clean"
+  vars:
+    namespace: "{{ tanzu_dashboard.namespace }}"
+
+- name: "ensure the cluster-wide rbac resources are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "{{ item.kind }}"
+    name:    "{{ item.name }}"
+  with_items:
+    - name: "{{ tanzu_dashboard.clusterrole }}"
+      kind: "ClusterRole"
+    - name: "{{ tanzu_dashboard.clusterrolebinding }}"
+      kind: "ClusterRoleBinding"

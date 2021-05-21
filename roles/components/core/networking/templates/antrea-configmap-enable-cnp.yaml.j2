@@ -1,0 +1,18 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ _antrea_configmap_name }}"
+  namespace: kube-system
+data:
+  antrea-agent.conf: |
+    serviceCIDR: "{{ _cluster_network_cidr }}"
+    tunnelType: "{{ _antrea_tunnel_protocol | default(tanzu_networking.antrea_tunnel_protocol) }}"
+    featureGates:
+      {{ _antrea_crd_policy | default(tanzu_networking.antrea_crd_policy) }}: true
+  antrea-controller.conf: |
+    featureGates:
+      {{ _antrea_crd_policy | default(tanzu_networking.antrea_crd_policy) }}: true
+    selfSignedCert: true

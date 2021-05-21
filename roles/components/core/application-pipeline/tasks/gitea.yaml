@@ -1,0 +1,43 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure gitea persistence layer exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "gitea persistence layer"
+    manifest_template:    "app-gitea-mariadb.yaml.j2"
+    manifest_file:        "app-gitea-mariadb.yaml"
+    manifest_staging_dir: "{{ tanzu_app_pipeline.staging_dir }}"
+
+- name: "ensure gitea pod security policy exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "gitea psp"
+    manifest_template:    "psp-gitea.yaml.j2"
+    manifest_file:        "psp-gitea.yaml"
+    manifest_staging_dir: "{{ tanzu_app_pipeline.staging_dir }}"
+
+- name: "ensure gitea exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "gitea"
+    manifest_template:    "app-gitea.yaml.j2"
+    manifest_file:        "app-gitea.yaml"
+    manifest_staging_dir: "{{ tanzu_app_pipeline.staging_dir }}"
+
+- name: "ensure dns resolvability for gitea"
+  import_role:
+    name: "common/etc-hosts"
+  vars:
+    ip:   "{{ ingress_ip }}"
+    fqdn: "{{ tanzu_app_pipeline.git.http.dns }}"
+
+- name: "ensure dns resolvability for gitea ssh tunnel"
+  import_role:
+    name: "common/etc-hosts"
+  vars:
+    ip:   "{{ ingress_ip }}"
+    fqdn: "{{ tanzu_app_pipeline.git.ssh.dns }}"

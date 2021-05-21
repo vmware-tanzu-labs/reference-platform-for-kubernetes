@@ -1,0 +1,41 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: "{{ tanzu_app_stack.monitoring.resource_name }}"
+  namespace: "{{ tanzu_app_stack.monitoring.namespace }}"
+  labels:
+    prometheus: "{{ tanzu_app_stack.monitoring.resource_name }}"
+    app.kubernetes.io/name: prometheus
+spec:
+  replicas: 1
+  serviceAccountName: "{{ tanzu_app_stack.monitoring.resource_name }}"
+  serviceMonitorSelector:
+    matchLabels:
+      prometheus: "{{ tanzu_app_stack.monitoring.resource_name }}"
+  serviceMonitorNamespaceSelector:
+    matchLabels:
+      app.kubernetes.io/name: "{{ tanzu_app_stack.resource_name }}"
+  resources: {{ tanzu_app_stack.monitoring.resources }}
+  enableAdminAPI: false
+  routePrefix: /
+  externalUrl: "{{ tanzu_app_stack.monitoring.url }}"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: prometheus
+    prometheus: "{{ tanzu_app_stack.monitoring.resource_name }}"
+  name: "{{ tanzu_app_stack.monitoring.resource_name }}"
+  namespace: "{{ tanzu_app_stack.monitoring.namespace }}"
+spec:
+  ports:
+    - name: web
+      port: 9090
+      targetPort: web
+  selector:
+    app.kubernetes.io/name: prometheus
+  sessionAffinity: ClientIP

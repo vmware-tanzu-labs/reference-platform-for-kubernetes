@@ -1,0 +1,13 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+- name: "ensure kapp component '{{ component }}' exists"
+  kapp:
+    state:        "present"
+    context:      "{{ tanzu_kubectl_context }}"
+    src:
+      - "{{ staging_dir }}/manifests"
+    namespace:    "{{ rpk_extension_namespace }}"
+    name:         "{{ component }}"
+    wait_timeout: "{{ wait_timeout | default('300s') }}"
+  register: _resource_status

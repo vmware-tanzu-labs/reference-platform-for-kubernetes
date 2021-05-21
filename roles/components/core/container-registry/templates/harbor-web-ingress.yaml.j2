@@ -1,0 +1,77 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# INGRESS
+#
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: "harbor-ingress"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+  annotations:
+    ingress.kubernetes.io/proxy-body-size: "0"
+    ingress.kubernetes.io/force-ssl-redirect: "true"
+    kubernetes.io/ingress.class: {{ tanzu_ingress.class }}
+    external-dns.alpha.kubernetes.io/target: "{{ tanzu_ingress.dns }}"
+spec:
+  tls:
+    - secretName: "{{ tanzu_container_registry.core.ingress_tls_name }}"
+      hosts:
+        - {{ tanzu_container_registry.core.dns }}
+  rules:
+    - http:
+        paths:
+          - path: /
+            backend:
+              serviceName: {{ tanzu_container_registry.portal.resource_name }}
+              servicePort: 443
+          - path: /api/
+            backend:
+              serviceName: {{ tanzu_container_registry.core.resource_name }}
+              servicePort: 443
+          - path: /service/
+            backend:
+              serviceName: {{ tanzu_container_registry.core.resource_name }}
+              servicePort: 443
+          - path: /v2/
+            backend:
+              serviceName: {{ tanzu_container_registry.core.resource_name }}
+              servicePort: 443
+          - path: /chartrepo/
+            backend:
+              serviceName: {{ tanzu_container_registry.core.resource_name }}
+              servicePort: 443
+          - path: /c/
+            backend:
+              serviceName: {{ tanzu_container_registry.core.resource_name }}
+              servicePort: 443
+      host: {{ tanzu_container_registry.core.dns }}
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: "harbor-ingress-notary"
+  namespace: "{{ tanzu_container_registry.namespace }}"
+  labels:
+    app.kubernetes.io/name: "harbor"
+  annotations:
+    external-dns.alpha.kubernetes.io/target: "{{ tanzu_ingress.dns }}"
+    ingress.kubernetes.io/proxy-body-size: "0"
+    ingress.kubernetes.io/ssl-redirect: "true"
+    kubernetes.io/ingress.class: {{ tanzu_ingress.class }}
+spec:
+  tls:
+    - secretName: "{{ tanzu_container_registry.notary.ingress_tls_name }}"
+      hosts:
+        - {{ tanzu_container_registry.notary.dns }}
+  rules:
+    - http:
+        paths:
+          - path: /
+            backend:
+              serviceName: {{ tanzu_container_registry.notary.server.resource_name }}
+              servicePort: 4443
+      host: {{ tanzu_container_registry.notary.dns }}

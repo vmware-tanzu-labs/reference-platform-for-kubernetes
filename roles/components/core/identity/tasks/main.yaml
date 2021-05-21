@@ -1,0 +1,137 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+#
+# NAMESPACES
+#
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_identity.staging_dir }}"
+
+- name: "create namespace"
+  import_role:
+    name: "common/namespace"
+  vars:
+    namespace:               "{{ tanzu_identity.namespace }}"
+    namespace_template_file: "tanzu-namespace.yaml.j2"
+    namespace_file:          "{{ tanzu_identity.staging_dir }}/tanzu-namespace.yaml"
+
+#
+# DNS
+#
+- name: "get the ingress ip"
+  import_role:
+    name: "common/ingress-ip"
+
+- name: "ensure dns resolvability for identity module"
+  include_role:
+    name: "common/etc-hosts"
+  vars:
+    ip:   "{{ ingress_ip }}"
+    fqdn: "{{ item }}"
+  with_items:
+    - "{{ tanzu_identity.dex.dns }}"
+    - "{{ tanzu_identity.gangway.dns }}"
+
+#
+# RETRIEVE CLUSTER INFO
+#
+- name: "retrieve cluster info"
+  import_role:
+    name: "common/cluster-info"
+  when: tanzu_apiserver_url is not defined
+
+#
+# LDAP
+#
+- name: "ensure ldap pod security policy exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "ldap pod security policy"
+    manifest_template:    "psp-ldap.yaml.j2"
+    manifest_file:        "psp-ldap.yaml"
+    manifest_staging_dir: "{{ tanzu_identity.staging_dir }}"
+
+- name: "ensure ldap exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "ldap"
+    manifest_template:    "app-ldap.yaml.j2"
+    manifest_file:        "app-ldap.yaml"
+    manifest_staging_dir: "{{ tanzu_identity.staging_dir }}"
+
+#
+# DEX
+#
+- name: "ensure tls certificate for dex exists"
+  import_role:
+    name: "common/tls-certificate"
+  vars:
+    fqdn:         "{{ tanzu_identity.dex.dns }}"
+    namespace:    "{{ tanzu_identity.namespace }}"
+    tls_provider: "{{ tanzu_identity.dex.tls_provider }}"
+    secret:       "dex-cert-tls"
+    dns:
+      - "{{ tanzu_identity.dex.dns }}"
+    ip: []
+
+- name: "ensure dex exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "dex"
+    manifest_template:    "app-dex.yaml.j2"
+    manifest_file:        "app-dex.yaml"
+    manifest_staging_dir: "{{ tanzu_identity.staging_dir }}"
+
+#
+# GANGWAY
+#
+- name: "ensure tls certificate for gangway exists"
+  import_role:
+    name: "common/tls-certificate"
+  vars:
+    fqdn:         "{{ tanzu_identity.gangway.dns }}"
+    namespace:    "{{ tanzu_identity.namespace }}"
+    tls_provider: "{{ tanzu_identity.dex.tls_provider }}"
+    secret:       "gangway-cert-tls"
+    dns:
+      - "{{ tanzu_identity.gangway.dns }}"
+    ip: []
+
+- name: "ensure gangway exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "gangway"
+    manifest_template:    "app-gangway.yaml.j2"
+    manifest_file:        "app-gangway.yaml"
+    manifest_staging_dir: "{{ tanzu_identity.staging_dir }}"
+
+#
+# API SERVER
+#
+- name: "ensure psp for reconfiguring kube api server exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "psp for reconfiguring kube api server jobs"
+    manifest_template:    "psp-for-job-kube-apiserver.yaml.j2"
+    manifest_file:        "psp-for-job-kube-apiserver.yaml"
+    manifest_staging_dir: "{{ tanzu_security.staging_dir }}"
+
+- name: "fetch the control plane nodes"
+  k8s_info:
+    kind:    "Node"
+    context: "{{ tanzu_kubectl_context }}"
+    label_selectors:
+      - node-role.kubernetes.io/master
+  register: nodes
+
+- name: "reconfigure api server for oidc"
+  include_tasks: "reconfigure-api-server.yaml"
+  with_items: "{{ nodes.resources }}"
