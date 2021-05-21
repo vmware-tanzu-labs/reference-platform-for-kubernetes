@@ -1,0 +1,98 @@
+---
+name: "End-to-End Test"
+on:
+  pull_request:
+    branches:
+      - master
+jobs:
+
+  detect-file-changes:
+    name: "Detect File Changes"
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
+        with:
+          fetch-depth: 2
+      - name: "Detect File Changes"
+        uses: "tj-actions/changed-files@v6.2"
+        id: "changed-files"
+      - name: List all modified files
+        run: |
+          for file in "${{ steps.changed-files.outputs.all_changed_files }}"; do
+            echo "$file was modified"
+          done
+    outputs:
+      changed-files: ${{ steps.changed-files.outputs.all_changed_files }}
+
+  e2e-test-aws:
+    name: "E2E AWS"
+    runs-on: "ubuntu-latest"
+    needs: "detect-file-changes"
+    steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
+      - run: "echo 'placeholder for aws e2e testing'"
+        if: |
+          contains(needs.detect-file-changes.outputs.changed-files, 'roles/common') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'roles/components') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'lib/') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'bin/') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'profiles/') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'Dockerfile') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'Makefile') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'site.yaml')
+
+  e2e-test-azure:
+    name: "E2E Azure"
+    runs-on: "ubuntu-latest"
+    needs: "detect-file-changes"
+    steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
+      - run: "echo 'placeholder for azure e2e testing'"
+        if: |
+          contains(needs.detect-file-changes.outputs.changed-files, 'roles/common') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'roles/components') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'lib/') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'bin/') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'profiles/') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'Dockerfile') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'Makefile') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'site.yaml')
+
+  e2e-test-vmware:
+    name: "E2E VMware"
+    runs-on: "ubuntu-latest"
+    needs: "detect-file-changes"
+    steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
+      - run: "echo 'placeholder for vmware e2e testing'"
+        if: |
+          contains(needs.detect-file-changes.outputs.changed-files, 'roles/common') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'roles/components') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'lib/') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'bin/') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'profiles/') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'Dockerfile') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'Makefile') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'site.yaml')
+
+  e2e-test-aws:
+    name: "E2E TKGs (v7wk8s)"
+    runs-on: "ubuntu-latest"
+    needs: "detect-file-changes"
+    steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
+      - run: "echo 'placeholder for tkgs e2e testing'"
+        if: |
+          contains(needs.detect-file-changes.outputs.changed-files, 'roles/common') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'roles/components') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'lib/') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'bin/') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'profiles/') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'Dockerfile') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'Makefile') ||
+          contains(needs.detect-file-changes.outputs.changed-files, 'site.yaml')

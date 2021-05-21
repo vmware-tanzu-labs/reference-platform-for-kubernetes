@@ -16,7 +16,7 @@ modules/external/
 .DS_Store
 
 # ignore inventories built from makefile
-build/
+build/inventory.yaml
 
 # ignore custom local settings
 .vscode/settings.json

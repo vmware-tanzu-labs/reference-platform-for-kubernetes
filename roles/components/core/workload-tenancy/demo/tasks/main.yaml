@@ -93,7 +93,7 @@
       - "Namespace CRD can be viewed by: kubectl get tanzunamespace -n {{ tanzu_workload_tenancy.demo_namespace }}"
       - "LimitRange created by Namespace CRD can be viewed by: kubectl get limitrange -n {{ tanzu_workload_tenancy.demo_namespace }}"
       - "ResourceQuota created by Namespace CRD can be viewed by: kubectl get resourcequota -n {{ tanzu_workload_tenancy.demo_namespace }}"
-      - "Pod which inherited from LimitRange can be viewed by: kubectl describe pod  defaults-from-limit-range -n {{ tanzu_workload_tenancy.demo_namespace }}"
+      - "Pod which inherited resources from LimitRange can be viewed by: kubectl describe pod  defaults-from-limit-range -n {{ tanzu_workload_tenancy.demo_namespace }}"
       - "Pod which exceeds LimitRange CPU limits had message: {{ exceed_cpu_pod.msg }}"
       - "Pod which exceeds LimitRange Memory limits had message: {{ exceed_mem_pod.msg }}"
     verbosity: 0
