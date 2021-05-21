@@ -34,14 +34,7 @@ jobs:
       - name: "Checkout Code"
         uses: "actions/checkout@v2"
       - uses: "./.github/action-unit-test"
-        if: |
-          contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/admission-control') &&
-          (contains(needs.detect-file-changes.outputs.changed-files, '.yml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.sh') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.py') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.go') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml.j2'))
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/admission-control')"
         with:
           component: "admission-control"
 
@@ -53,14 +46,7 @@ jobs:
       - name: "Checkout Code"
         uses: "actions/checkout@v2"
       - uses: "./.github/action-unit-test"
-        if: |
-          contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/application-pipeline') &&
-          (contains(needs.detect-file-changes.outputs.changed-files, '.yml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.sh') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.py') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.go') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml.j2'))
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/application-pipeline')"
         with:
           component: "application-pipeline"
 
@@ -72,14 +58,7 @@ jobs:
       - name: "Checkout Code"
         uses: "actions/checkout@v2"
       - uses: "./.github/action-unit-test"
-        if: |
-          contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/application-stack') &&
-          (contains(needs.detect-file-changes.outputs.changed-files, '.yml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.sh') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.py') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.go') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml.j2'))
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/application-stack')"
         with:
           component: "application-stack"
 
@@ -91,14 +70,7 @@ jobs:
       - name: "Checkout Code"
         uses: "actions/checkout@v2"
       - uses: "./.github/action-unit-test"
-        if: |
-          contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/autoscaling') &&
-          (contains(needs.detect-file-changes.outputs.changed-files, '.yml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.sh') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.py') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.go') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml.j2'))
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/autoscaling')"
         with:
           component: "autoscaling"
 
@@ -110,14 +82,7 @@ jobs:
       - name: "Checkout Code"
         uses: "actions/checkout@v2"
       - uses: "./.github/action-unit-test"
-        if: |
-          contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/container-registry') &&
-          (contains(needs.detect-file-changes.outputs.changed-files, '.yml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.sh') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.py') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.go') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml.j2'))
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/container-registry')"
         with:
           component: "container-registry"
 
@@ -129,14 +94,7 @@ jobs:
       - name: "Checkout Code"
         uses: "actions/checkout@v2"
       - uses: "./.github/action-unit-test"
-        if: |
-          contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/identity') &&
-          (contains(needs.detect-file-changes.outputs.changed-files, '.yml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.sh') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.py') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.go') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml.j2'))
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/identity')"
         with:
           component: "identity"
 
@@ -148,14 +106,7 @@ jobs:
       - name: "Checkout Code"
         uses: "actions/checkout@v2"
       - uses: "./.github/action-unit-test"
-        if: |
-          contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/ingress') &&
-          (contains(needs.detect-file-changes.outputs.changed-files, '.yml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.sh') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.py') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.go') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml.j2'))
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/ingress')"
         with:
           component: "ingress"
 
@@ -167,14 +118,7 @@ jobs:
       - name: "Checkout Code"
         uses: "actions/checkout@v2"
       - uses: "./.github/action-unit-test"
-        if: |
-          contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/logging') &&
-          (contains(needs.detect-file-changes.outputs.changed-files, '.yml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.sh') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.py') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.go') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml.j2'))
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/logging')"
         with:
           component: "logging"
 
@@ -186,14 +130,7 @@ jobs:
       - name: "Checkout Code"
         uses: "actions/checkout@v2"
       - uses: "./.github/action-unit-test"
-        if: |
-          contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/monitoring') &&
-          (contains(needs.detect-file-changes.outputs.changed-files, '.yml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.sh') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.py') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.go') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml.j2'))
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/monitoring')"
         with:
           component: "monitoring"
 
@@ -205,14 +142,7 @@ jobs:
       - name: "Checkout Code"
         uses: "actions/checkout@v2"
       - uses: "./.github/action-unit-test"
-        if: |
-          contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/networking') &&
-          (contains(needs.detect-file-changes.outputs.changed-files, '.yml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.sh') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.py') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.go') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml.j2'))
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/networking')"
         with:
           component: "networking"
 
@@ -224,14 +154,7 @@ jobs:
       - name: "Checkout Code"
         uses: "actions/checkout@v2"
       - uses: "./.github/action-unit-test"
-        if: |
-          contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/secret-management') &&
-          (contains(needs.detect-file-changes.outputs.changed-files, '.yml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.sh') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.py') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.go') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml.j2'))
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/secret-management')"
         with:
           component: "secret-management"
 
@@ -243,14 +166,7 @@ jobs:
       - name: "Checkout Code"
         uses: "actions/checkout@v2"
       - uses: "./.github/action-unit-test"
-        if: |
-          contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/security') &&
-          (contains(needs.detect-file-changes.outputs.changed-files, '.yml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.sh') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.py') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.go') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml.j2'))
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/security')"
         with:
           component: "security"
 
@@ -262,14 +178,7 @@ jobs:
       - name: "Checkout Code"
         uses: "actions/checkout@v2"
       - uses: "./.github/action-unit-test"
-        if: |
-          contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/service-mesh') &&
-          (contains(needs.detect-file-changes.outputs.changed-files, '.yml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.sh') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.py') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.go') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml.j2'))
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/service-mesh')"
         with:
           component: "service-mesh"
 
@@ -281,14 +190,7 @@ jobs:
       - name: "Checkout Code"
         uses: "actions/checkout@v2"
       - uses: "./.github/action-unit-test"
-        if: |
-          contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/storage') &&
-          (contains(needs.detect-file-changes.outputs.changed-files, '.yml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.sh') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.py') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.go') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml.j2'))
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/storage')"
         with:
           component: "storage"
 
@@ -300,13 +202,6 @@ jobs:
       - name: "Checkout Code"
         uses: "actions/checkout@v2"
       - uses: "./.github/action-unit-test"
-        if: |
-          contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/workload-tenancy') &&
-          (contains(needs.detect-file-changes.outputs.changed-files, '.yml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.sh') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.py') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.go') ||
-          contains(needs.detect-file-changes.outputs.changed-files, '.yaml.j2'))
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/workload-tenancy')"
         with:
           component: "workload-tenancy"

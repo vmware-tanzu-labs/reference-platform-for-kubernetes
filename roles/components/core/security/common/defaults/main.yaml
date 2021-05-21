@@ -56,7 +56,7 @@ tanzu_security:
 
   actions:
     # `update_k8s_ca` should be set to false in production as it relies on a
-    # changing the underlying hosts with some host_vars tricks For production you
+    # changing the underlying hosts with some host_vars tricks. For production you
     # should either use letsencrypt-prod or a self provided CA cert/key pair of
     # which you have already uploaded the ca-cert to your kube cluster and trust it.
     update_k8s_ca: true

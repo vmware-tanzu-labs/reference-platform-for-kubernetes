@@ -16,6 +16,12 @@ all:
     tanzu_application_catalog_password:  ""
     tanzu_application_catalog_api_token: ""
     tanzu_default_tls_provider:          "ca"
+
+  # TODO: this always fails in KIND; skip when unit testing
+  tanzu_security:
+    actions:
+      update_k8s_ca: false
+
   children:
     kind_clusters:
       vars:
