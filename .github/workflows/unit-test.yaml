@@ -19,6 +19,9 @@ jobs:
           for file in "${{ steps.changed-files.outputs.all_modified_files }}"; do
             echo "$file was modified"
           done
+    outputs:
+      changed-files: ${{ steps.changed-files.outputs.all_modified_files }}
+      changed: ${{ steps.changed-files.outputs.files_changed }}
 
   # TODO: hard-coded for now; find a way to make this dynamic
   unit-test-autoscaling:
@@ -29,7 +32,7 @@ jobs:
       - name: "Checkout Code"
         uses: "actions/checkout@v2"
       - uses: "./.github/action-unit-test"
-        if: "jobs.detect-file-changes.steps.changed-files.outputs.files_changed == 'true'"
+        if: "needs.detect-file-changes.changed == 'true'"
         with:
           component: "autoscaling"
 
@@ -41,6 +44,6 @@ jobs:
       - name: "Checkout Code"
         uses: "actions/checkout@v2"
       - uses: "./.github/action-unit-test"
-        if: "jobs.detect-file-changes.steps.changed-files.outputs.files_changed == 'true'"
+        if: "needs.detect-file-changes.changed == 'true'"
         with:
           component: "workload-tenancy"
