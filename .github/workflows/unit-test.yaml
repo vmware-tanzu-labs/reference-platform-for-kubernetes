@@ -20,9 +20,11 @@ jobs:
         id: "changed-files"
       - name: List all modified files
         run: |
-          for file in "${{ steps.changed-files.outputs.all_modified_files }}"; do
+          for file in "${CHANGED}"; do
             echo "$file was modified"
           done
+        env:
+          CHANGED: ${{ steps.changed-files.outputs.all_modified_files }}
     outputs:
       changed-files: ${{ steps.changed-files.outputs.all_modified_files }}
       changed: ${{ steps.changed-files.outputs.files_changed }}
