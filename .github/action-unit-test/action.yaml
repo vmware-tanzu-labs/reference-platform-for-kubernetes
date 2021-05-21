@@ -1,0 +1,60 @@
+---
+name: "Common Unit Test Action"
+description: "Common Unit Test Action"
+
+inputs:
+  component:
+    description: "RPK Component to Test"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Setup KIND Unit Test Environment"
+      shell: "bash"
+      run: |
+        # setup kind
+        if [ -z $(which kind) ]; then
+          echo "kind executable not found...installing"
+          curl https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64 -o /usr/local/bin/kind -L
+          chmod +x /usr/local/bin/kind
+        else
+          echo "found kind executable at $(which kind)...not installing"
+        fi
+
+        # setup kubectl
+        if [ -z $(which kubectl) ]; then
+          curl -LO https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl
+          chmod +x /usr/local/bin/kubectl
+        else
+          echo "found kubectl executable at $(which kubectl)...not installing"
+        fi
+      env:
+        KIND_VERSION:    "v0.10.0"
+        KUBECTL_VERSION: "v1.20.0"
+
+    - name: "Setup KIND Cluster"
+      shell: "bash"
+      run: "make setup.kind && make setup.kind.network"
+      env:
+        KIND_INVENTORY: "ci/clusters/kind-cluster-unit.yaml"
+        KIND_BASE_CONFIG: "ci/clusters/kind-cluster-config-unit.yaml"
+        KIND_CLUSTER: "rpk-kind"
+
+    - name: "Test Deployment"
+      shell: "bash"
+      run: ROLE=${RPK_COMPONENT} make deploy.test.role
+      env:
+        RPK_COMPONENT: ${{ inputs.component }}
+
+    - name: "Test Demo"
+      shell: "bash"
+      run: ROLE=${RPK_COMPONENT} make demo.test.role
+      env:
+        RPK_COMPONENT: ${{ inputs.component }}
+
+    - name: "Test Clean"
+      shell: "bash"
+      run: ROLE=${RPK_COMPONENT} make clean.test.role
+      env:
+        RPK_COMPONENT: ${{ inputs.component }}

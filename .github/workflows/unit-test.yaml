@@ -1,0 +1,206 @@
+---
+name: "Unit Test"
+on:
+  pull_request:
+    branches:
+      - develop
+jobs:
+
+  detect-file-changes:
+    name: "Detect File Changes"
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
+        with:
+          fetch-depth: 2
+      - name: "Detect File Changes"
+        uses: "tj-actions/changed-files@v6.2"
+        id: "changed-files"
+      - name: List all modified files
+        run: |
+          for file in "${{ steps.changed-files.outputs.all_changed_files }}"; do
+            echo "$file was modified"
+          done
+    outputs:
+      changed-files: ${{ steps.changed-files.outputs.all_changed_files }}
+
+  unit-test-admission-control:
+    name: "Unit Test Admission Control"
+    runs-on: "ubuntu-latest"
+    needs: "detect-file-changes"
+    steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
+      - uses: "./.github/action-unit-test"
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/admission-control')"
+        with:
+          component: "admission-control"
+
+  unit-test-application-pipeline:
+    name: "Unit Test Application Pipeline"
+    runs-on: "ubuntu-latest"
+    needs: "detect-file-changes"
+    steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
+      - uses: "./.github/action-unit-test"
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/application-pipeline')"
+        with:
+          component: "application-pipeline"
+
+  unit-test-application-stack:
+    name: "Unit Test Application Stack"
+    runs-on: "ubuntu-latest"
+    needs: "detect-file-changes"
+    steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
+      - uses: "./.github/action-unit-test"
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/application-stack')"
+        with:
+          component: "application-stack"
+
+  unit-test-autoscaling:
+    name: "Unit Test Autoscaling"
+    runs-on: "ubuntu-latest"
+    needs: "detect-file-changes"
+    steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
+      - uses: "./.github/action-unit-test"
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/autoscaling')"
+        with:
+          component: "autoscaling"
+
+  unit-test-container-registry:
+    name: "Unit Test Container Registry"
+    runs-on: "ubuntu-latest"
+    needs: "detect-file-changes"
+    steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
+      - uses: "./.github/action-unit-test"
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/container-registry')"
+        with:
+          component: "container-registry"
+
+  unit-test-identity:
+    name: "Unit Test Identity"
+    runs-on: "ubuntu-latest"
+    needs: "detect-file-changes"
+    steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
+      - uses: "./.github/action-unit-test"
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/identity')"
+        with:
+          component: "identity"
+
+  unit-test-ingress:
+    name: "Unit Test Ingress"
+    runs-on: "ubuntu-latest"
+    needs: "detect-file-changes"
+    steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
+      - uses: "./.github/action-unit-test"
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/ingress')"
+        with:
+          component: "ingress"
+
+  unit-test-logging:
+    name: "Unit Test Logging"
+    runs-on: "ubuntu-latest"
+    needs: "detect-file-changes"
+    steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
+      - uses: "./.github/action-unit-test"
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/logging')"
+        with:
+          component: "logging"
+
+  unit-test-monitoring:
+    name: "Unit Test Monitoring"
+    runs-on: "ubuntu-latest"
+    needs: "detect-file-changes"
+    steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
+      - uses: "./.github/action-unit-test"
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/monitoring')"
+        with:
+          component: "monitoring"
+
+  unit-test-networking:
+    name: "Unit Test Networking"
+    runs-on: "ubuntu-latest"
+    needs: "detect-file-changes"
+    steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
+      - uses: "./.github/action-unit-test"
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/networking')"
+        with:
+          component: "networking"
+
+  unit-test-secret-management:
+    name: "Unit Test Secret Management"
+    runs-on: "ubuntu-latest"
+    needs: "detect-file-changes"
+    steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
+      - uses: "./.github/action-unit-test"
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/secret-management/hashicorp-vault')"
+        with:
+          component: "secret-management/hashicorp-vault"
+
+  unit-test-security:
+    name: "Unit Test Security"
+    runs-on: "ubuntu-latest"
+    needs: "detect-file-changes"
+    steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
+      - uses: "./.github/action-unit-test"
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/security')"
+        with:
+          component: "security"
+
+  unit-test-service-mesh:
+    name: "Unit Test Service Mesh"
+    runs-on: "ubuntu-latest"
+    needs: "detect-file-changes"
+    steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
+      - uses: "./.github/action-unit-test"
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/service-mesh/istio')"
+        with:
+          component: "service-mesh/istio"
+
+  unit-test-storage:
+    name: "Unit Test Storage"
+    runs-on: "ubuntu-latest"
+    needs: "detect-file-changes"
+    steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
+      - uses: "./.github/action-unit-test"
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/storage')"
+        with:
+          component: "storage"
+
+  unit-test-workload-tenancy:
+    name: "Unit Test Workload Tenancy"
+    runs-on: "ubuntu-latest"
+    needs: "detect-file-changes"
+    steps:
+      - name: "Checkout Code"
+        uses: "actions/checkout@v2"
+      - uses: "./.github/action-unit-test"
+        if: "contains(needs.detect-file-changes.outputs.changed-files, 'roles/components/core/workload-tenancy')"
+        with:
+          component: "workload-tenancy"

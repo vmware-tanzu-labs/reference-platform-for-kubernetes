@@ -56,7 +56,7 @@
     - self
     - "{{ tanzu_security.tls_providers }}"
 
-- name: "ensure ca cert secret exist"
+- name: "ensure ca cert secret exists"
   import_role:
     name: "common/manifest-file"
   vars:

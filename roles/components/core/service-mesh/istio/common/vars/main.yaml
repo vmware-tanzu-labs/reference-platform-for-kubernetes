@@ -1,7 +1,7 @@
 # Copyright 2006-2021 VMware, Inc.
 # SPDX-License-Identifier: MIT
 ---
-# NOTE: Istio uses 2 namespaces in order to properly manage the lifecycle of
+# NOTE: istio uses 2 namespaces in order to properly manage the lifecycle of
 #       both the operator and istio control-plane separately
 #       Setting the namespaces to the same value can cause resources to hang on deletion
 tanzu_mesh:

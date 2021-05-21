@@ -1,7 +1,7 @@
 # Copyright 2006-2021 VMware, Inc.
 # SPDX-License-Identifier: MIT
 ---
-- name: "ensure wildcard TLS secret exists {{ namespace }}/{{ secret }}"
+- name: "ensure wildcard tls secret exists {{ namespace }}/{{ secret }}"
   import_role:
     name: "common/manifest-file"
   vars:
