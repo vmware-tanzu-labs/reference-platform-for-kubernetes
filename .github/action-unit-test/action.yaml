@@ -3,8 +3,6 @@ description: Common Unit Test Action
 runs:
   using: "composite"
   steps:
-    - name: Checkout Code
-      uses: actions/checkout@master
     - name: Initialize KIND Cluster
       uses: container-tools/kind-action@v1
       with:

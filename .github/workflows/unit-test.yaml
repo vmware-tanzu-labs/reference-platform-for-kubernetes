@@ -12,4 +12,6 @@ jobs:
     name: Unit Test Workload Tenancy
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@master
       - uses: ./.github/action-unit-test
