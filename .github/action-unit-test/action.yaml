@@ -41,8 +41,20 @@ runs:
         KIND_BASE_CONFIG: "ci/clusters/kind-cluster-config-unit.yaml"
         KIND_CLUSTER: "rpk-kind"
 
-    - name: "Deploy the Component"
+    - name: "Test Deployment"
       shell: "bash"
-      run: ROLE=${RPK_COMPONENT} INVENTORY=`pwd`/ci/clusters/kind-cluster-unit.yaml make deploy.test.role
+      run: ROLE=${RPK_COMPONENT} make deploy.test.role
+      env:
+        RPK_COMPONENT: ${{ inputs.component }}
+
+    - name: "Test Demo"
+      shell: "bash"
+      run: ROLE=${RPK_COMPONENT} make demo.test.role
+      env:
+        RPK_COMPONENT: ${{ inputs.component }}
+
+    - name: "Test Clean"
+      shell: "bash"
+      run: ROLE=${RPK_COMPONENT} make clean.test.role
       env:
         RPK_COMPONENT: ${{ inputs.component }}
