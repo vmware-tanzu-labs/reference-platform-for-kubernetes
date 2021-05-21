@@ -79,7 +79,7 @@ jobs:
           contains(needs.detect-file-changes.outputs.changed-files, 'Makefile') ||
           contains(needs.detect-file-changes.outputs.changed-files, 'site.yaml')
 
-  e2e-test-aws:
+  e2e-test-v7wk8s:
     name: "E2E TKGs (v7wk8s)"
     runs-on: "ubuntu-latest"
     needs: "detect-file-changes"
