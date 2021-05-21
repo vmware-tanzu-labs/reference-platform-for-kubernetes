@@ -1,38 +1,38 @@
 ---
-name: Lint
+name: "Lint"
 on:
-  - push
-  - pull_request
+  - "push"
+  - "pull_request"
 jobs:
 
   lint-dirs:
-    name: Lint Directories
-    runs-on: ubuntu-latest
+    name: "Lint Directories"
+    runs-on: "ubuntu-latest"
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@master
-      - run: make lint.dirs
+      - name: "Checkout Code"
+        uses: "actions/checkout@master"
+      - run: "make lint.dirs"
 
   lint-files:
-    name: Lint Files
-    runs-on: ubuntu-latest
+    name: "Lint Files"
+    runs-on: "ubuntu-latest"
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@master
-      - run: make lint.files
+      - name: "Checkout Code"
+        uses: "actions/checkout@master"
+      - run: "make lint.files"
 
   lint-ansible:
-    name: Lint Ansible
-    runs-on: ubuntu-latest
+    name: "Lint Ansible"
+    runs-on: "ubuntu-latest"
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@master
-      - run: make lint.ansible
+      - name: "Checkout Code"
+        uses: "actions/checkout@master"
+      - run: "make lint.ansible"
 
   lint-yaml:
-    name: Lint YAML
-    runs-on: ubuntu-latest
+    name: "Lint YAML"
+    runs-on: "ubuntu-latest"
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@master
-      - run: make lint.yaml
+      - name: "Checkout Code"
+        uses: "actions/checkout@master"
+      - run: "make lint.yaml"
