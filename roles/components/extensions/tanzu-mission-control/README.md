@@ -91,9 +91,5 @@ From the root of the repo:
 ROLE=product/tanzu-mission-control make clean.role
 ```
 
-## Watch a Demo
-
-[Tanzu Mission Control Demo](https://drive.google.com/file/d/1e8-rtxhRCmalLYvUBgOIzUpu0NfFIKPU/view?usp=sharing)
-
 ## Author(s)
 [Dustin Scott](mailto:sdustin@vmware.com)
