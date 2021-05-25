@@ -126,10 +126,6 @@ From the root of the repo:
 ROLE=extensions/tanzu-observability make clean.role
 ```
 
-## Watch a Demo
-
-[Tanzu Observability Demo](https://drive.google.com/file/d/1HuGRuOpSWmdMmGKhkru8nTpiz0a8Q7bO/view?usp=sharing)
-
 ## Author(s)
 [Dustin Scott](mailto:sdustin@vmware.com)
 

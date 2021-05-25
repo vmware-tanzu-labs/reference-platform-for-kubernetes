@@ -112,10 +112,6 @@ From the root of the repo:
 ROLE=extensions/tanzu-service-mesh make clean.role
 ```
 
-## Watch a Demo
-
-[Tanzu Service Mesh Demo](https://drive.google.com/file/d/19IukWLEdUGLrTv_2y3d6rXtOE0ONxkfr/view?usp=sharing)
-
 ## Author(s)
 [Andrew J. Huffman](mailto:ahuffman@vmware.com)
 

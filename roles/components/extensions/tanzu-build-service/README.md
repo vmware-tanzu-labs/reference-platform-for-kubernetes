@@ -92,9 +92,5 @@ To remove the role, from the root of the repo:
 ROLE=extensions/tanzu-build-service make clean.role
 ```
 
-## Watch a Demo
-
-[Tanzu Build Service Demo](https://drive.google.com/file/d/1il9bai8dXSwCxFg0sMaLgVlZF6rjbcZt/view?usp=sharing)
-
 ## Author(s)
 [Robin Foe](mailto:rfoe@vmware.com)
