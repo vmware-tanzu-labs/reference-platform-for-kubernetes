@@ -1503,7 +1503,7 @@ OpenLDAP" button they are presented with a login form.
 The user credentials are provided to the OpenLDAP deployment via the
 `ldif-config` configmap.  See that configmap to get credentials for sample
 users.  This LDAP server just provides a sample identity back-end that would
-normally pre-exist at an enterprise customer.
+normally pre-exist in an enterprise environment.
 
 Enter valid credentials into the form and you will be redirected back to
 Gangway where you will find instructions to utilize your ID token.  The simplest

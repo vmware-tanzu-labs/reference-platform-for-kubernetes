@@ -7,10 +7,10 @@ The following is a set of guidelines for contributing to RPK.
 - [Contributing to RPK](#contributing-to-rpk)
   - [Table of Contents](#table-of-contents)
   - [General](#general)
+    - [Developer Certificate of Origin](#developer-certificate-of-origin)
     - [Relation to Tanzu Developer Center](#relation-to-tanzu-developer-center)
   - [Git](#git)
     - [Developer Workflow](#developer-workflow)
-    - [Branches > Forks](#branches--forks)
     - [Development Environment](#development-environment)
       - [Development Environment Prerequisites](#development-environment-prerequisites)
       - [Developing with a Docker Image](#developing-with-a-docker-image)
@@ -41,6 +41,12 @@ The following is a set of guidelines for contributing to RPK.
 
 ## General
 
+### Developer Certificate of Origin
+
+The Reference Platform for Kubernetes team welcomes contributions from the community. Before you start working with RPK, please read our 
+[Developer Certificate of Origin](https://cla.vmware.com/dco). All contributions to this repository must be signed as described on that page. Your signature certifies 
+that you wrote the patch or have the right to pass it on as an open-source patch.
+
 ### Relation to Tanzu Developer Center
 
 The goal of RPK is to provide a reference implementation platform which encompasses the
@@ -58,35 +64,19 @@ For more information about RPK and it's relation to TDC, view the following link
 
 The following outlines the simple developer workflow that we use for RPK.
 
-IMAGE HERE
-
 1. Contributor discovers a bug or has an idea for a new feature or an improvement to the existing processes.
-2. Contributor opens an issue and fills out all of the appropriate issue from the template.
-3. Issue is either approved, denied, or more information is requested.
-   1. Upon denial, user may attend the [Standup Meetings](#standup-meetings) or chat in the [Slack Communications Channel](#slack-communications-channel) to get issue approved.
-   2. Upon request for more information, issue will remain pending until approved.  Information should be added to the issue directly.
-   3. **NOTE:** failure to follow this process will result in your ideas, code, etc. to be revoked from admission into the repository.
-4. Contributor applies the `In Progress` label to the issue and assigns himself/herself to the issue.
-5. Contributor clones the RPK repo (e.g. `git clone git@github.com/vmware-tanzu-labs/reference-platform-kubernetes.git`).  See [Development Environment](#development-environment) for information on environment setup.
-6. Contributor creates a new branch (`e.g. git checkout -b my-cool-new-feature`) on their local development workstation.
-7. Working in the new branch on the local development workstation, the contributor modifies the code needed to address the opened and approved issue.
-8. Contributor commits and pushes the changes to the RPK repo (`e.g. git add*; git commit -a -m 'Fixes #1, my commit message'; git push --set-upstream origin my-cool-new-feature`)
-9. Contributor opens a merge request in GitLab and fills out the appropriate information in the Merge Request.
-10.  A CI pipeline is kicked off.  See [PIPELINE.md](PIPELINE.md) for more details.
+2. Contributor opens an issue.
+3. Contributor applies the `In Progress` label to the issue and assigns himself/herself to the issue.
+4. Contributor creates a fork in GitHub to their personal GitHub account.
+5. Contributor clones the RPK repo from their fork (e.g. `git clone git@github.com/<GITHUB_ID>/reference-platform-kubernetes.git`).  See [Development Environment](#development-environment) for information on environment setup.
+6. Working in the new fork on the local development workstation, the contributor modifies the code needed to address the opened and approved issue.
+7. Contributor commits and pushes the changes to their fork (`e.g. git add*; git commit -a -m 'Fixes #1, my commit message'; git push --set-upstream origin my-cool-new-feature`)
+8. Contributor opens a merge request in GitHub and fills out the appropriate information in the Merge Request.
+9. A CI pipeline is kicked off.  See [PIPELINE.md](PIPELINE.md) for more details.
    1. **NOTE:** failed CI pipeline runs will not be merged.
    2. **NOTE:** please keep commits to their individual modules (e.g. `container-registry`, or `storage`) as this helps unit test the independent modules.
-11. Once CI pipeline passes, you may remove the `WIP` from your merge request.
-12. If additional changes are requested, steps 7-8 can be repeated until the branch is approved for merge by the maintainers.
-13. Once the request approved, your code is merged!
-
-### Branches > Forks
-
-For now, we prefer branches over forks.  This allows us to do a couple things:
-
-1. **CI Pipeline Testing:**  This doesn't work with forks.
-2. **Maintainer Edits:**  Sometimes we want to make simple, quick code changes.
-
-**NOTE:** if you open a merge request from a fork, you will be asked to move to a branch instead!
+10. If additional changes are requested, steps 7-8 can be repeated until the branch is approved for merge by the maintainers.
+11. Once the request approved, your code is merged!
 
 ### Development Environment
 
@@ -221,7 +211,7 @@ For each component, we require the following structure:
 
 The following are deviances from common Ansible best practices:
 
-1. **Use of common/vars/ for variables**.  This allows us to require the variables in other roles without having to statically define variables.
+1. **Use of common/defaults/ for variables**.  This allows us to require the variables in other roles without having to statically define variables.
 2. **Use of .dependencies.yaml for module dependencies**.  This structure defines *ONLY* the modules/roles in which each role is dependent upon.
 3. **Use of clean/ sub-role**.  This role is the code to cleanup the Ansible role using `ROLE=my-role make clean.role`.
 4. **Use of demo/ sub-role**.  This role is the code to demonstrate the role (either print out info or create K8S objects) using `ROLE=my-role make demo.role`.
@@ -408,4 +398,4 @@ cool and crazy things that we can do with Ansible, however we prefer to simply u
 
 ## Questions?
 
-Please reach out in the [Standup Meetings](#standup-meetings) or chat in the [Slack Communications Channel](#slack-communications-channel)!!!
+Please open an Issue!

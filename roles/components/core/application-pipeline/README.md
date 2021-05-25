@@ -149,7 +149,3 @@ ansible-playbook -vv test.yaml \
         -e 'rpk_role_name=application-pipeline' \
         -c local -i build/inventory.yaml
 ```
-
-## Watch a Demo
-
-[Application-Pipeline Demo](https://drive.google.com/file/d/17qFo9w_VvV45OmHbmF7x3jm8tKOYVVJc/view?usp=sharing)
