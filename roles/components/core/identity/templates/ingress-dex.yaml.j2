@@ -1,0 +1,23 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+kind: Ingress
+apiVersion: extensions/v1beta1
+metadata:
+  name: dex
+  namespace: "{{ tanzu_identity.namespace }}"
+  annotations:
+    external-dns.alpha.kubernetes.io/target: "{{ tanzu_ingress.dns }}"
+spec:
+  rules:
+  - host: "{{ tanzu_identity.dex.dns }}"
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: dex
+          servicePort: 80
+  tls:
+  - hosts:
+    - "{{ tanzu_identity.dex.dns }}"
+    secretName: dex-cert-tls

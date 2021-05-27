@@ -8,9 +8,11 @@ tanzu_identity:
 
   # ldap
   ldap:
-    image:     "projects.registry.vmware.com/rpk/openldap"
-    image_tag: "1.2.2"
-    base_dn:   "dc={{ tanzu_ingress_domain.split('.') | join(',dc=') }}"
+    image:          "projects.registry.vmware.com/rpk/openldap"
+    image_tag:      "1.2.2"
+    base_dn:        "dc={{ tanzu_ingress_domain.split('.') | join(',dc=') }}"
+    admin_user:     "rpk-admin"
+    admin_password: "tanzu"
     resources:
       requests:
         cpu:    "50m"
