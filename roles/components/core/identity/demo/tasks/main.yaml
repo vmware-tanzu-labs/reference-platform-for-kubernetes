@@ -25,20 +25,13 @@
     validate_certs: false
   when: tanzu_provider != 'kind'
 
-- name: "write rbac definition file"
-  template:
-    src:  "rbac.yaml.j2"
-    dest: "{{ tanzu_identity.staging_dir }}/rbac.yaml"
-    mode: "0400"
-  changed_when: false
-
-- name: "ensure rbac exists"
-  k8s:
-    state:        "present"
-    context:      "{{ tanzu_kubectl_context }}"
-    src:          "{{ tanzu_identity.staging_dir }}/rbac.yaml"
-    wait:         true
-    wait_timeout: "300"
+- name: "ensure demo ldap config exists"
+  import_role:
+    name: "common/manifest-file"
+  vars:
+    manifest_description: "demo ldap config"
+    manifest_template:    "ldap-config-demo.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_identity.staging_dir }}"
 
 - name: "you may obtain your kubectl files with the following information"
   debug:

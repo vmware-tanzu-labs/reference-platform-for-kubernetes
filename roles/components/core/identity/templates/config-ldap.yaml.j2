@@ -1,0 +1,63 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: tanzu-admin
+  namespace: {{ tanzu_identity.namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: User
+    name: {{ tanzu_identity.ldap.admin_user }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ldif-config
+  namespace: "{{ tanzu_identity.namespace }}"
+data:
+  01-config-ldap.ldif: |-
+    # organanization unit
+    dn: ou=People,{{ tanzu_identity.ldap.base_dn }}
+    objectClass: organizationalUnit
+    ou: People
+
+    # admin user
+    dn: cn={{ tanzu_identity.ldap.admin_user }},ou=People,{{ tanzu_identity.ldap.base_dn }}
+    objectClass: person
+    objectClass: inetOrgPerson
+    sn: {{ tanzu_identity.ldap.admin_user }}
+    cn: {{ tanzu_identity.ldap.admin_user }}
+    mail: {{ tanzu_identity.ldap.admin_user }}@{{ tanzu_ingress_domain }}
+    userpassword: {{ tanzu_identity.ldap.admin_password }}
+
+    # demo users
+    {% for user in tanzu_identity.demo_users %}
+
+    dn: cn={{ user.first_name }},ou=People,{{ tanzu_identity.ldap.base_dn }}
+    changetype: add
+    objectClass: person
+    objectClass: inetOrgPerson
+    sn: {{ user.last_name }}
+    cn: {{ user.first_name }}
+    mail: {{ user.email }}
+    userpassword: {{ user.password }}
+
+    {% endfor %}
+
+    # group definitions
+    dn: ou=Groups,{{ tanzu_identity.ldap.base_dn }}
+    objectClass: organizationalUnit
+    ou: Groups
+
+    dn: cn=admins,ou=Groups,{{ tanzu_identity.ldap.base_dn }}
+    objectClass: groupOfNames
+    cn: admins
+
+    dn: cn=developers,ou=Groups,{{ tanzu_identity.ldap.base_dn }}
+    objectClass: groupOfNames
+    cn: developers

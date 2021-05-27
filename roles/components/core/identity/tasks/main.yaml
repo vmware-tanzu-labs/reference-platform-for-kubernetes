@@ -19,31 +19,6 @@
     namespace_file:          "{{ tanzu_identity.staging_dir }}/tanzu-namespace.yaml"
 
 #
-# DNS
-#
-- name: "get the ingress ip"
-  import_role:
-    name: "common/ingress-ip"
-
-- name: "ensure dns resolvability for identity module"
-  include_role:
-    name: "common/etc-hosts"
-  vars:
-    ip:   "{{ ingress_ip }}"
-    fqdn: "{{ item }}"
-  with_items:
-    - "{{ tanzu_identity.dex.dns }}"
-    - "{{ tanzu_identity.gangway.dns }}"
-
-#
-# RETRIEVE CLUSTER INFO
-#
-- name: "retrieve cluster info"
-  import_role:
-    name: "common/cluster-info"
-  when: tanzu_apiserver_url is not defined
-
-#
 # LDAP
 #
 - name: "ensure ldap pod security policy exists"
@@ -52,7 +27,14 @@
   vars:
     manifest_description: "ldap pod security policy"
     manifest_template:    "psp-ldap.yaml.j2"
-    manifest_file:        "psp-ldap.yaml"
+    manifest_staging_dir: "{{ tanzu_identity.staging_dir }}"
+
+- name: "ensure ldap config exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "ldap config"
+    manifest_template:    "config-ldap.yaml.j2"
     manifest_staging_dir: "{{ tanzu_identity.staging_dir }}"
 
 - name: "ensure ldap exists"
@@ -61,7 +43,6 @@
   vars:
     manifest_description: "ldap"
     manifest_template:    "app-ldap.yaml.j2"
-    manifest_file:        "app-ldap.yaml"
     manifest_staging_dir: "{{ tanzu_identity.staging_dir }}"
 
 #
@@ -83,9 +64,16 @@
   import_role:
     name: "common/manifest-file-with-wait"
   vars:
-    manifest_description: "dex"
+    manifest_description: "dex ingress"
     manifest_template:    "app-dex.yaml.j2"
-    manifest_file:        "app-dex.yaml"
+    manifest_staging_dir: "{{ tanzu_identity.staging_dir }}"
+
+- name: "ensure dex ingress exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "dex"
+    manifest_template:    "ingress-dex.yaml.j2"
     manifest_staging_dir: "{{ tanzu_identity.staging_dir }}"
 
 #
@@ -109,7 +97,14 @@
   vars:
     manifest_description: "gangway"
     manifest_template:    "app-gangway.yaml.j2"
-    manifest_file:        "app-gangway.yaml"
+    manifest_staging_dir: "{{ tanzu_identity.staging_dir }}"
+
+- name: "ensure gangway ingress exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "gangway ingress"
+    manifest_template:    "ingress-gangway.yaml.j2"
     manifest_staging_dir: "{{ tanzu_identity.staging_dir }}"
 
 #
@@ -121,7 +116,6 @@
   vars:
     manifest_description: "psp for reconfiguring kube api server jobs"
     manifest_template:    "psp-for-job-kube-apiserver.yaml.j2"
-    manifest_file:        "psp-for-job-kube-apiserver.yaml"
     manifest_staging_dir: "{{ tanzu_security.staging_dir }}"
 
 - name: "fetch the control plane nodes"

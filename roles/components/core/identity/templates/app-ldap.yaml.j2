@@ -1,12 +1,6 @@
 # Copyright 2006-2021 VMware, Inc.
 # SPDX-License-Identifier: MIT
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: ldap
-  namespace: "{{ tanzu_identity.namespace }}"
----
 kind: Service
 apiVersion: v1
 metadata:
@@ -27,43 +21,6 @@ spec:
       targetPort: "ldaps"
   selector:
     app.kubernetes.io/name: ldap
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: ldif-config
-  namespace: "{{ tanzu_identity.namespace }}"
-data:
-  config-ldap.ldif: |-
-
-    dn: ou=People,{{ tanzu_identity.ldap.base_dn }}
-    objectClass: organizationalUnit
-    ou: People
-
-{% for user in tanzu_identity.demo_users %}
-    dn: cn={{ user.first_name }},ou=People,{{ tanzu_identity.ldap.base_dn }}
-    objectClass: person
-    objectClass: inetOrgPerson
-    sn: {{ user.last_name }}
-    cn: {{ user.first_name }}
-    mail: {{ user.email }}
-    userpassword: {{ user.password }}
-
-{% endfor %}
-
-    # Group definitions.
-
-    dn: ou=Groups,{{ tanzu_identity.ldap.base_dn }}
-    objectClass: organizationalUnit
-    ou: Groups
-
-    dn: cn=admins,ou=Groups,{{ tanzu_identity.ldap.base_dn }}
-    objectClass: groupOfNames
-    cn: admins
-
-    dn: cn=developers,ou=Groups,{{ tanzu_identity.ldap.base_dn }}
-    objectClass: groupOfNames
-    cn: developers
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -111,7 +68,9 @@ spec:
           resources: {{ tanzu_identity.ldap.resources }}
           volumeMounts:
             - name: ldif-config
-              mountPath: /container/service/slapd/assets/config/bootstrap/ldif/custom
+              mountPath: /container/service/slapd/assets/config/bootstrap/ldif/custom/01-config-ldap.ldif
+              subPath: 01-config-ldap.ldif
+              readOnly: true
             - name: ldap-data
               mountPath: /var/lib/ldap
             - name: ldap-config
