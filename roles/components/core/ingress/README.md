@@ -73,14 +73,12 @@ at `build/inventory.yaml` of the root of this project.
 | azure_client_secret | Azure Client secret used to update DNS records in Azure DNS Zone (`azure` backend only) | - | string | yes |
 | azure_dns_resource_group_name | Name of the Azure Resource Group that contains the configured Azure DNS zone (`azure` backend only) | - | string | yes |
 
-
 ## Dependencies
 
 Also see `.dependencies.yaml` to view role dependencies which are run when running the role
 independently.
 
 * security
-
 
 ## Deploying
 
@@ -98,7 +96,6 @@ If you've made changes to the role and need to verify your changes:
 ROLE=ingress make deploy.test.role
 ```
 
-
 ## Demonstrating
 
 Once the role has run successfully, you should be able to demonstrate the role.
@@ -112,7 +109,6 @@ the role.
 ROLE=ingress make demo.role
 ```
 
-
 ## Verification
 
 ### Contour
@@ -120,10 +116,18 @@ ROLE=ingress make demo.role
 Follow steps located at https://projectcontour.io/getting-started/#example-workload for verification of ingress.
 
 ### AWS Route53 DNS Backend
-See:
+
+See the following links to verify the proper operation of external-dns:
+
 * https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/aws.md#verify-externaldns-works-ingress-example
 * https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/aws.md#verify-externaldns-works-service-example
-to verify proper operation of external-dns.
+
+### Azure DNS Backend
+
+See the following links to verify the proper operation of external-dns:
+
+* https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/azure.md#deploying-an-nginx-service
+* https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/azure.md#verifying-azure-dns-records
 
 ### Internal DNS Backend
 
@@ -151,8 +155,8 @@ To remove the role, from the root of the repo:
 ROLE=ingress make clean.role
 ```
 
-
 ## Author(s)
+
 * [James Kirkland](mailto:kirklandja@vmware.com)
 * [Paul Czarkowski](mailto:pczarkowski@vmware.com)
 * [Andrew J. Huffman](mailto:ahuffman@vmware.com)

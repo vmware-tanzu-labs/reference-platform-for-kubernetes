@@ -47,11 +47,7 @@ spec:
           - --source=ingress
           - --domain-filter={{ tanzu_ingress.domain }}
           - --provider=azure
-          {% if tanzu_ingress.external_dns.delete_records %}
-          - --policy=sync
-          {% else %}
-          - --policy="upsert-only"
-          {% endif %}
+          - --policy={{ tanzu_ingress.external_dns.delete_records | bool | ternary("sync", "upsert-only") }}
           - --registry=txt
           - --interval={{ tanzu_ingress.external_dns.sync_interval_seconds | string }}s
           - --txt-owner-id=tanzu-dns- {{ tanzu_cluster_name }}
