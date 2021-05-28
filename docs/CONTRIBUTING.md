@@ -13,6 +13,7 @@ The following is a set of guidelines for contributing to RPK.
     - [Developer Workflow](#developer-workflow)
     - [Development Environment](#development-environment)
       - [Development Environment Prerequisites](#development-environment-prerequisites)
+      - [Setup Git](#setup-git)
       - [Developing with a Docker Image](#developing-with-a-docker-image)
       - [Developing with a Local Environment](#developing-with-a-local-environment)
   - [Ansible](#ansible)
@@ -55,7 +56,7 @@ contributions to RPK should align with the ideals and practices that are found t
 
 For more information about RPK and it's relation to TDC, view the following links:
 
-* [Overview](./OVERVIEW.md)
+* [Overview](../README.md)
 * [Architecture](./ARCHITECTURE.md)
 
 ## Git
@@ -66,17 +67,19 @@ The following outlines the simple developer workflow that we use for RPK.
 
 1. Contributor discovers a bug or has an idea for a new feature or an improvement to the existing processes.
 2. Contributor opens an issue.
-3. Contributor applies the `In Progress` label to the issue and assigns himself/herself to the issue.
+3. Contributor assigns himself/herself to the issue.
 4. Contributor creates a fork in GitHub to their personal GitHub account.
 5. Contributor clones the RPK repo from their fork (e.g. `git clone git@github.com/<GITHUB_ID>/reference-platform-kubernetes.git`).  See [Development Environment](#development-environment) for information on environment setup.
 6. Working in the new fork on the local development workstation, the contributor modifies the code needed to address the opened and approved issue.
-7. Contributor commits and pushes the changes to their fork (`e.g. git add*; git commit -a -m 'Fixes #1, my commit message'; git push --set-upstream origin my-cool-new-feature`)
-8. Contributor opens a merge request in GitHub and fills out the appropriate information in the Merge Request.
-9. A CI pipeline is kicked off.  See [PIPELINE.md](PIPELINE.md) for more details.
+7. Contributor commits and pushes the changes to their fork (`e.g. git add*; git commit -a -m -s 'Fixes #1, my commit message'; git push --set-upstream origin my-cool-new-feature`)
+   1. We do require signed commits as per [DCO](#developer-certificate-of-origin).  Here is the process to follow to setup your workstation: https://docs.github.com/en/github/authenticating-to-github/managing-commit-signature-verification/signing-commits
+8. Contributor opens a merge request **into the develop branch** in GitHub and fills out the appropriate information in the Merge Request.
+9.  A CI pipeline is kicked off.  See [PIPELINE.md](PIPELINE.md) for more details.
    1. **NOTE:** failed CI pipeline runs will not be merged.
    2. **NOTE:** please keep commits to their individual modules (e.g. `container-registry`, or `storage`) as this helps unit test the independent modules.
 10. If additional changes are requested, steps 7-8 can be repeated until the branch is approved for merge by the maintainers.
 11. Once the request approved, your code is merged!
+12. When a new release is cut, code is merged code is merged from **develop > master**.
 
 ### Development Environment
 
@@ -91,6 +94,11 @@ The following outlines the simple developer workflow that we use for RPK.
   * [Azure](providers/azure.md#set-variables)
   * [KIND](providers/kind.md#set-variables)
   * [VMware](providers/vmware.md#set-variables)
+
+#### Setup Git
+
+As per [DCO](#developer-certificate-of-origin), we require signed commits **with a 'commit signed off by ...' message**.  See
+https://docs.github.com/en/github/authenticating-to-github/managing-commit-signature-verification/signing-commits for more details on setup.
 
 #### Developing with a Docker Image
 

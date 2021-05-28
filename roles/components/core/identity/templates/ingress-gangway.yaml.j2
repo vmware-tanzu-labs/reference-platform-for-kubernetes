@@ -1,0 +1,23 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: gangway
+  namespace: "{{ tanzu_identity.namespace }}"
+  annotations:
+    external-dns.alpha.kubernetes.io/target: "{{ tanzu_ingress.dns }}"
+spec:
+  rules:
+  - host: "{{ tanzu_identity.gangway.dns }}"
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: gangway
+          servicePort: 80
+  tls:
+  - hosts:
+    - "{{ tanzu_identity.gangway.dns }}"
+    secretName: gangway-cert-tls

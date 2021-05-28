@@ -1,6 +1,12 @@
 # Copyright 2006-2021 VMware, Inc.
 # SPDX-License-Identifier: MIT
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ldap
+  namespace: "{{ tanzu_identity.namespace }}"
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
