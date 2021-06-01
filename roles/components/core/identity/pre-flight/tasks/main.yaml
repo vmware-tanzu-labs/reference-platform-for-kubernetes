@@ -1,27 +1,2 @@
 # Copyright 2006-2021 VMware, Inc.
 # SPDX-License-Identifier: MIT
----
-#
-# DNS
-#
-- name: "get the ingress ip"
-  import_role:
-    name: "common/ingress-ip"
-
-- name: "ensure dns resolvability for identity module"
-  include_role:
-    name: "common/etc-hosts"
-  vars:
-    ip:   "{{ ingress_ip }}"
-    fqdn: "{{ item }}"
-  with_items:
-    - "{{ tanzu_identity.dex.dns }}"
-    - "{{ tanzu_identity.gangway.dns }}"
-
-#
-# RETRIEVE CLUSTER INFO
-#
-- name: "retrieve cluster info"
-  import_role:
-    name: "common/cluster-info"
-  when: tanzu_apiserver_url is not defined
