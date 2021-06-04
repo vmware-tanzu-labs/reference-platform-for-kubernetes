@@ -59,28 +59,28 @@ paths seen and expect our approaches to **evolve over time**.
 
 Kubernetes user needs fit on a spectrum, typically landing in
 one of 3 personas. Each persona envisions a slightly different path to
-production. We often identify these personas as bronze, silver, and gold.
+production. We often identify these personas as foundational, advanced, and opinionated.
 
-![Bronze-Silver-Gold](docs/images/bronze-silver-gold.png)
+![Personas](docs/images/personas.png)
 
-* **Bronze**: I want an enterprise-grade Kubernetes distribution. This persona
+* **Foundational**: I want an enterprise-grade Kubernetes distribution. This persona
 is largely interested in having the foundation poured but is not yet ready to
-build the house. In our experience, the path to production with bronze is rarely
-achieved without moving on to a silver or gold aspiration. However, the bronze
-intention may be right for the customer at the time, especially when their
+build the house. In our experience, the path to production with the foundational persona is rarely
+achieved without moving on to one of the other below aspirations. However, the intent
+behind the implementation selection may be right for the customer at the time, especially when their
 production intentions are largely non-determined.
 
-* **Silver**: I want to **create** a viable place to run applications in production
+* **Advanced**: I want to **create** a viable place to run applications in production
 with Kubernetes as the foundation. This persona not only wants to pour the
 foundation, but also help design, build, and operationalize an application
 platform on top - ensuring they end up with a habitable place for
 applications to live (i.e., running in production).
 
-* **Gold**: I want to **deploy** a fully-baked application platform that is
-ready for production, with Kubernetes as the foundation. This persona wants to
+* **Opinionated**: I want to **deploy** a fully-baked application platform that is
+ready for production. This persona wants to
 adopt hardened opinions of a vendor - similar to an established housing developer,
 they can have a quality, habitable, home built. This lowers the effort seen in
-the Silver persona around architecting / building, although some extension may
+the Advanced persona around architecting / building, although some extension may
 be involved.
 
 ## Is RPK a VMware Product?

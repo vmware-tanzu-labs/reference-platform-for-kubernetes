@@ -7,10 +7,11 @@ metadata:
   name: kube-apiserver-config
   namespace: "{{ tanzu_identity.namespace }}"
 data:
+  UPDATE_K8S_CA: "{{ ((tanzu_security.actions.update_k8s_ca | bool) and (('letsencrypt-stage' in tanzu_security.tls_providers) or ('ca' in tanzu_security.tls_providers) or ('wildcard' in tanzu_security.tls_providers))) | string | lower }}"
   kube-apiserver-config-values.yaml: |
     #@data/values
     ---
-    UPDATE_K8S_CA: "{{ ((tanzu_security.actions.update_k8s_ca | bool) and (('letsencrypt-stage' in tanzu_security.tls_providers) or ('ca' in tanzu_security.tls_providers) or ('wildcard' in tanzu_security.tls_providers))) | string | lower }}"
+    UPDATE_K8S_CA: ""
   kube-apiserver-config-overlay.yaml: |
     #@ load("@ytt:overlay", "overlay")
     #@ load("@ytt:data", "data")
@@ -66,13 +67,19 @@ spec:
       containers:
       - image: gerritk/ytt:v0.30.0
         name: kube-apiserver-config
+        env:
+        - name: UPDATE_K8S_CA
+          valueFrom:
+            configMapKeyRef:
+              name: kube-apiserver-config
+              key: UPDATE_K8S_CA
         command:
           - "/bin/sh"
         args:
           - "-c"
           - |
             cat /etc/kubernetes/manifests/kube-apiserver.yaml > /etc/kubernetes/backup/kube-apiserver.yaml.orig
-            /usr/bin/ytt -f /etc/kubernetes/manifests/kube-apiserver.yaml -f /etc/kubernetes/kube-apiserver-config-values.yaml -f /etc/kubernetes/kube-apiserver-config-overlay.yaml > /etc/kubernetes/backup/kube-apiserver.yaml.new
+            /usr/bin/ytt --data-values-env UPDATE_K8S_CA -f /etc/kubernetes/manifests/kube-apiserver.yaml -f /etc/kubernetes/kube-apiserver-config-values.yaml -f /etc/kubernetes/kube-apiserver-config-overlay.yaml > /etc/kubernetes/backup/kube-apiserver.yaml.new
             if [ "$(cat /etc/kubernetes/backup/kube-apiserver.yaml.new)" != "" ]; then
               cat /etc/kubernetes/backup/kube-apiserver.yaml.new > /etc/kubernetes/manifests/kube-apiserver.yaml
             else
