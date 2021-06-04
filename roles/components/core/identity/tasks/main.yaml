@@ -54,6 +54,14 @@
     manifest_template:    "psp-ldap.yaml.j2"
     manifest_staging_dir: "{{ tanzu_identity.staging_dir }}"
 
+- name: "ensure ldap rbac exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "ldap rbac"
+    manifest_template:    "rbac-ldap.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_identity.staging_dir }}"
+
 - name: "ensure ldap config exists"
   import_role:
     name: "common/manifest-file-with-wait"
