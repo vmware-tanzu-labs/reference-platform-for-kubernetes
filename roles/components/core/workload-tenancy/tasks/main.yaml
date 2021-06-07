@@ -13,17 +13,12 @@
     staging_dir: "{{ tanzu_workload_tenancy.staging_dir }}"
 
 - name: "ensure namespace exists"
-  k8s:
-    state:   "present"
-    context: "{{ tanzu_kubectl_context }}"
-    wait:    true
-    definition:
-      apiVersion: "v1"
-      kind:       "Namespace"
-      metadata:
-        name: "{{ tanzu_workload_tenancy.namespace }}"
-        labels:
-          name: "{{ tanzu_workload_tenancy.namespace }}"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "namespace"
+    manifest_template:    "namespace.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_workload_tenancy.staging_dir }}"
 
 #
 # NAMESPACE RESOURCE CONSTRAINTS
