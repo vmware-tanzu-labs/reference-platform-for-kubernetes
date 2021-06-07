@@ -1,0 +1,9 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ tanzu_workload_tenancy.namespace }}
+  labels:
+    name: {{ tanzu_workload_tenancy.namespace }}
