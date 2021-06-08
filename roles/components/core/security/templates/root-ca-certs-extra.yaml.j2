@@ -7,9 +7,5 @@ metadata:
   name: extra-root-ca-certs
   namespace: "{{ tanzu_security.namespace }}"
 data:
-  {% if ("wildcard" in tanzu_security.tls_providers) and (tanzu_security.wildcard.tls_root_ca_cert != "") %}
-  wildcard-ca.crt: "{{ tanzu_security.wildcard.tls_root_ca_cert }}"
-  {% endif %}
-  {% if ("letsencrypt-stage" in tanzu_security.tls_providers) and (tanzu_security.letsencrypt_stage.tls_root_ca_cert != "") %}
-  le-stage-ca.crt: "{{ tanzu_security.letsencrypt_stage.tls_root_ca_cert }}"
-  {% endif %}
+  wildcard-ca.crt: "{{ tanzu_security.wildcard.tls_root_ca_cert | default('') }}"
+  le-stage-ca.crt: "{{ tanzu_security.letsencrypt_stage.tls_root_ca_cert | default('') }}"
