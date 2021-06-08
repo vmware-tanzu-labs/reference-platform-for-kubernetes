@@ -45,6 +45,27 @@
     manifest_template:    "app-cert-manager.yaml.j2"
     manifest_staging_dir: "{{ tanzu_security.staging_dir }}"
 
+- name: "ensure ca cluster issuers certificate exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "ca cluster issuers certificate"
+    manifest_template:    "cluster-issuers-ca-cert.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_security.staging_dir }}"
+  when:
+    - (tanzu_security.ca.tls_root_ca_cert == "") or (tanzu_security.ca.tls_root_ca_key == "")
+
+- name: "ensure ca cluster issuers secret exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "ca cluster issuers secret"
+    manifest_template:    "cluster-issuers-ca-secret.yaml.j2"
+    manifest_staging_dir: "{{ tanzu_security.staging_dir }}"
+  when:
+    - tanzu_security.ca.tls_root_ca_cert != ""
+    - tanzu_security.ca.tls_root_ca_key != ""
+
 - name: "ensure {{ item }} cluster issuers exist"
   include_role:
     name: "common/manifest-file"
