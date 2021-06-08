@@ -77,12 +77,12 @@
     - self
     - "{{ tanzu_security.tls_providers }}"
 
-- name: "ensure ca cert secret exists"
+- name: "ensure extra ca cert secrets exists"
   import_role:
     name: "common/manifest-file"
   vars:
-    manifest_description: "root ca cert"
-    manifest_template:    "secret-root-ca-certs.yaml.j2"
+    manifest_description: "extra root ca certs"
+    manifest_template:    "root-ca-certs-extra.yaml.j2"
     manifest_staging_dir: "{{ tanzu_security.staging_dir }}"
   when:
     - ("ca" in tanzu_security.tls_providers) or
