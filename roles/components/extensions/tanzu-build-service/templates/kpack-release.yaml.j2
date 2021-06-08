@@ -49,7 +49,7 @@ metadata:
     rpk.module : "{{ tanzu_build_service.module }}"
     app.kubernetes.io/name: "{{ tanzu_build_service.module }}"
 data:
-  image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-build-init:' + tanzu_build_service.registry.destination_tag }}
+  image: "{{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-build-init:' + tanzu_build_service.registry.destination_tag }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -61,7 +61,7 @@ metadata:
     rpk.module : "{{ tanzu_build_service.module }}"
     app.kubernetes.io/name: "{{ tanzu_build_service.module }}"
 data:
-  image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-build-init-windows:' + tanzu_build_service.registry.destination_tag }}
+  image: "{{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-build-init-windows:' + tanzu_build_service.registry.destination_tag }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -73,7 +73,7 @@ metadata:
     rpk.module : "{{ tanzu_build_service.module }}"
     app.kubernetes.io/name: "{{ tanzu_build_service.module }}"
 data:
-  image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-rebase:' + tanzu_build_service.registry.destination_tag }}
+  image: "{{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-rebase:' + tanzu_build_service.registry.destination_tag }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -85,7 +85,7 @@ metadata:
     rpk.module : "{{ tanzu_build_service.module }}"
     app.kubernetes.io/name: "{{ tanzu_build_service.module }}"
 data:
-  image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-lifecycle:' + tanzu_build_service.registry.destination_tag }}
+  image: "{{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-lifecycle:' + tanzu_build_service.registry.destination_tag }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -97,7 +97,7 @@ metadata:
     rpk.module : "{{ tanzu_build_service.module }}"
     app.kubernetes.io/name: "{{ tanzu_build_service.module }}"
 data:
-  image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-completion:' + tanzu_build_service.registry.destination_tag }}
+  image: "{{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-completion:' + tanzu_build_service.registry.destination_tag }}"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -109,7 +109,7 @@ metadata:
     rpk.module : "{{ tanzu_build_service.module }}"
     app.kubernetes.io/name: "{{ tanzu_build_service.module }}"
 data:
-  image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-completion-windows:' + tanzu_build_service.registry.destination_tag }}
+  image: "{{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-completion-windows:' + tanzu_build_service.registry.destination_tag }}"
 ---
 apiVersion: v1
 kind: Service
@@ -158,7 +158,7 @@ spec:
             {{ item }}
             {% endfor %}
 
-        image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/setup-ca-certs:' + tanzu_build_service.registry.destination_tag }}
+        image: "{{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/setup-ca-certs:' + tanzu_build_service.registry.destination_tag }}"
         imagePullPolicy: IfNotPresent
         name: setup-ca-certs
         volumeMounts:
@@ -168,7 +168,7 @@ spec:
 
       containers:
       - name: controller
-        image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-controller:' + tanzu_build_service.registry.destination_tag }}
+        image: "{{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-controller:' + tanzu_build_service.registry.destination_tag }}"
         env:
         - name: CONFIG_LOGGING_NAME
           value: config-logging
@@ -261,7 +261,7 @@ spec:
         kubernetes.io/os: linux
       containers:
       - name: webhook
-        image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-webhook:' + tanzu_build_service.registry.destination_tag }}
+        image: "{{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/kpack-webhook:' + tanzu_build_service.registry.destination_tag }}"
         ports:
         - name: https-webhook
           containerPort: 8443

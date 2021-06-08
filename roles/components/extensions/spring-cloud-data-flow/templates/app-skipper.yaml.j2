@@ -203,7 +203,7 @@ spec:
         - name: SPRING_CLOUD_KUBERNETES_SECRETS_PATHS
           value: /workspace/runtime/secrets
         # image: registry.pivotal.io/p-scdf-for-kubernetes/spring-cloud-skipper-server@sha256:1aedd8dcf185ca50788208e063a47332ffa5afd7ef5d114c2a8a4d697544d416
-        image: {{ tanzu_container_registry.core.dns +'/'+ tanzu_spring_cloud_data_flow.registry.project.project_name + '/spring-cloud-skipper-server:' + tanzu_spring_cloud_data_flow.registry.destination_tag }}
+        image: "{{ tanzu_container_registry.core.dns +'/'+ tanzu_spring_cloud_data_flow.registry.project.project_name + '/spring-cloud-skipper-server:' + tanzu_spring_cloud_data_flow.registry.destination_tag }}"
         imagePullPolicy: Always
         livenessProbe:
           httpGet:

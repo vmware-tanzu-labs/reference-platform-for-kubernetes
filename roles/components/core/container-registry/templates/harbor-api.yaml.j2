@@ -28,7 +28,7 @@ spec:
         fsGroup: 10000
       containers:
         - name: core
-          image: {{ tanzu_container_registry.core.image }}:{{ tanzu_container_registry.base_image_tag }}
+          image: "{{ tanzu_container_registry.core.image }}:{{ tanzu_container_registry.base_image_tag }}"
           imagePullPolicy: IfNotPresent
           livenessProbe:
             httpGet:

@@ -22,7 +22,7 @@ spec:
       serviceAccount: {{ tanzu_storage.ephemeral.csi_snapshot_controller.resource_name }}
       containers:
         - name: {{ tanzu_storage.ephemeral.csi_snapshot_controller.resource_name }}
-          image: {{ tanzu_storage.ephemeral.csi_snapshot_controller.image }}:{{ tanzu_storage.ephemeral.csi_snapshot_controller.image_tag }}
+          image: "{{ tanzu_storage.ephemeral.csi_snapshot_controller.image }}:{{ tanzu_storage.ephemeral.csi_snapshot_controller.image_tag }}"
           args:
             - "--v=5"
             - "--leader-election=false"

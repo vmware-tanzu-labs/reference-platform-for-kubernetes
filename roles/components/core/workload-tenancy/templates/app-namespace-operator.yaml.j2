@@ -22,7 +22,7 @@ spec:
       serviceAccountName: {{ tanzu_workload_tenancy.namespace_operator.service_account }}
       containers:
         - name: {{ tanzu_workload_tenancy.namespace_operator.app_name }}
-          image: {{ tanzu_workload_tenancy.namespace_operator.image }}:{{ tanzu_workload_tenancy.namespace_operator.image_tag }}
+          image: "{{ tanzu_workload_tenancy.namespace_operator.image }}:{{ tanzu_workload_tenancy.namespace_operator.image_tag }}"
           resources: {{ tanzu_workload_tenancy.namespace_operator.resources }}
           securityContext:
             runAsNonRoot: true

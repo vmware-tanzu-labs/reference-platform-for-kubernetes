@@ -25,7 +25,7 @@ spec:
       serviceAccountName: {{ tanzu_ingress.external_dns.resource_name }}
       initContainers:
         - name: {{ tanzu_ingress.bind.resource_name }}-init
-          image: {{ tanzu_ingress.bind_init.image }}:{{ tanzu_ingress.bind_init.image_tag }}
+          image: "{{ tanzu_ingress.bind_init.image }}:{{ tanzu_ingress.bind_init.image_tag }}"
           volumeMounts:
             - name: bind-var-lib-bind
               mountPath: /var/lib/bind
@@ -39,7 +39,7 @@ spec:
             - "cp -f /tmp/{{ tanzu_ingress_domain }}.db /var/lib/bind/{{ tanzu_ingress_domain }}.db && chmod 664 /var/lib/bind/{{ tanzu_ingress_domain }}.db"
       containers:
         - name: {{ tanzu_ingress.bind.resource_name }}
-          image: {{ tanzu_ingress.bind.image }}:{{ tanzu_ingress.bind.image_tag }}
+          image: "{{ tanzu_ingress.bind.image }}:{{ tanzu_ingress.bind.image_tag }}"
           ports:
             - containerPort: 53
               protocol: UDP
@@ -62,7 +62,7 @@ spec:
               subPath: named.conf.options
           resources: {{ tanzu_ingress.bind.resources | default(tanzu_ingress.default_resources) }}
         - name: {{ tanzu_ingress.external_dns.resource_name }}
-          image: {{ tanzu_ingress.external_dns.image }}:{{ tanzu_ingress.external_dns.image_tag }}
+          image: "{{ tanzu_ingress.external_dns.image }}:{{ tanzu_ingress.external_dns.image_tag }}"
           args:
             - --source=service
             - --source=ingress

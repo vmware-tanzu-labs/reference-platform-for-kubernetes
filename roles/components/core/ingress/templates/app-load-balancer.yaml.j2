@@ -45,7 +45,7 @@ spec:
         "beta.kubernetes.io/os": linux
       containers:
       - name: controller
-        image: {{ tanzu_ingress.metallb.controller.image }}:{{ tanzu_ingress.metallb.controller.image_tag }}
+        image: "{{ tanzu_ingress.metallb.controller.image }}:{{ tanzu_ingress.metallb.controller.image_tag }}"
         imagePullPolicy: IfNotPresent
         resources: {{ tanzu_ingress.metallb.resources | default(tanzu_ingress.default_resources) }}
         args:
@@ -88,7 +88,7 @@ spec:
       hostNetwork: true
       containers:
       - name: speaker
-        image: {{ tanzu_ingress.metallb.speaker.image }}:{{ tanzu_ingress.metallb.speaker.image_tag }}
+        image: "{{ tanzu_ingress.metallb.speaker.image }}:{{ tanzu_ingress.metallb.speaker.image_tag }}"
         imagePullPolicy: IfNotPresent
         args:
         - --port=7472

@@ -45,7 +45,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-          image: {{ tanzu_admission_control.gatekeeper.image }}:{{ tanzu_admission_control.gatekeeper.image_tag }}
+          image: "{{ tanzu_admission_control.gatekeeper.image }}:{{ tanzu_admission_control.gatekeeper.image_tag }}"
           imagePullPolicy: Always
           livenessProbe:
             httpGet:
@@ -124,7 +124,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-          image: {{ tanzu_admission_control.gatekeeper.image }}:{{ tanzu_admission_control.gatekeeper.image_tag }}
+          image: "{{ tanzu_admission_control.gatekeeper.image }}:{{ tanzu_admission_control.gatekeeper.image_tag }}"
           imagePullPolicy: Always
           livenessProbe:
             httpGet:
