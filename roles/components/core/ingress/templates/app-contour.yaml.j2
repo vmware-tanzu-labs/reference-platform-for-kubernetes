@@ -49,7 +49,7 @@ spec:
         - --contour-key-file=/certs/tls.key
         - --config-path=/config/contour.yaml
         command: ["contour"]
-        image: {{ tanzu_ingress.contour.image }}:{{ tanzu_ingress.contour.image_tag }}
+        image: "{{ tanzu_ingress.contour.image }}:{{ tanzu_ingress.contour.image_tag }}"
         imagePullPolicy: IfNotPresent
         resources: {{ tanzu_ingress.contour.resources | default(tanzu_ingress.default_resources) }}
         name: contour

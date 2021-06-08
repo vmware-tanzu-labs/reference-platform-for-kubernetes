@@ -35,7 +35,7 @@ spec:
         args:
           - envoy
           - shutdown-manager
-        image: {{ tanzu_ingress.contour.image }}:{{ tanzu_ingress.contour.image_tag }}
+        image: "{{ tanzu_ingress.contour.image }}:{{ tanzu_ingress.contour.image_tag }}"
         imagePullPolicy: IfNotPresent
         resources: {{ tanzu_ingress.envoy.resources | default(tanzu_ingress.default_resources) }}
         lifecycle:
@@ -59,7 +59,7 @@ spec:
         - --log-level info
         command:
         - envoy
-        image: {{ tanzu_ingress.envoy.image }}:{{ tanzu_ingress.envoy.image_tag }}
+        image: "{{ tanzu_ingress.envoy.image }}:{{ tanzu_ingress.envoy.image_tag }}"
         imagePullPolicy: IfNotPresent
         resources: {{ tanzu_ingress.envoy.resources | default(tanzu_ingress.default_resources) }}
         name: envoy
@@ -109,7 +109,7 @@ spec:
         - --envoy-key-file=/certs/tls.key
         command:
         - contour
-        image: {{ tanzu_ingress.contour.image }}:{{ tanzu_ingress.contour.image_tag }}
+        image: "{{ tanzu_ingress.contour.image }}:{{ tanzu_ingress.contour.image_tag }}"
         imagePullPolicy: IfNotPresent
         resources: {{ tanzu_ingress.contour.resources | default(tanzu_ingress.default_resources) }}
         name: envoy-initconfig

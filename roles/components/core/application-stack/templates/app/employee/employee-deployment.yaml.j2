@@ -36,7 +36,7 @@ spec:
         runAsUser: 1001
       containers:
         - name: employee
-          image: {{ tanzu_app_stack.employee.remote_image }}:{{ tanzu_app_stack.employee.remote_image_tag }}
+          image: "{{ tanzu_app_stack.employee.remote_image }}:{{ tanzu_app_stack.employee.remote_image_tag }}"
           imagePullPolicy: Always
           ports:
             - containerPort: 8080

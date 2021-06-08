@@ -41,7 +41,7 @@ spec:
       serviceAccountName: {{ tanzu_ingress.external_dns.resource_name }}
       containers:
       - name: {{ tanzu_ingress.external_dns.resource_name }}
-        image: {{ tanzu_ingress.external_dns.image }}:{{ tanzu_ingress.external_dns.image_tag }}
+        image: "{{ tanzu_ingress.external_dns.image }}:{{ tanzu_ingress.external_dns.image_tag }}"
         args:
           - --source=service
           - --source=ingress

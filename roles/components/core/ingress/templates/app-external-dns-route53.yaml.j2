@@ -42,7 +42,7 @@ spec:
       serviceAccountName: {{ tanzu_ingress.external_dns.resource_name }}
       containers:
       - name: {{ tanzu_ingress.external_dns.resource_name }}
-        image: {{ tanzu_ingress.external_dns.image }}:{{ tanzu_ingress.external_dns.image_tag }}
+        image: "{{ tanzu_ingress.external_dns.image }}:{{ tanzu_ingress.external_dns.image_tag }}"
         env:
           - name: AWS_ACCESS_KEY_ID
             valueFrom:

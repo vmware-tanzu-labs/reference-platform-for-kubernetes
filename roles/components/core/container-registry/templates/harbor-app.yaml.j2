@@ -30,7 +30,7 @@ spec:
         fsGroup: 10000
       containers:
         - name: chartmuseum
-          image: {{ tanzu_container_registry.chartmuseum.image }}:{{ tanzu_container_registry.base_image_tag }}
+          image: "{{ tanzu_container_registry.chartmuseum.image }}:{{ tanzu_container_registry.base_image_tag }}"
           imagePullPolicy: IfNotPresent
           livenessProbe:
             httpGet:
@@ -112,7 +112,7 @@ spec:
         fsGroup: 10000
       containers:
         - name: clair
-          image: {{ tanzu_container_registry.clair.image }}:{{ tanzu_container_registry.base_image_tag }}
+          image: "{{ tanzu_container_registry.clair.image }}:{{ tanzu_container_registry.base_image_tag }}"
           imagePullPolicy: IfNotPresent
           livenessProbe:
             httpGet:
@@ -144,7 +144,7 @@ spec:
               mountPath: /etc/harbor/ssl/clair
           resources: {{ tanzu_container_registry.clair.resources }}
         - name: adapter
-          image: {{ tanzu_container_registry.clair.adapter.image }}:{{ tanzu_container_registry.base_image_tag }}
+          image: "{{ tanzu_container_registry.clair.adapter.image }}:{{ tanzu_container_registry.base_image_tag }}"
           imagePullPolicy: IfNotPresent
           livenessProbe:
             httpGet:
@@ -245,7 +245,7 @@ spec:
         fsGroup: 10000
       containers:
         - name: jobservice
-          image: {{ tanzu_container_registry.jobservice.image }}:{{ tanzu_container_registry.base_image_tag }}
+          image: "{{ tanzu_container_registry.jobservice.image }}:{{ tanzu_container_registry.base_image_tag }}"
           imagePullPolicy: IfNotPresent
           livenessProbe:
             httpGet:
@@ -348,13 +348,13 @@ spec:
         fsGroup: 10000
       containers:
         - name: notary-server
-          image: {{ tanzu_container_registry.notary.server.image }}:{{ tanzu_container_registry.base_image_tag }}
+          image: "{{ tanzu_container_registry.notary.server.image }}:{{ tanzu_container_registry.base_image_tag }}"
           imagePullPolicy: IfNotPresent
           env:
             - name: MIGRATIONS_PATH
               value: migrations/server/postgresql
             - name: DB_URL
-              value: postgres://{{ tanzu_container_registry.postgres.username }}:{{ tanzu_container_registry.postgres.password }}@{{ tanzu_container_registry.postgres.resource_name }}:5432/notaryserver?sslmode=disable
+              value: "postgres://{{ tanzu_container_registry.postgres.username }}:{{ tanzu_container_registry.postgres.password }}@{{ tanzu_container_registry.postgres.resource_name }}:5432/notaryserver?sslmode=disable"
           volumeMounts:
             - name: config
               mountPath: /etc/notary/server-config.postgres.json
@@ -401,13 +401,13 @@ spec:
         fsGroup: 10000
       containers:
       - name: notary-signer
-        image: {{ tanzu_container_registry.notary.signer.image }}:{{ tanzu_container_registry.base_image_tag }}
+        image: "{{ tanzu_container_registry.notary.signer.image }}:{{ tanzu_container_registry.base_image_tag }}"
         imagePullPolicy: IfNotPresent
         env:
           - name: MIGRATIONS_PATH
             value: migrations/signer/postgresql
           - name: DB_URL
-            value: postgres://{{ tanzu_container_registry.postgres.username }}:{{ tanzu_container_registry.postgres.password }}@{{ tanzu_container_registry.postgres.resource_name }}:5432/notarysigner?sslmode=disable
+            value: "postgres://{{ tanzu_container_registry.postgres.username }}:{{ tanzu_container_registry.postgres.password }}@{{ tanzu_container_registry.postgres.resource_name }}:5432/notarysigner?sslmode=disable"
           - name: NOTARY_SIGNER_DEFAULTALIAS
             value: defaultalias
         volumeMounts:
@@ -487,7 +487,7 @@ spec:
         fsGroup: 10000
       containers:
         - name: registry
-          image: {{ tanzu_container_registry.registry.image }}:{{ tanzu_container_registry.base_image_tag }}
+          image: "{{ tanzu_container_registry.registry.image }}:{{ tanzu_container_registry.base_image_tag }}"
           imagePullPolicy: IfNotPresent
           livenessProbe:
             httpGet:
@@ -536,7 +536,7 @@ spec:
               mountPath: /etc/harbor/ssl/registry
           resources: {{ tanzu_container_registry.registry.resources | default(tanzu_container_registry.default_resources) }}
         - name: registryctl
-          image: {{ tanzu_container_registry.registry.registryctl.image }}:{{ tanzu_container_registry.base_image_tag }}
+          image: "{{ tanzu_container_registry.registry.registryctl.image }}:{{ tanzu_container_registry.base_image_tag }}"
           imagePullPolicy: IfNotPresent
           livenessProbe:
             httpGet:
@@ -661,7 +661,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: trivy
-          image: {{ tanzu_container_registry.trivy.image }}:{{ tanzu_container_registry.base_image_tag }}
+          image: "{{ tanzu_container_registry.trivy.image }}:{{ tanzu_container_registry.base_image_tag }}"
           imagePullPolicy: IfNotPresent
           securityContext:
             privileged: false

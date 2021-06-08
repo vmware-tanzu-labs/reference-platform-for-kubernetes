@@ -58,7 +58,7 @@ metadata:
     rpk.module : "{{ tanzu_build_service.module }}"
     rpk.resource: "build-service-configmap"
 data:
-  image: {{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/setup-ca-certs:' + tanzu_build_service.registry.destination_tag }}
+  image: "{{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/setup-ca-certs:' + tanzu_build_service.registry.destination_tag }}"
 ---
 apiVersion: admissionregistration.k8s.io/v1beta1
 kind: MutatingWebhookConfiguration
@@ -110,7 +110,7 @@ spec:
       serviceAccountName: cert-injection-webhook-sa
       containers:
       - name: server
-        image: {{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/pod-webhook:' + tanzu_build_service.registry.destination_tag }}
+        image: "{{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/pod-webhook:' + tanzu_build_service.registry.destination_tag }}"
         imagePullPolicy: Always
         args:
         - --

@@ -83,7 +83,7 @@ spec:
         runAsGroup: 65534
       containers:
       - name: gangway
-        image: {{ tanzu_identity.gangway.image }}:{{ tanzu_identity.gangway.image_tag }}
+        image: "{{ tanzu_identity.gangway.image }}:{{ tanzu_identity.gangway.image_tag }}"
         imagePullPolicy: IfNotPresent
         command:
         - gangway

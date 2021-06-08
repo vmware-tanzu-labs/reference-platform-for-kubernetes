@@ -9,7 +9,7 @@ metadata:
     rpk.heritage: "true"
     rpk.module : "{{ tanzu_build_service.module }}"
 data:
-  image: {{ tanzu_container_registry.core.dns +'/'+ tanzu_build_service.registry.project.project_name + '/sleeper:' + tanzu_build_service.registry.destination_tag }}
+  image: "{{ tanzu_container_registry.core.dns +'/'+ tanzu_build_service.registry.project.project_name + '/sleeper:' + tanzu_build_service.registry.destination_tag }}"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -74,7 +74,7 @@ spec:
         kubernetes.io/os: linux
       initContainers:
       - name: sleeper
-        image: {{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/sleeper:' + tanzu_build_service.registry.destination_tag }}
+        image: "{{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/sleeper:' + tanzu_build_service.registry.destination_tag }}"
         args:
         - --
         - sleeper
@@ -91,7 +91,7 @@ spec:
             cpu: 1m
       containers:
       - name: completion
-        image: {{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/kpack-completion:' + tanzu_build_service.registry.destination_tag }}
+        image: "{{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/kpack-completion:' + tanzu_build_service.registry.destination_tag }}"
         command:
         - /drop/sleeper
         args:
@@ -106,7 +106,7 @@ spec:
             cpu: 1m
         imagePullPolicy: Always
       - name: rebase
-        image: {{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/kpack-rebase:' + tanzu_build_service.registry.destination_tag }}
+        image: "{{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/kpack-rebase:' + tanzu_build_service.registry.destination_tag }}"
         command:
         - /drop/sleeper
         args:
@@ -121,7 +121,7 @@ spec:
             cpu: 1m
         imagePullPolicy: Always
       - name: build-init
-        image: {{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/kpack-build-init:' + tanzu_build_service.registry.destination_tag }}
+        image: "{{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/kpack-build-init:' + tanzu_build_service.registry.destination_tag }}"
         command:
         - /drop/sleeper
         args:
@@ -136,7 +136,7 @@ spec:
             cpu: 1m
         imagePullPolicy: Always
       - name: setup-ca-certs
-        image: {{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/setup-ca-certs:' + tanzu_build_service.registry.destination_tag }}
+        image: "{{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/setup-ca-certs:' + tanzu_build_service.registry.destination_tag }}"
         command:
         - /drop/sleeper
         args:
@@ -151,7 +151,7 @@ spec:
             cpu: 1m
         imagePullPolicy: Always
       - name: stackify
-        image: {{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/stackify:' + tanzu_build_service.registry.destination_tag }}
+        image: "{{ tanzu_container_registry.core.dns + '/' + tanzu_build_service.registry.project.project_name + '/stackify:' + tanzu_build_service.registry.destination_tag }}"
         command:
         - /drop/sleeper
         args:

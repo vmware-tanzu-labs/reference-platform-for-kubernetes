@@ -92,7 +92,7 @@ spec:
       imagePullPolicy: IfNotPresent
       resources: {{ tanzu_security.default_resources }}
       containers:
-        - image: {{ tanzu_security.cert_delivery_job.default.image }}:{{ tanzu_security.cert_delivery_job.default.image_tag }}
+        - image: "{{ tanzu_security.cert_delivery_job.default.image }}:{{ tanzu_security.cert_delivery_job.default.image_tag }}"
           name: {{ tanzu_security.cert_delivery_job.resource_name }}
           command:
             - "/bin/bash"
