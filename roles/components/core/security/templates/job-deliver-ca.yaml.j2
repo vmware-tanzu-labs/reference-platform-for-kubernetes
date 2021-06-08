@@ -12,7 +12,7 @@ data:
     set -eux
 
     # first ensure the ca certificate exists in the kubernetes pki directory
-    if [[ `cat /tmp/tanzu-ca/ca.crt` == "" ]]; then
+    if [[ $(cat /tmp/tanzu-ca/ca.crt) == "" ]]; then
       echo "tanzu ca cert is empty"
       exit 1
     fi
@@ -58,7 +58,7 @@ data:
     fi
 
     # restart containerd
-    CONTAINERD_PID=`pgrep -x containerd`
+    CONTAINERD_PID=$(pgrep -x containerd)
     if [[ "${CONTAINERD_PID}" != '' ]]; then
       kill -1 ${CONTAINERD_PID}
     else
