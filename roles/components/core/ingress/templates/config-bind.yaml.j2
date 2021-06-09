@@ -35,7 +35,7 @@ data:
             file "/var/lib/bind/{{ tanzu_ingress_domain }}.db";
     };
 
-  {{ tanzu_ingress_domain }}.db: |
+  database.db: |
     $TTL 60 ; 1 minute
     @                   IN SOA  {{ tanzu_ingress_domain }}. root.{{ tanzu_ingress_domain }}. (
                                 16         ; serial
