@@ -24,19 +24,19 @@ spec:
         fsGroup: 106
       serviceAccountName: {{ tanzu_ingress.external_dns.resource_name }}
       initContainers:
-        - name: {{ tanzu_ingress.bind.resource_name }}-init
+        - name: "{{ tanzu_ingress.bind.resource_name }}-init"
           image: "{{ tanzu_ingress.bind_init.image }}:{{ tanzu_ingress.bind_init.image_tag }}"
           volumeMounts:
             - name: bind-var-lib-bind
               mountPath: /var/lib/bind
               readOnly: false
             - name: bind-configs
-              mountPath: /tmp/{{ tanzu_ingress_domain }}.db
-              subPath: {{ tanzu_ingress_domain }}.db
+              mountPath: /tmp/database.db
+              subPath: database.db
           command:
             - "sh"
             - "-c"
-            - "cp -f /tmp/{{ tanzu_ingress_domain }}.db /var/lib/bind/{{ tanzu_ingress_domain }}.db && chmod 664 /var/lib/bind/{{ tanzu_ingress_domain }}.db"
+            - "cp -f /tmp/database.db /var/lib/bind/database.db && chmod 664 /var/lib/bind/database.db"
       containers:
         - name: {{ tanzu_ingress.bind.resource_name }}
           image: "{{ tanzu_ingress.bind.image }}:{{ tanzu_ingress.bind.image_tag }}"
