@@ -68,5 +68,5 @@ spec:
           #       is an AWS Route53 specific type).  CNAME records also need a txt-prefix to avoid
           #       conflicts.
           - --aws-prefer-cname
-          - --txt-prefix=ivy-tracker-record-
+          - --txt-prefix=rpk-tracker-record-
         resources: {{ tanzu_ingress.external_dns.resources | default(tanzu_ingress.default_resources) }}
