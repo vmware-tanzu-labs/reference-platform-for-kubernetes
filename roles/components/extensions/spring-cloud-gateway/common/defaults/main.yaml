@@ -5,7 +5,6 @@ tanzu_spring_cloud_gateway:
   # common vars
   namespace:   "tanzu-spring-cloud-gateway"
   staging_dir: "{{ rpk_staging_dir }}/tanzu-spring-cloud-gateway"
-  module:      "spring-cloud-gateway"
 
   demo:
     dns: spring-cloud-gateway-demo.{{ tanzu_ingress_domain }}
