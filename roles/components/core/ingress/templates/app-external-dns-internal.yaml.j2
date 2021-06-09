@@ -77,7 +77,7 @@ spec:
             - --policy={{ tanzu_ingress.external_dns.delete_records | bool | ternary("sync", "upsert-only") }}
             - --registry=txt
             - --txt-owner-id=tanzu-dns-{{ tanzu_cluster_name }}
-            - --txt-prefix=ivy-tracker-record-
+            - --txt-prefix=rpk-tracker-record-
           resources: {{ tanzu_ingress.external_dns.resources | default(tanzu_ingress.default_resources) }}
       volumes:
         - name: bind-var-lib-bind
