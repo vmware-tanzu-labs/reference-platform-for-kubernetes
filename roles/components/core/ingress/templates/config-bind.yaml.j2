@@ -32,7 +32,7 @@ data:
   named.conf.local: |
     zone "{{ tanzu_ingress_domain }}." {
             type primary;
-            file "/var/lib/bind/{{ tanzu_ingress_domain }}.db";
+            file "/var/lib/bind/database.db";
     };
 
   database.db: |
