@@ -14,15 +14,22 @@
     kind:    "{{ item.kind }}"
     name:    "{{ item.name }}"
   with_items:
-    - name: "spring-cloud-gateway-role-for-scg-reconciler"
-      kind: "RoleBinding"
-    - name: "spring-cloud-gateway-cluster-role-for-scg-reconciler"
+    - name: "scg-operator-resources-role-binding"
       kind: "ClusterRoleBinding"
-    - name: "spring-cloud-gateway-role"
-      kind: "Role"
-    - name: "spring-cloud-gateway-cluster-role"
+    - name: "scg-operator-resources-role"
       kind: "ClusterRole"
-    - name: "{{ tanzu_spring_cloud_gateway.security.policy.role_bind }}"
-      kind: "ClusterRoleBinding"
-    - name: "{{ tanzu_spring_cloud_gateway.security.policy.role }}"
-      kind: "ClusterRole"
+
+- name: "ensure all spring cloud gateway custom resource definitions have been removed"
+  k8s:
+    state:   "absent"
+    kind:    "CustomResourceDefinition"
+    name:    "{{ item }}"
+    context: "{{ tanzu_kubectl_context }}"
+  register: _resource_status
+  until:    not _resource_status.failed
+  retries:  30
+  delay:    1
+  with_items:
+    - "springcloudgateways.tanzu.vmware.com"
+    - "springcloudgatewaymappings.tanzu.vmware.com"
+    - "springcloudgatewayrouteconfigs.tanzu.vmware.com"
