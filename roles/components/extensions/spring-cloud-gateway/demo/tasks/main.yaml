@@ -1,6 +1,12 @@
 # Copyright 2006-2021 VMware, Inc.
 # SPDX-License-Identifier: MIT
 ---
+- name: "ensure manifest staging directory exists"
+  import_role:
+    name: "common/staging-directory"
+  vars:
+    staging_dir: "{{ tanzu_spring_cloud_gateway.staging_dir }}"
+
 - name: "deploy test gateway"
   import_role:
     name: "common/manifest-file-with-wait"
@@ -10,9 +16,18 @@
     manifest_file:        "test-gateway.yaml"
     manifest_staging_dir: "{{ tanzu_spring_cloud_gateway.staging_dir }}"
 
+- name: "get the ingress ip"
+  import_role:
+    name: "common/ingress-ip"
+
 - name: "ensure dns resolvability spring cloud gateway demo"
   import_role:
     name: "common/etc-hosts"
   vars:
     ip:   "{{ ingress_ip }}"
     fqdn: "{{ tanzu_spring_cloud_gateway.demo.dns }}"
+
+- name: "print the spring cloud gateway demo information"
+  debug:
+    msg: "You can access the Tanzu Spring Cloud Gateway demo instance at URL http://{{ tanzu_spring_cloud_gateway.demo.dns }}/test. It will redirect github.com through the demo gateway"
+    verbosity: 0

@@ -6,21 +6,41 @@ kind: SpringCloudGateway
 metadata:
   name: test-gateway
   namespace: {{ tanzu_spring_cloud_gateway.namespace }}
+
+---
+apiVersion: "tanzu.vmware.com/v1"
+kind: SpringCloudGatewayRouteConfig
+metadata:
+  name: test-gateway-routes
+  namespace: {{ tanzu_spring_cloud_gateway.namespace }}
 spec:
   routes:
-    - id: test-route
-      uri: https://github.com
-      predicates:
-        - Path=/test/**
-      filters:
-        - StripPrefix=1
-  count: 1
+  - uri: https://github.com
+    predicates:
+      - Path=/test/**
+    filters:
+      - StripPrefix=1
+
+---
+apiVersion: "tanzu.vmware.com/v1"
+kind: SpringCloudGatewayMapping
+metadata:
+  name: test-gateway-mapping
+  namespace: {{ tanzu_spring_cloud_gateway.namespace }}
+spec:
+  gatewayRef:
+    name: test-gateway
+  routeConfigRef:
+    name: test-gateway-routes
+
 ---
 apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
   name: test-gateway
   namespace: {{ tanzu_spring_cloud_gateway.namespace }}
+  annotations:
+    external-dns.alpha.kubernetes.io/target: "ingress.azure.tanzucloud.com"
 spec:
   rules:
     - host: {{ tanzu_spring_cloud_gateway.demo.dns }}
