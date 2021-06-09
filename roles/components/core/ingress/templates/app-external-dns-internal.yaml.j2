@@ -12,17 +12,17 @@ spec:
   replicas: {{ tanzu_ingress.external_dns.replicas }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ tanzu_ingress.external_dns.resource_name }}
+      app.kubernetes.io/name: "{{ tanzu_ingress.external_dns.resource_name }}"
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: {{ tanzu_ingress.external_dns.resource_name }}
+        app.kubernetes.io/name: "{{ tanzu_ingress.external_dns.resource_name }}"
     spec:
       securityContext:
         fsGroup: 106
-      serviceAccountName: {{ tanzu_ingress.external_dns.resource_name }}
+      serviceAccountName: "{{ tanzu_ingress.external_dns.resource_name }}"
       initContainers:
         - name: "{{ tanzu_ingress.bind.resource_name }}-init"
           image: "{{ tanzu_ingress.bind_init.image }}:{{ tanzu_ingress.bind_init.image_tag }}"
@@ -38,7 +38,7 @@ spec:
             - "-c"
             - "cp -f /tmp/database.db /var/lib/bind/database.db && chmod 664 /var/lib/bind/database.db"
       containers:
-        - name: {{ tanzu_ingress.bind.resource_name }}
+        - name: "{{ tanzu_ingress.bind.resource_name }}"
           image: "{{ tanzu_ingress.bind.image }}:{{ tanzu_ingress.bind.image_tag }}"
           ports:
             - containerPort: 53
@@ -61,7 +61,7 @@ spec:
               mountPath: /etc/bind/named.conf.options
               subPath: named.conf.options
           resources: {{ tanzu_ingress.bind.resources | default(tanzu_ingress.default_resources) }}
-        - name: {{ tanzu_ingress.external_dns.resource_name }}
+        - name: "{{ tanzu_ingress.external_dns.resource_name }}"
           image: "{{ tanzu_ingress.external_dns.image }}:{{ tanzu_ingress.external_dns.image_tag }}"
           args:
             - --source=service
@@ -91,9 +91,9 @@ apiVersion: v1
 kind: Service
 metadata:
   name: bind-udp
-  namespace: {{ tanzu_ingress.namespace }}
+  namespace: "{{ tanzu_ingress.namespace }}"
   labels:
-    app.kubernetes.io/name: {{ tanzu_ingress.external_dns.resource_name }}
+    app.kubernetes.io/name: "{{ tanzu_ingress.external_dns.resource_name }}"
   annotations:
     # NOTE: this only works on 1.19.1+vmware.1+, but not prior
     #       this annotation will be ignored on other cloud providers
@@ -103,7 +103,7 @@ metadata:
     metallb.universe.tf/address-pool: default
 spec:
   selector:
-    app.kubernetes.io/name: {{ tanzu_ingress.external_dns.resource_name }}
+    app.kubernetes.io/name: "{{ tanzu_ingress.external_dns.resource_name }}"
   type: LoadBalancer
   ports:
     - name: dns-udp

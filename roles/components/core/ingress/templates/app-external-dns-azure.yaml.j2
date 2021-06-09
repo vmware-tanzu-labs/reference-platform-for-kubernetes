@@ -7,7 +7,7 @@ metadata:
   name: "{{ tanzu_ingress.external_dns.resource_name }}"
   namespace: "{{ tanzu_ingress.namespace }}"
   labels:
-    app.kubernetes.io/name: {{ tanzu_ingress.external_dns.resource_name }}
+    app.kubernetes.io/name: "{{ tanzu_ingress.external_dns.resource_name }}"
 type: Opaque
 data:
   azure.json: {{ tanzu_ingress.azure_secret | to_json | b64encode }}
@@ -15,20 +15,20 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ tanzu_ingress.external_dns.resource_name }}
-  namespace: {{ tanzu_ingress.namespace }}
+  name: "{{ tanzu_ingress.external_dns.resource_name }}"
+  namespace: "{{ tanzu_ingress.namespace }}"
   labels:
-    app.kubernetes.io/name: {{ tanzu_ingress.external_dns.resource_name }}
+    app.kubernetes.io/name: "{{ tanzu_ingress.external_dns.resource_name }}"
 spec:
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ tanzu_ingress.external_dns.resource_name }}
+      app.kubernetes.io/name: "{{ tanzu_ingress.external_dns.resource_name }}"
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: {{ tanzu_ingress.external_dns.resource_name }}
+        app.kubernetes.io/name: "{{ tanzu_ingress.external_dns.resource_name }}"
     spec:
       securityContext:
         allowPrivilegeEscalation: false
@@ -38,9 +38,9 @@ spec:
         fsGroup: 1001
         runAsUser: 1001
         runAsNonRoot: true
-      serviceAccountName: {{ tanzu_ingress.external_dns.resource_name }}
+      serviceAccountName: "{{ tanzu_ingress.external_dns.resource_name }}"
       containers:
-      - name: {{ tanzu_ingress.external_dns.resource_name }}
+      - name: "{{ tanzu_ingress.external_dns.resource_name }}"
         image: "{{ tanzu_ingress.external_dns.image }}:{{ tanzu_ingress.external_dns.image_tag }}"
         args:
           - --source=service
@@ -60,4 +60,4 @@ spec:
       volumes:
       - name: azure-config-file
         secret:
-          secretName: {{ tanzu_ingress.external_dns.resource_name }}
+          secretName: "{{ tanzu_ingress.external_dns.resource_name }}"
