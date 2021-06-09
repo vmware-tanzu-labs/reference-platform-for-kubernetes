@@ -10,16 +10,10 @@ tanzu_spring_cloud_gateway:
   demo:
     dns: spring-cloud-gateway-demo.{{ tanzu_ingress_domain }}
 
-  security:
-    policy:
-      role: "rpk-tanzu-spring-cloud-gateway-cluster-role"
-      role_bind: "rpk-tanzu-spring-cloud-gateway-cluster-role-binding"
-      name: "rpk-tanzu-spring-cloud-gateway-psp"
-
   pivnet:
-    version: "1.0.0-beta.3"
-    download_url: https://network.pivotal.io/api/v2/products/spring-cloud-gateway-for-kubernetes/releases/771839/product_files/821598/download
-    download_sha: "cfa166713d5e8db6d9c3d352b8d56d674be28d064258797172d425fdba8bd761"
+    version: "1.0.0"
+    download_url: https://network.pivotal.io/api/v2/products/spring-cloud-gateway-for-kubernetes/releases/835308/product_files/891162/download
+    download_sha: "2420f5d32d3ee545cf4eaee10fe6730ed28130e03e5b04c19e5d25d50b0ff2ee"
 
   registry:
     project:
@@ -29,10 +23,10 @@ tanzu_spring_cloud_gateway:
         public:      "false"
     destination_tag: "rpk-1.0"
     images:
-      - name: "scg-reconciler"
-        tag:  "v1.0.0-beta.3"
+      - name: "scg-operator"
+        tag:  "1.0.0"
       - name: "gateway"
-        tag:  "v1.0.0-beta.3"
+        tag:  "1.0.0"
 
   # use namespace operator or not
   workload_tenancy:
