@@ -5,9 +5,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app.kubernetes.io/name: {{ tanzu_ingress.external_dns.resource_name }}
-  name: {{ tanzu_ingress.external_dns.resource_name }}
-  namespace: {{ tanzu_ingress.namespace }}
+    app.kubernetes.io/name: "{{ tanzu_ingress.external_dns.resource_name }}"
+  name: "{{ tanzu_ingress.external_dns.resource_name }}"
+  namespace: "{{ tanzu_ingress.namespace }}"
 spec:
   replicas: {{ tanzu_ingress.external_dns.replicas }}
   selector:

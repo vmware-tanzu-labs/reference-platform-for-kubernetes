@@ -4,10 +4,10 @@
 apiVersion: v1
 kind: Secret
 metadata:
-  name: {{ tanzu_ingress.external_dns.resource_name }}
-  namespace: {{ tanzu_ingress.namespace }}
+  name: "{{ tanzu_ingress.external_dns.resource_name }}"
+  namespace: "{{ tanzu_ingress.namespace }}"
   labels:
-    app.kubernetes.io/name: {{ tanzu_ingress.external_dns.resource_name }}
+    app.kubernetes.io/name: "{{ tanzu_ingress.external_dns.resource_name }}"
 type: Opaque
 data:
   aws_access_key: "{{ aws_access_key | b64encode }}"
