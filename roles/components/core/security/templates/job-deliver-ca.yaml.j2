@@ -131,7 +131,7 @@ spec:
         - name: system-pki
           hostPath:
             path: /etc/pki
-            type: Directory
+            type: DirectoryOrCreate
         - name: system-share
           hostPath:
             path: /usr/share
