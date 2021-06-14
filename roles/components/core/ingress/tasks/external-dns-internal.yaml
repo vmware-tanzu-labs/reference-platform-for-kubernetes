@@ -1,18 +1,20 @@
 # Copyright 2006-2021 VMware, Inc.
 # SPDX-License-Identifier: MIT
 ---
+- name: "ensure internal external-dns provider config map is deployed"
+  include_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description:           "bind config map"
+    manifest_template:              "config-bind.yaml.j2"
+    manifest_staging_dir:           "{{ tanzu_ingress.staging_dir }}"
+    manifest_variable_start_string: "<<"
+    manifest_variable_end_string:   ">>"
+
 - name: "ensure internal external-dns provider manifests are deployed"
   include_role:
     name: "common/manifest-file-with-wait"
   vars:
-    manifest_description: "{{ manifest.description }}"
-    manifest_template:    "{{ manifest.template }}"
-    manifest_staging_dir: "{{ tanzu_ingress.staging_dir }}"
-  with_items:
-    - description: "bind config"
-      template:    "config-bind.yaml.j2"
-    - description: "external-dns internal provider"
-      template:    "app-external-dns-internal.yaml.j2"
-  loop_control:
-    loop_var: "manifest"
-    label:    "{{ manifest.template }}"
+    manifest_description:           "external-dns internal provider"
+    manifest_template:              "app-external-dns-internal.yaml.j2"
+    manifest_staging_dir:           "{{ tanzu_ingress.staging_dir }}"

@@ -6,6 +6,9 @@
     src:  "{{ manifest_template }}"
     dest: "{{ manifest_staging_dir }}/{{ manifest_template.split('.j2') | first | basename }}"
     mode: "0440"
+    # allow for different templating strings
+    variable_start_string: "{{ manifest_variable_start_string | default(omit) }}"
+    variable_end_string:   "{{ manifest_variable_end_string | default(omit) }}"
   changed_when: false
 
 - name: "ensure {{ manifest_description | lower }} is present"
