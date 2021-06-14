@@ -25,7 +25,7 @@ spec:
         - name: harborsecrets
       containers:
         - name: scg-reconciler
-          image: {{ tanzu_container_registry.core.dns +'/'+ tanzu_spring_cloud_gateway.registry.project.project_name + '/scg-reconciler:' + tanzu_spring_cloud_gateway.registry.destination_tag }} ##dev.registry.pivotal.io/spring-cloud-gateway/scg-reconciler
+          image: "{{ tanzu_container_registry.core.dns +'/'+ tanzu_spring_cloud_gateway.registry.project.project_name + '/scg-reconciler:' + tanzu_spring_cloud_gateway.registry.destination_tag }} ##dev.registry.pivotal.io/spring-cloud-gateway/scg-reconciler"
           env:
             - name: gateway.image.name
               value: {{ tanzu_container_registry.core.dns +'/'+ tanzu_spring_cloud_gateway.registry.project.project_name + '/gateway:' + tanzu_spring_cloud_gateway.registry.destination_tag }} ##dev.registry.pivotal.io/spring-cloud-gateway/gateway

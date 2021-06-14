@@ -228,7 +228,7 @@ spec:
         - name: SPRING_CLOUD_KUBERNETES_SECRETS_PATHS
           value: /workspace/runtime/secrets
         # image: registry.pivotal.io/p-scdf-for-kubernetes/spring-cloud-dataflow-pro-server@sha256:fba425ef984e600dd4278e2013fae8a51cf0be4089c405cc6c06245871305089
-        image: {{ tanzu_container_registry.core.dns +'/'+ tanzu_spring_cloud_data_flow.registry.project.project_name + '/spring-cloud-dataflow-pro-server:' + tanzu_spring_cloud_data_flow.registry.destination_tag }}
+        image: "{{ tanzu_container_registry.core.dns +'/'+ tanzu_spring_cloud_data_flow.registry.project.project_name + '/spring-cloud-dataflow-pro-server:' + tanzu_spring_cloud_data_flow.registry.destination_tag }}"
         livenessProbe:
           httpGet:
             path: /management/health

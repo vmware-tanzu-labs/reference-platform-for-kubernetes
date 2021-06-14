@@ -215,7 +215,7 @@ spec:
     spec:
       containers:
       - name: fluent-bit
-        image: {{ tanzu_logging.fluent.image }}:{{ tanzu_logging.fluent.image_version }}
+        image: "{{ tanzu_logging.fluent.image }}:{{ tanzu_logging.fluent.image_version }}"
         imagePullPolicy: IfNotPresent
         resources: {{ tanzu_logging.fluent.resources }}
         ports:

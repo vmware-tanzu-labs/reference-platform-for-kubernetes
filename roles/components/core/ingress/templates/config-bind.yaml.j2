@@ -5,9 +5,9 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: bind-configs
-  namespace: {{ tanzu_ingress.namespace }}
+  namespace: "<< tanzu_ingress.namespace >>"
   labels:
-    app.kubernetes.io/name: {{ tanzu_ingress.external_dns.resource_name }}
+    app.kubernetes.io/name: "<< tanzu_ingress.external_dns.resource_name >>"
 data:
   named.conf.options: |
     options {
@@ -30,19 +30,19 @@ data:
     };
 
   named.conf.local: |
-    zone "{{ tanzu_ingress_domain }}." {
+    zone "<< tanzu_ingress_domain >>." {
             type primary;
-            file "/var/lib/bind/{{ tanzu_ingress_domain }}.db";
+            file "/var/lib/bind/database.db";
     };
 
-  {{ tanzu_ingress_domain }}.db: |
+  database.db: |
     $TTL 60 ; 1 minute
-    @                   IN SOA  {{ tanzu_ingress_domain }}. root.{{ tanzu_ingress_domain }}. (
+    @                   IN SOA  << tanzu_ingress_domain >>. root.<< tanzu_ingress_domain >>. (
                                 16         ; serial
                                 60         ; refresh (1 minute)
                                 60         ; retry (1 minute)
                                 60         ; expire (1 minute)
                                 60         ; minimum (1 minute)
                                 )
-                        NS      ns.{{ tanzu_ingress_domain }}.
-    ns.{{ tanzu_ingress_domain }}.     A       127.0.0.1
+                        NS      ns.<< tanzu_ingress_domain >>.
+    ns.<< tanzu_ingress_domain >>.     A       127.0.0.1

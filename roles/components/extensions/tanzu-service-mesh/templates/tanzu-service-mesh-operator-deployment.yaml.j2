@@ -239,7 +239,7 @@ spec:
           containers:
           - name: operator-ecr-read-only--renew-token
             # Image in public repo. See ticket AS-1019
-            image: {{ tanzu_service_mesh.images.operator_ecr.image }}:{{ tanzu_service_mesh.images.operator_ecr.image_tag }}
+            image: "{{ tanzu_service_mesh.images.operator_ecr.image }}:{{ tanzu_service_mesh.images.operator_ecr.image_tag }}"
             # imagePullPolicy: Always
             imagePullPolicy: IfNotPresent
             env:
@@ -295,7 +295,7 @@ spec:
       serviceAccountName: operator-ecr-read-only--service-account
       containers:
       - name: operator-ecr-read-only--renew-token
-        image: {{ tanzu_service_mesh.images.operator_ecr.image }}:{{ tanzu_service_mesh.images.operator_ecr.image_tag }}
+        image: "{{ tanzu_service_mesh.images.operator_ecr.image }}:{{ tanzu_service_mesh.images.operator_ecr.image_tag }}"
         # imagePullPolicy: Always
         imagePullPolicy: IfNotPresent
         env:

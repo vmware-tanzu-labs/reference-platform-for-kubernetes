@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: sac
-          image: {{ tanzu_admission_control.mutator.image }}:{{ tanzu_admission_control.mutator.image_tag }}
+          image: "{{ tanzu_admission_control.mutator.image }}:{{ tanzu_admission_control.mutator.image_tag }}"
           resources: {{ tanzu_admission_control.mutator.resources | default(tanzu_admission_control.default_resources) }}
           securityContext:
             runAsUser: 65532

@@ -1,0 +1,11 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: extra-root-ca-certs
+  namespace: "{{ tanzu_security.namespace }}"
+data:
+  wildcard-ca.crt: "{{ tanzu_security.wildcard.tls_root_ca_cert | default('') }}"
+  le-stage-ca.crt: "{{ tanzu_security.letsencrypt_stage.tls_root_ca_cert | default('') }}"

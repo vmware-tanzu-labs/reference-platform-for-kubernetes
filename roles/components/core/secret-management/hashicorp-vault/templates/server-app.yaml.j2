@@ -59,7 +59,7 @@ spec:
             defaultMode: 0750
       containers:
         - name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
-          image: {{ tanzu_secrets.hashicorp_vault.image }}:{{ tanzu_secrets.hashicorp_vault.image_tag }}
+          image: "{{ tanzu_secrets.hashicorp_vault.image }}:{{ tanzu_secrets.hashicorp_vault.image_tag }}"
           imagePullPolicy: IfNotPresent
           command:
             - "/bin/sh"

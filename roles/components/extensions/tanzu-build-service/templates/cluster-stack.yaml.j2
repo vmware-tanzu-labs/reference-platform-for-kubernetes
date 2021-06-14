@@ -8,6 +8,6 @@ metadata:
 spec:
   id: "io.buildpacks.stacks.bionic"
   buildImage:
-    image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/build-full:' + tanzu_build_service.registry.destination_tag }}
+    image: "{{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/build-full:' + tanzu_build_service.registry.destination_tag }}"
   runImage:
-    image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/run-full:' + tanzu_build_service.registry.destination_tag }}
+    image: "{{ tanzu_container_registry.core.dns + '/'+ tanzu_build_service.registry.project.project_name + '/run-full:' + tanzu_build_service.registry.destination_tag }}"

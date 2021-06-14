@@ -23,7 +23,7 @@ spec:
         runAsUser: 1001
       containers:
       - name: gateway
-        image: {{ tanzu_app_stack.gateway.remote_image }}:{{ tanzu_app_stack.gateway.remote_image_tag }}
+        image: "{{ tanzu_app_stack.gateway.remote_image }}:{{ tanzu_app_stack.gateway.remote_image_tag }}"
         imagePullPolicy: Always
         ports:
           - containerPort: 8080

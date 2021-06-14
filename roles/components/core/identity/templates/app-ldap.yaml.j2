@@ -50,7 +50,7 @@ spec:
       serviceAccountName: ldap
       containers:
         - name: ldap
-          image: {{ tanzu_identity.ldap.image }}:{{ tanzu_identity.ldap.image_tag }}
+          image: "{{ tanzu_identity.ldap.image }}:{{ tanzu_identity.ldap.image_tag }}"
           imagePullPolicy: IfNotPresent
           args: ["--copy-service"]
           env:

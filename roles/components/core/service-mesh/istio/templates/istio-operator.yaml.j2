@@ -165,7 +165,7 @@ spec:
       serviceAccountName: {{ tanzu_mesh.operator.service_account }}
       containers:
         - name: istio-operator
-          image: {{ tanzu_mesh.image_repo }}/{{ tanzu_mesh.operator.image }}:{{ tanzu_mesh.image_tag }}
+          image: "{{ tanzu_mesh.image_repo }}/{{ tanzu_mesh.operator.image }}:{{ tanzu_mesh.image_tag }}"
           command:
             - operator
             - server

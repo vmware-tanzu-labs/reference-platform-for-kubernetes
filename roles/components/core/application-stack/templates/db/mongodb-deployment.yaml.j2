@@ -23,7 +23,7 @@ spec:
         runAsUser: 999
       containers:
       - name: mongodb
-        image: {{ tanzu_app_stack.mongodb.image }}:{{ tanzu_app_stack.mongodb.image_tag }}
+        image: "{{ tanzu_app_stack.mongodb.image }}:{{ tanzu_app_stack.mongodb.image_tag }}"
         ports:
         - containerPort: 27017
         env:

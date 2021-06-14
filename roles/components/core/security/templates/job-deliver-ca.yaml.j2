@@ -12,7 +12,7 @@ data:
     set -eux
 
     # first ensure the ca certificate exists in the kubernetes pki directory
-    if [[ `cat /tmp/tanzu-ca/ca.crt` == "" ]]; then
+    if [[ $(cat /tmp/tanzu-ca/ca.crt) == "" ]]; then
       echo "tanzu ca cert is empty"
       exit 1
     fi
@@ -58,7 +58,7 @@ data:
     fi
 
     # restart containerd
-    CONTAINERD_PID=`pgrep -x containerd`
+    CONTAINERD_PID=$(pgrep -x containerd)
     if [[ "${CONTAINERD_PID}" != '' ]]; then
       kill -1 ${CONTAINERD_PID}
     else
@@ -92,7 +92,7 @@ spec:
       imagePullPolicy: IfNotPresent
       resources: {{ tanzu_security.default_resources }}
       containers:
-        - image: {{ tanzu_security.cert_delivery_job.default.image }}:{{ tanzu_security.cert_delivery_job.default.image_tag }}
+        - image: "{{ tanzu_security.cert_delivery_job.default.image }}:{{ tanzu_security.cert_delivery_job.default.image_tag }}"
           name: {{ tanzu_security.cert_delivery_job.resource_name }}
           command:
             - "/bin/bash"
@@ -131,7 +131,7 @@ spec:
         - name: system-pki
           hostPath:
             path: /etc/pki
-            type: Directory
+            type: DirectoryOrCreate
         - name: system-share
           hostPath:
             path: /usr/share
@@ -144,4 +144,4 @@ spec:
             secretName: ca-keypair
         - name: extra-ca
           secret:
-            secretName: root-ca-certs
+            secretName: extra-root-ca-certs
