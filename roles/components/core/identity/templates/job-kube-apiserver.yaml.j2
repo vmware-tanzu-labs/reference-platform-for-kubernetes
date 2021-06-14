@@ -7,21 +7,11 @@ metadata:
   name: kube-apiserver-config
   namespace: "{{ tanzu_identity.namespace }}"
 data:
-  kube-apiserver-config-overlay.yaml: |
+  UPDATE_K8S_CA: "{{ ((tanzu_security.actions.update_k8s_ca | bool) and (('letsencrypt-stage' in tanzu_security.tls_providers) or ('ca' in tanzu_security.tls_providers) or ('wildcard' in tanzu_security.tls_providers))) | string | lower }}"
+  kube-apiserver-config-values.yaml: |
+    #@data/values
     ---
-    commonOverlays:
-      - name: "inject oidc settings to api server"
-        query: spec.containers[0][?(@.name == 'kube-apiserver')].command
-        action: merge
-        value:
-          - --oidc-client-id=tanzu
-          - --oidc-issuer-url=https://{{ tanzu_identity.dex.dns }}
-          - --oidc-username-claim=email
-          - --oidc-groups-claim=group
-        #@ if data.values.UPDATE_K8S_CA == "true":
-        #@overlay/match by=startswith, missing_ok=True
-        - --oidc-ca-file=/etc/kubernetes/pki/tanzu-ca.crt
-        #@ end
+    UPDATE_K8S_CA: ""
   kube-apiserver-config-overlay.yaml: |
     #@ load("@ytt:overlay", "overlay")
     #@ load("@ytt:data", "data")
@@ -79,7 +69,10 @@ spec:
         name: kube-apiserver-config
         env:
         - name: UPDATE_K8S_CA
-          value: "{{ ((tanzu_security.actions.update_k8s_ca | bool) and (('letsencrypt-stage' in tanzu_security.tls_providers) or ('ca' in tanzu_security.tls_providers) or ('wildcard' in tanzu_security.tls_providers))) | string | lower }}"
+          valueFrom:
+            configMapKeyRef:
+              name: kube-apiserver-config
+              key: UPDATE_K8S_CA
         command:
           - "/bin/sh"
         args:
