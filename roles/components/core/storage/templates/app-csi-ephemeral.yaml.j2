@@ -44,7 +44,7 @@ spec:
       serviceAccountName: {{ tanzu_storage.ephemeral.csi_attacher.resource_name }}
       containers:
         - name: csi-attacher
-          image: {{ tanzu_storage.ephemeral.csi_attacher.image }}:{{ tanzu_storage.ephemeral.csi_attacher.image_tag }}
+          image: "{{ tanzu_storage.ephemeral.csi_attacher.image }}:{{ tanzu_storage.ephemeral.csi_attacher.image_tag }}"
           args:
             - --v=5
             - --csi-address=/csi/csi.sock
@@ -124,7 +124,7 @@ spec:
             - mountPath: /csi-data-dir
               name: csi-data-dir
         - name: hostpath
-          image: {{ tanzu_storage.ephemeral.csi_plugin.image }}:{{ tanzu_storage.ephemeral.csi_plugin.image_tag }}
+          image: "{{ tanzu_storage.ephemeral.csi_plugin.image }}:{{ tanzu_storage.ephemeral.csi_plugin.image_tag }}"
           args:
             - "--drivername=hostpath.csi.k8s.io"
             - "--v=5"
@@ -246,7 +246,7 @@ spec:
       serviceAccountName: {{ tanzu_storage.ephemeral.csi_provisioner.resource_name }}
       containers:
         - name: csi-provisioner
-          image: {{ tanzu_storage.ephemeral.csi_provisioner.image }}:{{ tanzu_storage.ephemeral.csi_provisioner.image_tag }}
+          image: "{{ tanzu_storage.ephemeral.csi_provisioner.image }}:{{ tanzu_storage.ephemeral.csi_provisioner.image_tag }}"
           args:
             - -v=5
             - --csi-address=/csi/csi.sock
@@ -309,7 +309,7 @@ spec:
       serviceAccountName: {{ tanzu_storage.ephemeral.csi_resizer.resource_name }}
       containers:
         - name: csi-resizer
-          image: {{ tanzu_storage.ephemeral.csi_resizer.image }}:{{ tanzu_storage.ephemeral.csi_resizer.image_tag }}
+          image: "{{ tanzu_storage.ephemeral.csi_resizer.image }}:{{ tanzu_storage.ephemeral.csi_resizer.image_tag }}"
           args:
             - -v=5
             - -csi-address=/csi/csi.sock
@@ -371,7 +371,7 @@ spec:
       serviceAccount: {{ tanzu_storage.ephemeral.csi_snapshotter.resource_name }}
       containers:
         - name: csi-snapshotter
-          image: {{ tanzu_storage.ephemeral.csi_snapshotter.image }}:{{ tanzu_storage.ephemeral.csi_snapshotter.image_tag }}
+          image: "{{ tanzu_storage.ephemeral.csi_snapshotter.image }}:{{ tanzu_storage.ephemeral.csi_snapshotter.image_tag }}"
           args:
             - -v=5
             - --csi-address=/csi/csi.sock

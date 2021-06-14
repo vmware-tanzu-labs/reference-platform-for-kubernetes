@@ -141,7 +141,7 @@ spec:
       serviceAccountName: postgres-operator-service-account
       containers:
         - name: postgres-operator
-          image: {{ tanzu_container_registry.core.dns + '/'+ tanzu_sql.registry.project.project_name + '/postgres-operator:' + tanzu_sql.registry.destination_tag }}
+          image: "{{ tanzu_container_registry.core.dns + '/'+ tanzu_sql.registry.project.project_name + '/postgres-operator:' + tanzu_sql.registry.destination_tag }}"
           command: ["./manager", "--webhook-cert-directory", "/tmp/postgres-operator-webhook-server-cert-secret"]
           imagePullPolicy: IfNotPresent
           env:

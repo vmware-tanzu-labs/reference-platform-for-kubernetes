@@ -279,7 +279,7 @@ spec:
       serviceAccountName: wavefront-collector
       containers:
       - name: wavefront-collector
-        image: {{ tanzu_observability.collector.image }}:{{ tanzu_observability.collector.image_tag }}
+        image: "{{ tanzu_observability.collector.image }}:{{ tanzu_observability.collector.image_tag }}"
         imagePullPolicy: IfNotPresent
         command:
         - /wavefront-collector
@@ -350,7 +350,7 @@ spec:
     spec:
       containers:
       - name: wavefront-proxy
-        image: {{ tanzu_observability.proxy.image }}:{{ tanzu_observability.proxy.image_tag }}
+        image: "{{ tanzu_observability.proxy.image }}:{{ tanzu_observability.proxy.image_tag }}"
         imagePullPolicy: IfNotPresent
         env:
         - name: WAVEFRONT_URL

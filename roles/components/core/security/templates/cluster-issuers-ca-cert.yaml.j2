@@ -2,10 +2,14 @@
 # SPDX-License-Identifier: MIT
 ---
 apiVersion: cert-manager.io/v1alpha2
-kind: ClusterIssuer
+kind: Certificate
 metadata:
-  name: ca
+  name: root-ca
   namespace: "{{ tanzu_security.namespace }}"
 spec:
-  ca:
-    secretName: ca-keypair
+  secretName: ca-keypair
+  commonName: ca
+  isCA: true
+  issuerRef:
+    name: self
+    kind: ClusterIssuer

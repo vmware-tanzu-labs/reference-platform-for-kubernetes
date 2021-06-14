@@ -29,7 +29,7 @@ spec:
         fsGroup: 999
       containers:
         - name: redis
-          image: {{ tanzu_container_registry.redis.image }}:{{ tanzu_container_registry.base_image_tag }}
+          image: "{{ tanzu_container_registry.redis.image }}:{{ tanzu_container_registry.base_image_tag }}"
           imagePullPolicy: IfNotPresent
           livenessProbe:
             tcpSocket:
@@ -101,7 +101,7 @@ spec:
         - name: "change-permission-of-directory"
           securityContext:
             runAsUser: 0
-          image: {{ tanzu_container_registry.postgres.image }}:{{ tanzu_container_registry.base_image_tag }}
+          image: "{{ tanzu_container_registry.postgres.image }}:{{ tanzu_container_registry.base_image_tag }}"
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh"]
           args: ["-c", "chown -R postgres:postgres /var/lib/postgresql/data"]
@@ -110,7 +110,7 @@ spec:
               mountPath: /var/lib/postgresql/data
               subPath:
         - name: "remove-lost-found"
-          image: {{ tanzu_container_registry.postgres.image }}:{{ tanzu_container_registry.base_image_tag }}
+          image: "{{ tanzu_container_registry.postgres.image }}:{{ tanzu_container_registry.base_image_tag }}"
           imagePullPolicy: IfNotPresent
           command: ["rm", "-Rf", "/var/lib/postgresql/data/lost+found"]
           volumeMounts:
@@ -119,7 +119,7 @@ spec:
               subPath:
       containers:
         - name: database
-          image: {{ tanzu_container_registry.postgres.image }}:{{ tanzu_container_registry.base_image_tag }}
+          image: "{{ tanzu_container_registry.postgres.image }}:{{ tanzu_container_registry.base_image_tag }}"
           imagePullPolicy: IfNotPresent
           livenessProbe:
             exec:

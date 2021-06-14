@@ -154,7 +154,7 @@ spec:
         - /usr/local/bin/dex
         - serve
         - /etc/dex/cfg/config.yaml
-        image: {{ tanzu_identity.dex.image }}:{{ tanzu_identity.dex.image_tag }}
+        image: "{{ tanzu_identity.dex.image }}:{{ tanzu_identity.dex.image_tag }}"
         imagePullPolicy: IfNotPresent
         name: dex
         ports:
