@@ -21,6 +21,8 @@
     - "apmservers.apm.k8s.elastic.co"
     - "kibanas.kibana.k8s.elastic.co"
     - "elasticsearches.elasticsearch.k8s.elastic.co"
+    - "beats.beat.k8s.elastic.co"
+    - "enterprisesearches.enterprisesearch.k8s.elastic.co"
 
 - name: "ensure the api services are removed"
   k8s:
@@ -45,8 +47,11 @@
     state:       "absent"
     context:     "{{ tanzu_kubectl_context }}"
     kind:        "PodSecurityPolicy"
-    name:        "elasticsearch-psp"
+    name:        "{{ item }}"
     api_version: "policy/v1beta1"
+  with_items:
+    - "elasticsearch-psp"
+    - "fluent-bit-psp"
 
 - name: "ensure the cluster-wide rbac resources are removed"
   k8s:
@@ -65,6 +70,8 @@
       kind: "ClusterRole"
     - name: "elasticsearch-psp"
       kind: "ClusterRole"
+    - name: "fluent-bit-psp"
+      kind: "ClusterRole"
     - name: "elastic-operator"
       kind: "ClusterRoleBinding"
     - name: "fluent-bit-read"
@@ -74,4 +81,6 @@
     - name: "fluent-bit-read"
       kind: "ClusterRoleBinding"
     - name: "elasticsearch-psp"
+      kind: "ClusterRoleBinding"
+    - name: "fluent-bit-psp"
       kind: "ClusterRoleBinding"
