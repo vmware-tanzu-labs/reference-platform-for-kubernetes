@@ -7,10 +7,7 @@ metadata:
   name: job-registry-auth-config
   namespace: {{ tanzu_spring_cloud_gateway.namespace }}
   labels:
-    "app.kubernetes.io/name": 'tbs-skopeo'
-    rpk.heritage: "true"
-    rpk.module : "{{ tanzu_spring_cloud_gateway.module }}"
-    rpk.resource: "job-registry-auth-config"
+    app.kubernetes.io/name: scg-skopeo
 data:
   registries.conf: |-
     [registries.insecure]
@@ -46,7 +43,7 @@ data:
       ls -alh
       skopeo copy --retry-times 3 --registries-conf=/workspace/mnt/registries.conf \
         --dest-authfile /workspace/mnt/config.json --dest-tls-verify=false \
-        docker-archive:spring-cloud-gateway-k8s-v{{ tanzu_spring_cloud_gateway.pivnet.version }}/images/{{ image.name }}-{{ image.tag }}.tar \
+        docker-archive:spring-cloud-gateway-k8s-{{ tanzu_spring_cloud_gateway.pivnet.version }}/images/{{ image.name }}-{{ image.tag }}.tar \
         docker://{{ tanzu_container_registry.core.dns }}/{{ tanzu_spring_cloud_gateway.registry.project.project_name + '/' +  image.name +':'+  tanzu_spring_cloud_gateway.registry.destination_tag }}
     {% endfor %}
 
@@ -58,9 +55,6 @@ metadata:
   namespace: {{ tanzu_spring_cloud_gateway.namespace }}
   labels:
     app.kubernetes.io/name: tanzu-spring-cloud-gateway-image-migrate-job
-    rpk.heritage: "true"
-    rpk.module : "{{ tanzu_spring_cloud_gateway.module }}"
-    rpk.resource: "job-image-migrate"
 spec:
   backoffLimit: 0
   template:
