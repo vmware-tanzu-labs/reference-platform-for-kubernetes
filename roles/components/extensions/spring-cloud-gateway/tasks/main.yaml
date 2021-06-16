@@ -34,7 +34,16 @@
 - name: "initiate image migration"
   import_tasks: "migrate-image-task.yaml"
 
-- name: "ensure spring-cloud-gateway crd exist"
+- name: "ensure spring-cloud-gateway service account exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "spring-cloud-gateway service account"
+    manifest_template:    "spring-cloud-gateway-sa.yaml.j2"
+    manifest_file:        "spring-cloud-gateway-sa.yaml"
+    manifest_staging_dir: "{{ tanzu_spring_cloud_gateway.staging_dir }}"
+
+- name: "ensure spring-cloud-gateway crd exists"
   import_role:
     name: "common/manifest-file-with-wait"
   vars:
@@ -43,7 +52,7 @@
     manifest_file:        "spring-cloud-gateway-crd.yaml"
     manifest_staging_dir: "{{ tanzu_spring_cloud_gateway.staging_dir }}"
 
-- name: "ensure spring-cloud-gateway rbac exist"
+- name: "ensure spring-cloud-gateway rbac exists"
   import_role:
     name: "common/manifest-file-with-wait"
   vars:
@@ -52,16 +61,7 @@
     manifest_file:        "spring-cloud-gateway-rbac.yaml"
     manifest_staging_dir: "{{ tanzu_spring_cloud_gateway.staging_dir }}"
 
-- name: "ensure spring-cloud-gateway psp exist"
-  import_role:
-    name: "common/manifest-file-with-wait"
-  vars:
-    manifest_description: "spring-cloud-gateway psp"
-    manifest_template:    "spring-cloud-gateway-psp.yaml.j2"
-    manifest_file:        "spring-cloud-gateway-psp.yaml"
-    manifest_staging_dir: "{{ tanzu_spring_cloud_gateway.staging_dir }}"
-
-- name: "ensure spring-cloud-gateway secret exist"
+- name: "ensure spring-cloud-gateway secret exists"
   import_role:
     name: "common/manifest-file-with-wait"
   vars:
@@ -70,11 +70,20 @@
     manifest_file:        "spring-cloud-gateway-secret.yaml"
     manifest_staging_dir: "{{ tanzu_spring_cloud_gateway.staging_dir }}"
 
-- name: "ensure spring-cloud-gateway deployment exist"
+- name: "ensure spring-cloud-gateway deployment exists"
   import_role:
     name: "common/manifest-file-with-wait"
   vars:
     manifest_description: "spring-cloud-gateway deployment"
     manifest_template:    "spring-cloud-gateway-deployment.yaml.j2"
     manifest_file:        "spring-cloud-gateway-deployment.yaml"
+    manifest_staging_dir: "{{ tanzu_spring_cloud_gateway.staging_dir }}"
+
+- name: "ensure spring-cloud-gateway service exists"
+  import_role:
+    name: "common/manifest-file-with-wait"
+  vars:
+    manifest_description: "spring-cloud-gateway service"
+    manifest_template:    "spring-cloud-gateway-service.yaml.j2"
+    manifest_file:        "spring-cloud-gateway-service.yaml"
     manifest_staging_dir: "{{ tanzu_spring_cloud_gateway.staging_dir }}"
