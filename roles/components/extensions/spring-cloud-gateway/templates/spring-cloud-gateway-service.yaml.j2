@@ -1,0 +1,21 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scg-operator
+  namespace: {{ tanzu_spring_cloud_gateway.namespace }}
+  labels:
+    app.kubernetes.io/name: spring-cloud-gateway
+    app.kubernetes.io/instance: spring-cloud-gateway
+    app.kubernetes.io/version: "v1.0.0"
+    app.kubernetes.io/part-of: spring-cloud-gateway
+spec:
+  type: ClusterIP
+  selector:
+    app: scg-operator
+  ports:
+    - port: 80
+      targetPort: 8080
+      name: http
