@@ -4,76 +4,27 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: springcloudgatewaybindings.tanzu.vmware.com
-  labels:
-    rpk.heritage: "true"
-    rpk.module : "{{ tanzu_spring_cloud_gateway.module }}"
-    rpk.resource: "spring-cloud-gateway-crd"
-spec:
-  group: tanzu.vmware.com
-  versions:
-    - name: v1
-      served: true
-      storage: true
-      schema:
-        openAPIV3Schema:
-          type: object
-          properties:
-            spec:
-              type: object
-              required: ["gateway", "service"]
-              properties:
-                routes:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      uri:
-                        type: string
-                      predicates:
-                        type: array
-                        items:
-                          type: string
-                      filters:
-                        type: array
-                        items:
-                          type: string
-                      order:
-                        type: integer
-                      ssoEnabled:
-                        type: boolean
-                        default: false
-                      tokenRelay:
-                        type: boolean
-                        default: false
-                gateway:
-                  type: string
-                service:
-                  type: string
-  scope: Namespaced
-  names:
-    plural: springcloudgatewaybindings
-    singular: springcloudgatewaybinding
-    kind: SpringCloudGatewayBinding
-    shortNames:
-      - scgb
-      - scgbs
-
----
-apiVersion: apiextensions.k8s.io/v1
-kind: CustomResourceDefinition
-metadata:
   name: springcloudgateways.tanzu.vmware.com
-  labels:
-    rpk.heritage: "true"
-    rpk.module : "{{ tanzu_spring_cloud_gateway.module }}"
-    rpk.resource: "spring-cloud-gateway-crd"
 spec:
   group: tanzu.vmware.com
+  scope: Namespaced
+  preserveUnknownFields: false
   versions:
     - name: v1
       served: true
       storage: true
+      subresources:
+        status: { }
+        scale:
+          specReplicasPath: .spec.count
+          statusReplicasPath: .status.replicas
+      additionalPrinterColumns:
+        - jsonPath: .status.conditions[?(@.type=="Ready")].status
+          name: Ready
+          type: string
+        - jsonPath: .status.conditions[?(@.type=="Ready")].reason
+          name: Reason
+          type: string
       schema:
         openAPIV3Schema:
           type: object
@@ -81,31 +32,6 @@ spec:
             spec:
               type: object
               properties:
-                routes:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      id:
-                        type: string
-                      uri:
-                        type: string
-                      predicates:
-                        type: array
-                        items:
-                          type: string
-                      filters:
-                        type: array
-                        items:
-                          type: string
-                      order:
-                        type: integer
-                      ssoEnabled:
-                        type: boolean
-                        default: false
-                      tokenRelay:
-                        type: boolean
-                        default: false
                 resources:
                   type: object
                   properties:
@@ -127,16 +53,96 @@ spec:
                   type: integer
                   minimum: 0
                   exclusiveMinimum: false
-                  default: 1
-                revisionHistoryLimit:
-                  type: integer
-                  minimum: 0
-                  exclusiveMinimum: false
-                  default: 10
-                ssoEnabled:
-                  type: boolean
-                  default: false
-  scope: Namespaced
+                java-opts:
+                  type: string
+                sso:
+                  type: object
+                  properties:
+                    secret:
+                      type: string
+                    roles-attribute-name:
+                      type: string
+                    inactive-session-expiration-in-minutes:
+                      type: integer
+                      minimum: 0
+                      description: Time to life of inactive sessions, 0 means infinite (in minutes).
+                api:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                    description:
+                      type: string
+                    documentation:
+                      type: string
+                      description: The URL of an external resource for extended documentation. Value MUST be in the format of a URL.
+                    version:
+                      type: string
+                      default: unspecified
+                    serverUrl:
+                      type: string
+                      description: Publicly accessible user-facing URL of this Gateway instance.
+                    cors:
+                      type: object
+                      properties:
+                        maxAge:
+                          type: integer
+                          minimum: -1
+                          description: Configure how long, in seconds, the response from a pre-flight request can be cached by clients.
+                        allowCredentials:
+                          type: boolean
+                          description: Whether user credentials are supported.
+                        allowedOrigins:
+                          type: array
+                          items:
+                            type: string
+                          description: >
+                            Set the origins to allow, e.g. "https://domain1.com".
+                            The special value "*" allows all domains.
+                        allowedMethods:
+                          type: array
+                          items:
+                            type: string
+                          description: >
+                            Set the HTTP methods to allow, e.g. "GET", "POST", "PUT", etc.
+                            The special value "*" allows all methods.
+                            If not set, only "GET" and "HEAD" are allowed.
+                        allowedHeaders:
+                          type: array
+                          items:
+                            type: string
+                          description: >
+                            Set the list of headers that a pre-flight request can list as allowed for use during an actual request.
+                            The special value "*" allows actual requests to send any header.
+                            A header name is not required to be listed if it is one of: Cache-Control, Content-Language, Expires, Last-Modified, or Pragma.
+                        exposedHeaders:
+                          type: array
+                          items:
+                            type: string
+                          description: >
+                            Set the list of response headers other than simple headers (i.e. Cache-Control, Content-Language, Content-Type, Expires, Last-Modified, or Pragma) that an actual response might have and can be exposed.
+                            Note that "*" is not a valid exposed header value
+            status:
+              type: object
+              properties:
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        description: The unique identifier of a condition, used to distinguish between other conditions in the resource.
+                      status:
+                        type: string
+                        description: The status of the condition, either True, False or Unknown.
+                      lastTransitionTime:
+                        type: string
+                        description: Last time the condition of a type changed from one status to another. The required format is 'yyyy-MM-ddTHH:mm:ssZ', in the UTC time zone.
+                      reason:
+                        type: string
+                        description: The reason for the condition's last transition (a single word in CamelCase).
+                  description: List of status conditions.
   names:
     plural: springcloudgateways
     singular: springcloudgateway
@@ -144,3 +150,122 @@ spec:
     shortNames:
       - scg
       - scgs
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: springcloudgatewaymappings.tanzu.vmware.com
+spec:
+  group: tanzu.vmware.com
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                gatewayRef:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                routeConfigRef:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+
+  scope: Namespaced
+  names:
+    plural: springcloudgatewaymappings
+    singular: springcloudgatewaymapping
+    kind: SpringCloudGatewayMapping
+    shortNames:
+      - scgm
+      - scgms
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: springcloudgatewayrouteconfigs.tanzu.vmware.com
+spec:
+  group: tanzu.vmware.com
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                service:
+                  type: object
+                  properties:
+                    namespace:
+                      type: string
+                    name:
+                      type: string
+                    port:
+                      type: integer
+                routes:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      uri:
+                        type: string
+                      predicates:
+                        type: array
+                        items:
+                          type: string
+                      filters:
+                        type: array
+                        items:
+                          type: string
+                      order:
+                        type: integer
+                      ssoEnabled:
+                        type: boolean
+                        default: false
+                      tokenRelay:
+                        type: boolean
+                        default: false
+                      model:
+                        type: object
+                        properties:
+                          requestBody:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                            description: The request body as specified by https://github.com/OAI/OpenAPI-Specification/blob/3.0.1/versions/3.0.1.md#requestBodyObject
+          anyOf:
+            - properties:
+                spec:
+                  required: ["service"]
+            - properties:
+                spec:
+                  properties:
+                    routes:
+                      items:
+                        required: ["uri"]
+
+  scope: Namespaced
+  names:
+    plural: springcloudgatewayrouteconfigs
+    singular: springcloudgatewayrouteconfig
+    kind: SpringCloudGatewayRouteConfig
+    shortNames:
+      - scgrc
+      - scgrcs

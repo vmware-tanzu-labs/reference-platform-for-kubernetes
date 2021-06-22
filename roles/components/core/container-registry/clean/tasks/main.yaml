@@ -1,6 +1,26 @@
 # Copyright 2006-2021 VMware, Inc.
 # SPDX-License-Identifier: MIT
 ---
+- name: "ensure the pod security policy is removed"
+  k8s:
+    state:       "absent"
+    context:     "{{ tanzu_kubectl_context }}"
+    kind:        "PodSecurityPolicy"
+    name:        "harbor-psp"
+    api_version: "policy/v1beta1"
+
+- name: "ensure the cluster-wide rbac resources are removed"
+  k8s:
+    state:   "absent"
+    context: "{{ tanzu_kubectl_context }}"
+    kind:    "{{ item.kind }}"
+    name:    "{{ item.name }}"
+  with_items:
+    - name: "harbor-psp"
+      kind: "ClusterRole"
+    - name: "harbor-psp"
+      kind: "ClusterRoleBinding"
+
 - name: "ensure the namespace is removed"
   import_role:
     name: "common/namespace/clean"

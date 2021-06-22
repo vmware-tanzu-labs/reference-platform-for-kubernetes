@@ -5,6 +5,7 @@
   - [Cluster Sizing Requirements](#cluster-sizing-requirements)
   - [Supported Installations](#supported-installations)
   - [Administrative Access](#administrative-access)
+  - [SELinux](#selinux)
   - [Cloud Provider Specific Steps](#cloud-provider-specific-steps)
 
 ## TKG Installation
@@ -41,10 +42,14 @@ RPK should technically work against most flavors of Kubernetes, however it has l
 platform.  The following table outlines the common supported installations of RPK that have been tested.  Other variations
 may work:
 
-| ---- | ------ |
-| Kubernetes Versions | 1.16 thru 1.20 |
-| CNI Plugin | Antrea or Calico |
-| TKG Versions | 1.1 thru 1.3 |
+| Component    | Supported Versions |
+| ------------ | ------------------ |
+| Kubernetes   | 1.16 thru 1.20     |
+| CNI Plugin   | Antrea or Calico   |
+| TKG Versions | 1.1 thru 1.3       |
+
+**NOTE:** if using the identity module with TKG1.3+, you will need to ensure that the native Dex/Gangway/Pinniped/LDAP/OIDC
+integration is not setup during deployment time.  There is a conflict that is not supported at this time.
 
 ## Administrative Access
 
@@ -54,6 +59,14 @@ first TKG workload cluster in the previous step, you will need to ensure that yo
 `tkg get credentials <my_cluster_name>` command to ensure that the context exists for your TKG
 workload cluster in your kubeconfig file.
 
+## SELinux
+
+Currently, there is no support for SELinux within RPK.  You must have your system in either `Permissive` mode
+or set to not enforcing.  To set SELinux to non-enforcing mode for use with RPK, you can run the command:
+
+```bash
+setenforce 0
+```
 
 ## Cloud Provider Specific Steps
 

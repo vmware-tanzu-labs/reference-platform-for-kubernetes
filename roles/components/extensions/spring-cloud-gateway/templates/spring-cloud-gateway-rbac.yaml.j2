@@ -4,134 +4,115 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: spring-cloud-gateway-cluster-role
+  name: scg-operator-resources-role
   labels:
-    rpk.heritage: "true"
-    rpk.module : "{{ tanzu_spring_cloud_gateway.module }}"
-    rpk.resource: "spring-cloud-gateway-cluster-role"
+    app.kubernetes.io/name: spring-cloud-gateway
+    app.kubernetes.io/instance: spring-cloud-gateway
+    app.kubernetes.io/version: "v1.0.0"
+    app.kubernetes.io/part-of: spring-cloud-gateway
 rules:
-  - apiGroups:
-      - tanzu.vmware.com
-    resources:
-      - springcloudgateways
-      - springcloudgatewaybindings
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - patch
-      - delete
-  - apiGroups:
-      - ""
-    resources:
-      - services
-    verbs:
-      - get
+- apiGroups:
+  - tanzu.vmware.com
+  resources:
+  - springcloudgateways
+  - springcloudgatewaymappings
+  - springcloudgatewayrouteconfigs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+- apiGroups:
+    - "tanzu.vmware.com"
+  resources:
+    - springcloudgateways/status
+    - springcloudgatewaymappingss/status
+    - springcloudgatewayrouteconfigs/status
+  verbs:
+    - patch
+- apiGroups:
+    - "" # "" indicates the core API group
+  resources:
+    - pods/status
+  verbs:
+    - patch
+- apiGroups:
+  - "" # "" indicates the core API group
+  resources:
+  - pods
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - "" # "" indicates the core API group
+  resources:
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+
+- apiGroups:
+  - "" # "" indicates the core API group
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+
+- apiGroups:
+  - "events.k8s.io"
+  resources:
+  - events
+  verbs:
+  - create
+
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
 
 ---
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: spring-cloud-gateway-role
-  namespace: {{ tanzu_spring_cloud_gateway.namespace }}
-  labels:
-    rpk.heritage: "true"
-    rpk.module : "{{ tanzu_spring_cloud_gateway.module }}"
-    rpk.resource: "spring-cloud-gateway-role"
-rules:
-  - apiGroups:
-      - "" # "" indicates the core API group
-    resources:
-      - configmaps
-      - services
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - patch
-      - delete
-  - apiGroups:
-      - "" # "" indicates the core API group
-    resources:
-      - pods
-    verbs:
-      - list
-  - apiGroups:
-      - "" # "" indicates the core API group
-    resources:
-      - secrets
-    verbs:
-      - get
-      - list
-  - apiGroups:
-      - "" # "" indicates the core API group
-    resources:
-      - events
-    verbs:
-      - create
-
-  - apiGroups:
-      - apps
-    resources:
-      - deployments
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - patch
-      - delete
-  - apiGroups:
-      - networking.k8s.io
-    resources:
-      - ingresses
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - patch
-      - delete
-
----
-apiVersion: rbac.authorization.k8s.io/v1
+aapiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: spring-cloud-gateway-cluster-role-for-scg-reconciler
+  name: scg-operator-resources-role-binding
   labels:
-    rpk.heritage: "true"
-    rpk.module : "{{ tanzu_spring_cloud_gateway.module }}"
-    rpk.resource: "spring-cloud-gateway-role-binding"
+    app.kubernetes.io/name: spring-cloud-gateway
+    app.kubernetes.io/instance: spring-cloud-gateway
+    app.kubernetes.io/version: "v1.0.0"
+    app.kubernetes.io/part-of: spring-cloud-gateway
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: spring-cloud-gateway-cluster-role
+  name: scg-operator-resources-role
 subjects:
-  - kind: ServiceAccount
-    name: default
-    namespace: {{ tanzu_spring_cloud_gateway.namespace }}
-
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: spring-cloud-gateway-role-for-scg-reconciler
+- kind: ServiceAccount
+  name: spring-cloud-gateway
   namespace: {{ tanzu_spring_cloud_gateway.namespace }}
-  labels:
-    rpk.heritage: "true"
-    rpk.module : "{{ tanzu_spring_cloud_gateway.module }}"
-    rpk.resource: "spring-cloud-gateway-role-binding"
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: spring-cloud-gateway-role
-subjects:
-  - kind: ServiceAccount
-    name: default
-    namespace: {{ tanzu_spring_cloud_gateway.namespace }}

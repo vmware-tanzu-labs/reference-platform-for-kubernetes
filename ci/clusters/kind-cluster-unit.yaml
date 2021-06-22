@@ -24,7 +24,7 @@ all:
         tanzu_networking_ipip_mode:      "Always"
         tanzu_admission_control_enabled: false
         tanzu_dashboard_enabled:         false
-        tanzu_dns_provider:              "xip.io"
+        tanzu_dns_provider:              "nip.io"
         # TODO: this always fails in KIND; skip when unit testing
         tanzu_security:
           actions:
@@ -33,7 +33,7 @@ all:
         kind_tanzu_cluster1:
           tanzu_kubectl_context:               "kind-rpk-kind"
           tanzu_cluster_name:                  "kind-rpk"
-          tanzu_ingress_domain:                "127.0.0.1.xip.io"
+          tanzu_ingress_domain:                "127.0.0.1.nip.io"
           ingress_ip:                          "127.0.0.1"
           tanzu_mission_control_cluster_group: "rpk-clusters"
           tanzu_storage_classes_kind: []

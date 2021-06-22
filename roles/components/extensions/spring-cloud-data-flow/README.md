@@ -137,7 +137,7 @@ statefulset.apps/rabbitmq     1/1     10m
 kubectl get ingress -n tanzu-spring-cloud-data-flow
 
 NAME           CLASS    HOSTS                                          ADDRESS   PORTS   AGE
-scdf-ingress   <none>   spring-cloud-data-flow-demo.127.0.0.1.xip.io             80      89s
+scdf-ingress   <none>   spring-cloud-data-flow-demo.127.0.0.1.nip.io             80      89s
 
 ```
 

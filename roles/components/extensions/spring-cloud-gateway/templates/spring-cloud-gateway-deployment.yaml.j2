@@ -4,39 +4,43 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: scg-reconciler
+  name: scg-operator
   namespace: {{ tanzu_spring_cloud_gateway.namespace }}
   labels:
-    app.kubernetes.io/name: 'scg-reconciler'
-    rpk.heritage: "true"
-    rpk.module : "{{ tanzu_spring_cloud_gateway.module }}"
-    rpk.resource: "job-registry-auth-config"
+    app.kubernetes.io/name: spring-cloud-gateway
+    app.kubernetes.io/instance: spring-cloud-gateway
+    app.kubernetes.io/version: "v1.0.0"
+    app.kubernetes.io/part-of: spring-cloud-gateway
 spec:
+  replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: scg-reconciler
+      app: scg-operator
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: 'scg-reconciler'
+        app: 'scg-operator'
     spec:
-      serviceAccountName: default
+      serviceAccountName: spring-cloud-gateway
       imagePullSecrets:
-        - name: harborsecrets
+        - name: spring-cloud-gateway-image-pull-secret
       containers:
-        - name: scg-reconciler
-          image: "{{ tanzu_container_registry.core.dns +'/'+ tanzu_spring_cloud_gateway.registry.project.project_name + '/scg-reconciler:' + tanzu_spring_cloud_gateway.registry.destination_tag }} ##dev.registry.pivotal.io/spring-cloud-gateway/scg-reconciler"
+        - name: scg-operator
+          image: {{ tanzu_container_registry.core.dns +'/'+ tanzu_spring_cloud_gateway.registry.project.project_name + '/scg-operator:' + tanzu_spring_cloud_gateway.registry.destination_tag }} ##dev.registry.pivotal.io/spring-cloud-gateway/scg-reconciler
+          imagePullPolicy: IfNotPresent
           env:
-            - name: gateway.image.name
+            - name: OPERATOR_GATEWAY_IMAGE_NAME
               value: {{ tanzu_container_registry.core.dns +'/'+ tanzu_spring_cloud_gateway.registry.project.project_name + '/gateway:' + tanzu_spring_cloud_gateway.registry.destination_tag }} ##dev.registry.pivotal.io/spring-cloud-gateway/gateway
-            - name: reconciler.namespace
+            - name: OPERATOR_INSTALL_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            - name: OPERATOR_IMAGE_PULL_SECRET_NAME
+              value: spring-cloud-gateway-image-pull-secret
           resources:
             requests:
               memory: "256Mi"
-              cpu: "100m"
+              cpu: "500m"
             limits:
               memory: "512Mi"
-              cpu: "500m"
+              cpu: "1"

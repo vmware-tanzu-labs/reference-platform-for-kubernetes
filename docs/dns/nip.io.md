@@ -1,6 +1,6 @@
-# xip.io Instructions
+# nip.io Instructions
 
-> Some DNS servers / routers have **Rebind protection - Discard upstream RFC1918 responses** which will block xip.io and similar domains from resolving local IP addresses. You may need to check your router (or dnsmasq) configuration to disable that setting if you can't resolve addresses for your local network.
+> Some DNS servers / routers have **Rebind protection - Discard upstream RFC1918 responses** which will block nip.io and similar domains from resolving local IP addresses. You may need to check your router (or dnsmasq) configuration to disable that setting if you can't resolve addresses for your local network.
 
 This is the easiest way to solve it, but it does rely on an external service, so might be an issue in a firewalled environment.
 
@@ -60,7 +60,7 @@ You can get the real IP of your system using something similar to `hostname -I |
   ingress_ip: 3.18.48.175
   ```
 
-6. Set `tanzu_ingress_domain=3.18.48.175.xip.io` in your `build/inventory.yaml` (using the IP from above)
+6. Set `tanzu_ingress_domain=3.18.48.175.nip.io` in your `build/inventory.yaml` (using the IP from above)
 
 1. [Deploy RPK](../QUICKSTART.md#deploy)
 
