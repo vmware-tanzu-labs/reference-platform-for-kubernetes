@@ -1,6 +1,10 @@
 # Copyright 2006-2021 VMware, Inc.
 # SPDX-License-Identifier: MIT
 ---
+- name: "get the ingress ip"
+  import_role:
+    name: "common/ingress-ip"
+
 - name: "wait for dns"
   import_role:
     name: "common/wait-for-dns"
