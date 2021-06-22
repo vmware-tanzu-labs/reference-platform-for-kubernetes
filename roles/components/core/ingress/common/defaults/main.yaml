@@ -78,7 +78,7 @@ tanzu_ingress:
     resource_name: "external-dns"
     provider:      "{{ tanzu_dns_provider | default('internal') }}"
     supported_providers:
-      - "xip.io"
+      - "nip.io"
       - "internal"
       - "route53"
       - "azure"

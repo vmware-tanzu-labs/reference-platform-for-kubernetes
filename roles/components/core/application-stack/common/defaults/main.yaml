@@ -146,5 +146,5 @@ tanzu_app_stack:
   # demo
   demo:
     traffic_app_name: "tanzu-app-stack-traffic"
-    traffic_rate:     "50"
-    traffic_duration: "300s"
+    traffic_rate:     "25"
+    traffic_duration: "100s"

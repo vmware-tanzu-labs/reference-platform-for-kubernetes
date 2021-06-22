@@ -3,7 +3,7 @@
 #
 # RUN
 #
-FROM projects.registry.vmware.com/rpk/rpk-base:v1.4.0
+FROM projects.registry.vmware.com/rpk/rpk-base:v1.4.3
 
 # update the image
 RUN apk update && apk add bash bind-tools openssl --no-cache
