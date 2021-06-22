@@ -1,5 +1,5 @@
 # base version of ansible
-ansible==2.9.10
+ansible==2.9.20
 
 # required for k8s ansible module
 openshift==0.11.1

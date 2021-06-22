@@ -5,9 +5,9 @@
 
 # image build vars
 IMAGE ?= projects.registry.vmware.com/rpk/rpk
-IMAGE_VERSION ?= v1.4.4
+IMAGE_VERSION ?= v1.4.5
 IMAGE_BASE ?= projects.registry.vmware.com/rpk/rpk-base
-IMAGE_BASE_VERSION ?= v1.4.2
+IMAGE_BASE_VERSION ?= v1.4.3
 
 # rpk vars
 INVENTORY ?= `pwd`/build/inventory.yaml
