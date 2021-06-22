@@ -65,7 +65,7 @@ spec:
       # create kubernetes manifests host path from master
       restartPolicy: Never
       containers:
-      - image: gerritk/ytt:v0.30.0
+      - image: projects.registry.vmware.com/rpk/ytt:v0.30.0
         name: kube-apiserver-config
         env:
         - name: UPDATE_K8S_CA

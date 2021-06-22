@@ -1,0 +1,13 @@
+# Copyright 2006-2021 VMware, Inc.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: spring-cloud-gateway
+  namespace: {{ tanzu_spring_cloud_gateway.namespace }}
+  labels:
+    app.kubernetes.io/name: spring-cloud-gateway
+    app.kubernetes.io/instance: spring-cloud-gateway
+    app.kubernetes.io/version: "v1.0.0"
+    app.kubernetes.io/part-of: spring-cloud-gateway

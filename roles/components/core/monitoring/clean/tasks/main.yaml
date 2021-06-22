@@ -24,6 +24,14 @@
     name:        "v1beta1.metrics.k8s.io"
     api_version: "apiregistration.k8s.io/v1"
 
+- name: "ensure the pod security policy is removed"
+  k8s:
+    state:       "absent"
+    context:     "{{ tanzu_kubectl_context }}"
+    kind:        "PodSecurityPolicy"
+    name:        "node-exporter-psp"
+    api_version: "policy/v1beta1"
+
 - name: "ensure the namespace is removed"
   import_role:
     name: "common/namespace/clean"
@@ -43,6 +51,10 @@
       kind: "ClusterRoleBinding"
     - name: "grafana-role"
       kind: "ClusterRole"
+    - name: "node-exporter-psp"
+      kind: "ClusterRole"
+    - name: "node-exporter"
+      kind: "ClusterRole"
     - name: "grafana-rolebinding"
       kind: "ClusterRoleBinding"
     - name: "prometheus-adapter"
@@ -56,4 +68,8 @@
     - name: "prometheus-operator"
       kind: "ClusterRole"
     - name: "prometheus-operator"
+      kind: "ClusterRoleBinding"
+    - name: "node-exporter"
+      kind: "ClusterRoleBinding"
+    - name: "node-exporter-psp"
       kind: "ClusterRoleBinding"
