@@ -19,7 +19,7 @@ The following test scenarios are covered by the CI/CD Pipeline:
 | HA Control Plane   | Yes     | No       | N/A    | N/A   |                                                                                  |
 | CNI                | Calico  | Antrea   | Calico | N/A   |                                                                                  |
 | Minimal Resources  | No      | Yes      | N/A    | N/A   | VMware clusters should test the minimal deployment size.                         |
-| DNS Provider       | route53 | internal | xip.io | N/A   | Different DNS providers as per the `tanzu_dns_provider` option are tested.       |
+| DNS Provider       | route53 | internal | nip.io | N/A   | Different DNS providers as per the `tanzu_dns_provider` option are tested.       |
 
 ## Stages
 

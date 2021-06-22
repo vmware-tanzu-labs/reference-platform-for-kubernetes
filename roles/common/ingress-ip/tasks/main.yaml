@@ -77,9 +77,14 @@
     var:       ingress_ip
     verbosity: 2
 
-- when: tanzu_ingress_domain == "xip.io"
+- name: "backwards compatibility for xip.io to nip.io"
+  set_fact:
+    tanzu_ingress_domain: "nip.io"
+  when: tanzu_ingress_domain == "xip.io"
+
+- when: tanzu_ingress_domain == "nip.io"
   block:
-    - name: set ingress domain when using dynamic ip provider
+    - name: "set ingress domain when using dynamic ip provider"
       set_fact:
         tanzu_ingress_domain: "{{ ingress_ip }}.{{ tanzu_ingress_domain }}"
 

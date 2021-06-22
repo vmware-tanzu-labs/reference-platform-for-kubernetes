@@ -57,7 +57,7 @@ all:
         tanzu_networking_ipip_mode:      "Always"
         tanzu_admission_control_enabled: false
         tanzu_dashboard_enabled:         false
-        tanzu_dns_provider:              "none"  # internal, route53, xip.io, and none supported
+        tanzu_dns_provider:              "none"  # internal, route53, nip.io, and none supported
       hosts:
         kind_tanzu_cluster1:
           #
@@ -69,7 +69,7 @@ all:
           rpk_demo:                            false
           # on most linux systems you can change the ingress_domain to be `localhost.localdomain`
           # to avoid the external lookup.
-          tanzu_ingress_domain:                "127.0.0.1.xip.io"
+          tanzu_ingress_domain:                "127.0.0.1.nip.io"
           ingress_ip:                          "127.0.0.1"
           tanzu_mission_control_cluster_group: "rpk-clusters"
           tanzu_storage_classes_kind: []

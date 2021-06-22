@@ -54,7 +54,7 @@ all:
     aws_clusters:
       vars:
         tanzu_provider:     "aws"
-        tanzu_dns_provider: "route53"  # internal, route53, xip.io, and none supported
+        tanzu_dns_provider: "route53"  # internal, route53, nip.io, and none supported
       hosts:
         aws_tanzu_cluster1:
           #
