@@ -14,6 +14,10 @@ The following sizing requirements must be met for this role to operate properly.
 | --- | --- | --- |
 | 1 | 1.5Gi | N/A |
 
+## Additional Requirements
+
+If using the identity module with TKG1.3+, you will need to ensure that the native Dex/Gangway/Pinniped/LDAP/OIDC
+integration is not setup during deployment time.  There is a conflict that is not supported at this time.
 
 ## Variables
 

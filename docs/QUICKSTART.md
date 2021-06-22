@@ -47,6 +47,9 @@ may work:
 | CNI Plugin | Antrea or Calico |
 | TKG Versions | 1.1 thru 1.3 |
 
+**NOTE:** if using the identity module with TKG1.3+, you will need to ensure that the native Dex/Gangway/Pinniped/LDAP/OIDC
+integration is not setup during deployment time.  There is a conflict that is not supported at this time.
+
 ## Administrative Access
 
 Once your TKG workload cluster is deployed, you will need to ensure that your kubeconfig file, (located at
