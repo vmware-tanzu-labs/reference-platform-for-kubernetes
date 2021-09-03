@@ -185,33 +185,33 @@ data:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ tanzu_secrets.hashicorp_vault.config_job.name }}
-  namespace: {{ tanzu_secrets.namespace }}
+  name: "{{ tanzu_secrets.hashicorp_vault.config_job.name }}"
+  namespace: "{{ tanzu_secrets.namespace }}"
   labels:
-    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.config_job.name }}
+    app.kubernetes.io/name: "{{ tanzu_secrets.hashicorp_vault.config_job.name }}"
 spec:
   activeDeadlineSeconds: 600
   backoffLimit: 0
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.config_job.name }}
+        app.kubernetes.io/name: "{{ tanzu_secrets.hashicorp_vault.config_job.name }}"
     spec:
       restartPolicy: Never
       securityContext:
         runAsUser: 1000
         fsGroup: 1000
         runAsNonRoot: true
-      serviceAccountName: {{ tanzu_secrets.hashicorp_vault.config_job.name }}
+      serviceAccountName: "{{ tanzu_secrets.hashicorp_vault.config_job.name }}"
       containers:
         - image: projects.registry.vmware.com/rpk/rpk-job-runner:v1.0.11
           name: rpk-job-runner
           envFrom:
             - secretRef:
-                name: {{ tanzu_secrets.hashicorp_vault.config_job.vars_secret }}
+                name: "{{ tanzu_secrets.hashicorp_vault.config_job.vars_secret }}"
           volumeMounts:
             - mountPath: /ansible/site.yaml
-              name: {{ tanzu_secrets.hashicorp_vault.config_job.playbook_config_map }}
+              name: "{{ tanzu_secrets.hashicorp_vault.config_job.playbook_config_map }}"
               readOnly: true
               subPath: site.yaml
           resources:
@@ -222,6 +222,6 @@ spec:
               cpu: "1000m"
               memory: "128Mi"
       volumes:
-        - name: {{ tanzu_secrets.hashicorp_vault.config_job.playbook_config_map }}
+        - name: "{{ tanzu_secrets.hashicorp_vault.config_job.playbook_config_map }}"
           configMap:
-            name: {{ tanzu_secrets.hashicorp_vault.config_job.playbook_config_map }}
+            name: "{{ tanzu_secrets.hashicorp_vault.config_job.playbook_config_map }}"
