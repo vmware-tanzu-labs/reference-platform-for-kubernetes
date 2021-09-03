@@ -28,7 +28,7 @@ metadata:
     app.kubernetes.io/instance: hashicorp
 data:
   site.yaml: |
-{% raw %}
+    {% raw %}
     ---
     - hosts:        "localhost"
       connection:   "local"
@@ -180,7 +180,7 @@ data:
                 hashicorp_vault_root_token:  "{{ hashicorp_vault_root_token | b64encode }}"
                 hashicorp_vault_unseal_keys: "{{ hashicorp_vault_unseal_keys | b64encode }}"
           no_log: "{{ secure_logging | bool }}"
-{% endraw %}
+    {% endraw %}
 ---
 apiVersion: batch/v1
 kind: Job
