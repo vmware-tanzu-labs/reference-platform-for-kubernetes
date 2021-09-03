@@ -4,27 +4,27 @@
 apiVersion: v1
 kind: Secret
 metadata:
-  name: {{ tanzu_secrets.hashicorp_vault.config_job.vars_secret }}
-  namespace: {{ tanzu_secrets.namespace }}
+  name: "{{ tanzu_secrets.hashicorp_vault.config_job.vars_secret }}"
+  namespace: "{{ tanzu_secrets.namespace }}"
   labels:
-    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.config_job.vars_secret }}
+    app.kubernetes.io/name: "{{ tanzu_secrets.hashicorp_vault.config_job.vars_secret }}"
     app.kubernetes.io/instance: hashicorp
 data:
-  hashicorp_vault_namespace:      {{ tanzu_secrets.namespace | b64encode }}
-  hashicorp_vault_resource_name:  {{ tanzu_secrets.hashicorp_vault.resource_name | b64encode }}
-  hashicorp_vault_policy_name:    {{ tanzu_secrets.hashicorp_vault.policy_name | b64encode }}
-  hashicorp_vault_role_name:      {{ tanzu_secrets.hashicorp_vault.role_name | b64encode }}
-  hashicorp_vault_engine_name:    {{ tanzu_secrets.hashicorp_vault.engine_name | b64encode }}
-  hashicorp_vault_engine_backend: {{ tanzu_secrets.hashicorp_vault.engine_backend | b64encode }}
-  kubernetes_tcp_address:         {{ _kubernetes_tcp_address | b64encode }}
+  hashicorp_vault_namespace:      "{{ tanzu_secrets.namespace | b64encode }}"
+  hashicorp_vault_resource_name:  "{{ tanzu_secrets.hashicorp_vault.resource_name | b64encode }}"
+  hashicorp_vault_policy_name:    "{{ tanzu_secrets.hashicorp_vault.policy_name | b64encode }}"
+  hashicorp_vault_role_name:      "{{ tanzu_secrets.hashicorp_vault.role_name | b64encode }}"
+  hashicorp_vault_engine_name:    "{{ tanzu_secrets.hashicorp_vault.engine_name | b64encode }}"
+  hashicorp_vault_engine_backend: "{{ tanzu_secrets.hashicorp_vault.engine_backend | b64encode }}"
+  kubernetes_tcp_address:         "{{ _kubernetes_tcp_address | b64encode }}"
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ tanzu_secrets.hashicorp_vault.config_job.playbook_config_map }}
-  namespace: {{ tanzu_secrets.namespace }}
+  name: "{{ tanzu_secrets.hashicorp_vault.config_job.playbook_config_map }}"
+  namespace: "{{ tanzu_secrets.namespace }}"
   labels:
-    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.config_job.playbook_config_map }}
+    app.kubernetes.io/name: "{{ tanzu_secrets.hashicorp_vault.config_job.playbook_config_map }}"
     app.kubernetes.io/instance: hashicorp
 data:
   site.yaml: |
