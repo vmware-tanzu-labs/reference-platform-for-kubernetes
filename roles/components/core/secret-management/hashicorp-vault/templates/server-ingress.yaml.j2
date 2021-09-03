@@ -5,12 +5,12 @@ apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
   name: hashicorp-vault
-  namespace: {{ tanzu_secrets.namespace }}
+  namespace: "{{ tanzu_secrets.namespace }}"
   annotations:
     external-dns.alpha.kubernetes.io/target: "{{ tanzu_ingress.dns }}"
 spec:
   rules:
-    - host: {{ tanzu_secrets.dns }}
+    - host: "{{ tanzu_secrets.dns }}"
       http:
         paths:
           - path: /

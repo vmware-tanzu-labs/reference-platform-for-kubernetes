@@ -4,10 +4,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
-  namespace: {{ tanzu_secrets.namespace }}
+  name: "{{ tanzu_secrets.hashicorp_vault.resource_name }}"
+  namespace: "{{ tanzu_secrets.namespace }}"
   labels:
-    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+    app.kubernetes.io/name: "{{ tanzu_secrets.hashicorp_vault.resource_name }}"
     app.kubernetes.io/instance: hashicorp
 data:
   extraconfig-from-values.hcl: |-
@@ -36,10 +36,10 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ tanzu_secrets.hashicorp_vault.init_script }}
-  namespace: {{ tanzu_secrets.namespace }}
+  name: "{{ tanzu_secrets.hashicorp_vault.init_script }}"
+  namespace: "{{ tanzu_secrets.namespace }}"
   labels:
-    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+    app.kubernetes.io/name: "{{ tanzu_secrets.hashicorp_vault.resource_name }}"
     app.kubernetes.io/instance: hashicorp
 data:
   init-script.sh: |
