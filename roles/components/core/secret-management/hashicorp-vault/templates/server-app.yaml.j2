@@ -5,10 +5,10 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: hashicorp-vault
-  namespace: {{ tanzu_secrets.namespace }}
+  namespace: "{{ tanzu_secrets.namespace }}"
   labels:
     app.kubernetes.io/name: hashicorp-vault
-    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+    app.kubernetes.io/name: "{{ tanzu_secrets.hashicorp_vault.resource_name }}"
     app.kubernetes.io/instance: hashicorp
 spec:
   serviceName: hashicorp-vault-internal
@@ -19,14 +19,14 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: hashicorp-vault
-      app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+      app.kubernetes.io/name: "{{ tanzu_secrets.hashicorp_vault.resource_name }}"
       app.kubernetes.io/instance: hashicorp
       component: server
   template:
     metadata:
       labels:
         app.kubernetes.io/name: hashicorp-vault
-        app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+        app.kubernetes.io/name: "{{ tanzu_secrets.hashicorp_vault.resource_name }}"
         app.kubernetes.io/instance: hashicorp
         component: server
     spec:
@@ -36,12 +36,12 @@ spec:
             - labelSelector:
                 matchLabels:
                   app.kubernetes.io/name: hashicorp-vault
-                  app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+                  app.kubernetes.io/name: "{{ tanzu_secrets.hashicorp_vault.resource_name }}"
                   app.kubernetes.io/instance: "hashicorp"
                   component: server
               topologyKey: kubernetes.io/hostname
       terminationGracePeriodSeconds: 10
-      serviceAccountName: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+      serviceAccountName: "{{ tanzu_secrets.hashicorp_vault.resource_name }}"
       securityContext:
         runAsNonRoot: true
         runAsGroup: 1000
@@ -50,15 +50,15 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+            name: "{{ tanzu_secrets.hashicorp_vault.resource_name }}"
         - name: home
           emptyDir: {}
         - name: init-script
           configMap:
-            name: {{ tanzu_secrets.hashicorp_vault.init_script }}
+            name: "{{ tanzu_secrets.hashicorp_vault.init_script }}"
             defaultMode: 0750
       containers:
-        - name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+        - name: "{{ tanzu_secrets.hashicorp_vault.resource_name }}"
           image: "{{ tanzu_secrets.hashicorp_vault.image }}:{{ tanzu_secrets.hashicorp_vault.image_tag }}"
           imagePullPolicy: IfNotPresent
           command:
@@ -167,9 +167,9 @@ apiVersion: v1
 kind: Service
 metadata:
   name: hashicorp-vault
-  namespace: {{ tanzu_secrets.namespace }}
+  namespace: "{{ tanzu_secrets.namespace }}"
   labels:
-    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+    app.kubernetes.io/name: "{{ tanzu_secrets.hashicorp_vault.resource_name }}"
     app.kubernetes.io/instance: hashicorp
   annotations:
     service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
@@ -184,6 +184,6 @@ spec:
       port: 8201
       targetPort: 8201
   selector:
-    app.kubernetes.io/name: {{ tanzu_secrets.hashicorp_vault.resource_name }}
+    app.kubernetes.io/name: "{{ tanzu_secrets.hashicorp_vault.resource_name }}"
     app.kubernetes.io/instance: hashicorp
     component: server
