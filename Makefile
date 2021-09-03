@@ -5,7 +5,7 @@
 
 # image build vars
 IMAGE ?= projects.registry.vmware.com/rpk/rpk
-IMAGE_VERSION ?= v1.4.6
+IMAGE_VERSION ?= v1.4.7
 IMAGE_BASE ?= projects.registry.vmware.com/rpk/rpk-base
 IMAGE_BASE_VERSION ?= v1.4.3
 
